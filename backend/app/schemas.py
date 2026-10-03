@@ -243,17 +243,31 @@ class SourceExtractionRequest(BaseModel):
 
 
 class ExtractedStatement(BaseModel):
-    client_ref: str = Field(pattern=r"^[A-Za-z][A-Za-z0-9_-]{0,127}$")
+    client_ref: str = Field(
+        pattern=r"^[A-Za-z][A-Za-z0-9_-]{0,127}$",
+        description="A short label you choose for this statement (such as s1), unique here.",
+    )
     text: str = Field(min_length=1)
     assertion_mode: AssertionMode
     role: StatementRole | None = None
-    excerpt_ids: list[uuid.UUID] = Field(min_length=1)
+    excerpt_ids: list[uuid.UUID] = Field(
+        min_length=1,
+        description="IDs of the supplied source excerpts that contain this statement.",
+    )
 
 
 class ExtractedReasoningStep(BaseModel):
-    client_ref: str = Field(pattern=r"^[A-Za-z][A-Za-z0-9_-]{0,127}$")
-    premise_refs: list[str] = Field(min_length=1)
-    conclusion_ref: str
+    client_ref: str = Field(
+        pattern=r"^[A-Za-z][A-Za-z0-9_-]{0,127}$",
+        description="A short label you choose for this step, such as r1.",
+    )
+    premise_refs: list[str] = Field(
+        min_length=1,
+        description="client_ref values of statements in this same result. Never excerpt IDs.",
+    )
+    conclusion_ref: str = Field(
+        description="The client_ref of a statement in this same result. Never an excerpt ID."
+    )
     explanation: str = Field(min_length=1)
 
 

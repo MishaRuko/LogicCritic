@@ -1,5 +1,6 @@
 import hashlib
 import json
+import re
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -15,7 +16,11 @@ from app.services.amass import BIOMEDCORE, AmassClient, AmassError, BiomedRecord
 from app.services.source_store import DuplicateSource, NewSource, store_source
 from app.services.text_ingestion import ParsedExcerpt, parse_structured_text
 
-PARSER = "amass_biomedcore_v1"
+PARSER = "amass_biomedcore_v2"
+MAX_EXCERPT_CHARS = 1500
+# A structured-abstract heading on its own line: "BACKGROUND:", "PATIENTS AND METHODS:".
+ABSTRACT_HEADING = re.compile(r"^[A-Z][A-Z &/,-]{2,50}:$")
+SENTENCE_BREAK = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9(\[])")
 INTEGRATION_PROVENANCE = {"actor_type": "integration", "actor_id": "amass"}
 RETRACTION_REASON = (
     "Amass reports this publication as retracted, based on PubMed retraction notices."
@@ -71,8 +76,67 @@ def record_to_excerpts(record: BiomedRecord) -> list[ParsedExcerpt]:
         if not value or not value.strip():
             continue
         for item in parse_structured_text(value):
-            add(item.text, field, int(item.locator["start"]), item.locator.get("section"))
+            section = item.locator.get("section")
+            for text, start, label in split_block(item.text, int(item.locator["start"]), section):
+                add(text, field, start, label)
     return excerpts
+
+
+def split_block(text: str, start: int, section: str | None) -> list[tuple[str, int, str | None]]:
+    """Cut a long block into excerpts of at most MAX_EXCERPT_CHARS, keeping exact offsets.
+
+    Abstracts use single line breaks, not blank lines, so a whole structured abstract (and any
+    retraction notice appended to it) would otherwise be one excerpt that every claim cites.
+    Splits fall on a heading line, then a line break, then a sentence boundary. A heading such
+    as "RESULTS:" becomes the section label of the excerpts under it.
+    """
+    if len(text) <= MAX_EXCERPT_CHARS:
+        return [(text, start, section)]
+
+    pieces: list[tuple[int, int, str | None]] = []  # (offset, end, section) within `text`
+    offset = 0
+    for line in text.split("\n"):
+        line_end = offset + len(line)
+        stripped = line.strip()
+        if ABSTRACT_HEADING.match(stripped):
+            section = stripped.rstrip(":").title()
+            pieces.append((offset, line_end, section))  # a heading line, merged below
+        elif stripped:
+            for a, b in _sentence_spans(line, offset):
+                pieces.append((a, b, section))
+        offset = line_end + 1
+
+    excerpts: list[tuple[str, int, str | None]] = []
+    group: list[tuple[int, int, str | None]] = []
+
+    def flush() -> None:
+        if group:
+            first, last = group[0][0], group[-1][1]
+            body = text[first:last]
+            # drop a heading that is the group's only content
+            if body.strip() and not ABSTRACT_HEADING.match(body.strip()):
+                excerpts.append((body, start + first, group[-1][2]))
+            group.clear()
+
+    for piece in pieces:
+        heading = ABSTRACT_HEADING.match(text[piece[0] : piece[1]].strip())
+        if group and (heading or piece[1] - group[0][0] > MAX_EXCERPT_CHARS):
+            flush()
+        group.append(piece)
+    flush()
+    return excerpts
+
+
+def _sentence_spans(line: str, offset: int) -> list[tuple[int, int]]:
+    """A line, or sentence-sized pieces of it when it is longer than one excerpt."""
+    if len(line) <= MAX_EXCERPT_CHARS:
+        return [(offset, offset + len(line))]
+    spans, cursor = [], 0
+    for match in SENTENCE_BREAK.finditer(line):
+        spans.append((offset + cursor, offset + match.start()))
+        cursor = match.end()
+    spans.append((offset + cursor, offset + len(line)))
+    return spans
 
 
 def content_fingerprint(record: BiomedRecord) -> str:

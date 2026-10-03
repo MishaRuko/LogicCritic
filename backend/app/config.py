@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     upload_dir: str = "/data/uploads"
     max_upload_bytes: int = 10 * 1024 * 1024
     claude_api_key: str | None = None
-    claude_model: str = "claude-sonnet-4-5-20250929"
+    claude_model: str = "claude-sonnet-5"
     max_extraction_context_chars: int = 12_000
     extraction_worker_poll_seconds: float = 1.0
     extraction_max_attempts: int = 3

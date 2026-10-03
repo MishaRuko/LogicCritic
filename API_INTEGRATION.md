@@ -34,7 +34,7 @@ Each relation has metadata shaped as:
   "generator_rationale": "Why the first pass proposed the link",
   "audit_verdict": "supported | needs_review",
   "audit_rationale": "Evidence-only second-pass assessment",
-  "model": "claude-sonnet-4-5-20250929"
+  "model": "claude-sonnet-5"
 }
 ```
 

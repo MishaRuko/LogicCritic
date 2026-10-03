@@ -29,7 +29,7 @@ services:
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       UPLOAD_DIR: ${UPLOAD_DIR:-/data/uploads}
       CLAUDE_API_KEY: ${CLAUDE_API_KEY:-}
-      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-sonnet-4-5-20250929}
+      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-sonnet-5}
       AMASS_API_KEY: ${AMASS_API_KEY:-}
       JWT_SECRET: ${JWT_SECRET:-change-me-before-deploying}
     depends_on:
@@ -57,7 +57,7 @@ services:
       POSTGRES_URL: ${POSTGRES_URL:-postgresql://${POSTGRES_USER:-logiccritic}:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-logiccritic}}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       CLAUDE_API_KEY: ${CLAUDE_API_KEY:-}
-      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-sonnet-4-5-20250929}
+      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-sonnet-5}
       JWT_SECRET: ${JWT_SECRET:-change-me-before-deploying}
     depends_on:
       api:

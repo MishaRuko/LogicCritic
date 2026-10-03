@@ -138,7 +138,7 @@ async def test_import_by_amass_id_creates_an_amass_source_with_located_excerpts(
     )
     assert source["title"] == "Compound X in a mouse model"
     assert source["external_ids"] == {"amass_id": "AMBC_1", "pmid": "111", "doi": "10.1000/x1"}
-    assert source["metadata"]["parser"] == "amass_biomedcore_v1"
+    assert source["metadata"]["parser"] == "amass_biomedcore_v2"
     assert (
         source["metadata"]["fulltext_imported"] is True
         and source["metadata"]["journal"] == "Journal of Examples"

@@ -13,6 +13,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.models import Excerpt, GraphEdge, GraphEvent, Source, Statement, StatementExcerpt
 from app.schemas import SynthesisRequest, SynthesisResponse
+from app.services.claude_errors import describe_claude_failure, ensure_complete
+from app.services.claude_tools import strict_tool
 
 
 class ProposedLink(BaseModel):
@@ -49,25 +51,21 @@ async def _tool_output(
                 headers={"x-api-key": settings.claude_api_key, "anthropic-version": "2023-06-01"},
                 json={
                     "model": model,
-                    "max_tokens": 4096,
+                    "max_tokens": 8192,
                     "system": system,
                     "messages": [{"role": "user", "content": json.dumps(content)}],
-                    "tools": [
-                        {
-                            "name": name,
-                            "description": "Return the requested structured result.",
-                            "input_schema": schema.model_json_schema(),
-                        }
-                    ],
+                    "tools": [strict_tool(name, "Return the requested structured result.", schema)],
                     "tool_choice": {"type": "tool", "name": name},
                 },
             )
             response.raise_for_status()
+            ensure_complete(response.json(), "synthesis")
         tool = next(item for item in response.json()["content"] if item["type"] == "tool_use")
         return schema.model_validate(tool["input"])
     except (httpx.HTTPError, KeyError, StopIteration, TypeError, ValueError) as error:
         raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY, detail="Claude synthesis request failed"
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Claude synthesis request failed. {describe_claude_failure(error)}".strip(),
         ) from error
 
 

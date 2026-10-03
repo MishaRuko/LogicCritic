@@ -15,6 +15,8 @@ from app.schemas import (
     SourceExtractionRequest,
     StatementCreateOperation,
 )
+from app.services.claude_errors import describe_claude_failure, ensure_complete
+from app.services.claude_tools import strict_input_schema, strict_tool
 from app.services.graph_patches import GraphPatchExecutor, graph_patch_response_from_event
 
 PROMPT_VERSION = "source_extraction_v2"
@@ -38,8 +40,27 @@ EXTRACTION_SYSTEM_PROMPT = (
 )
 
 
+EXTRACTION_MAX_TOKENS = 16000
+EXTRACTION_TIMEOUT_SECONDS = 300
+
+
 def extraction_schema() -> dict:
-    return ExtractionOutput.model_json_schema()
+    return strict_input_schema(ExtractionOutput)
+
+
+def drop_unresolvable_steps(output: ExtractionOutput) -> ExtractionOutput:
+    """Remove reasoning steps that cite statements this result does not contain.
+
+    The patch would reject such a step and fail the whole chunk, taking its good statements with
+    it. A step with an unknown reference cannot be grounded, so it is the only thing dropped.
+    """
+    known = {item.client_ref for item in output.statements}
+    kept = [
+        step
+        for step in output.reasoning_steps
+        if step.conclusion_ref in known and all(ref in known for ref in step.premise_refs)
+    ]
+    return output.model_copy(update={"reasoning_steps": kept})
 
 
 async def extract_source_to_patch(
@@ -80,17 +101,17 @@ async def extract_source_to_patch(
 
     payload = {
         "model": model,
-        "max_tokens": 4096,
+        "max_tokens": EXTRACTION_MAX_TOKENS,
         "system": EXTRACTION_SYSTEM_PROMPT,
         "messages": [
             {"role": "user", "content": f"Source excerpts:\n\n{context}"},
         ],
         "tools": [
-            {
-                "name": "submit_extraction",
-                "description": "Submit source-grounded statements and explicit reasoning steps.",
-                "input_schema": extraction_schema(),
-            }
+            strict_tool(
+                "submit_extraction",
+                "Submit source-grounded statements and explicit reasoning steps.",
+                ExtractionOutput,
+            )
         ],
         "tool_choice": {"type": "tool", "name": "submit_extraction"},
     }
@@ -100,7 +121,7 @@ async def extract_source_to_patch(
         "Content-Type": "application/json",
     }
     try:
-        async with httpx.AsyncClient(timeout=90) as client:
+        async with httpx.AsyncClient(timeout=EXTRACTION_TIMEOUT_SECONDS) as client:
             response = await client.post(
                 "https://api.anthropic.com/v1/messages", json=payload, headers=headers
             )
@@ -108,16 +129,20 @@ async def extract_source_to_patch(
     except httpx.HTTPError as error:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Claude extraction request failed; no graph update was applied.",
+            detail=(
+                "Claude extraction request failed; no graph update was applied. "
+                f"{describe_claude_failure(error)}"
+            ).strip(),
         ) from error
 
+    ensure_complete(response.json(), "extraction")
     try:
         tool_use = next(
             item
             for item in response.json()["content"]
             if item["type"] == "tool_use" and item["name"] == "submit_extraction"
         )
-        output = ExtractionOutput.model_validate(tool_use["input"])
+        output = drop_unresolvable_steps(ExtractionOutput.model_validate(tool_use["input"]))
     except (KeyError, StopIteration, TypeError, ValueError) as error:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

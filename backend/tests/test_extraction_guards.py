@@ -1,0 +1,72 @@
+import uuid
+
+import pytest
+from fastapi import HTTPException
+
+from app.schemas import ExtractedReasoningStep, ExtractedStatement, ExtractionOutput
+from app.services.claude_errors import ensure_complete
+from app.services.extraction import drop_unresolvable_steps, extraction_schema
+
+
+def statement(ref: str) -> ExtractedStatement:
+    return ExtractedStatement(
+        client_ref=ref,
+        text=f"Statement {ref}.",
+        assertion_mode="asserted",
+        excerpt_ids=[uuid.uuid4()],
+    )
+
+
+def step(ref: str, premises: list[str], conclusion: str) -> ExtractedReasoningStep:
+    return ExtractedReasoningStep(
+        client_ref=ref, premise_refs=premises, conclusion_ref=conclusion, explanation="Because."
+    )
+
+
+def test_both_lists_are_required_so_the_model_cannot_return_only_steps() -> None:
+    schema = extraction_schema()
+    assert schema["required"] == ["statements", "reasoning_steps"]
+    assert schema["additionalProperties"] is False
+
+
+def test_reference_fields_say_they_are_not_excerpt_ids() -> None:
+    defs = extraction_schema()["$defs"]
+    assert (
+        "Never excerpt IDs"
+        in defs["ExtractedReasoningStep"]["properties"]["premise_refs"]["description"]
+    )
+    assert "excerpts" in defs["ExtractedStatement"]["properties"]["excerpt_ids"]["description"]
+
+
+def test_steps_citing_statements_that_exist_are_kept() -> None:
+    output = ExtractionOutput(
+        statements=[statement("s1"), statement("s2"), statement("s3")],
+        reasoning_steps=[step("r1", ["s1", "s2"], "s3")],
+    )
+    assert [item.client_ref for item in drop_unresolvable_steps(output).reasoning_steps] == ["r1"]
+
+
+def test_steps_citing_unknown_statements_are_dropped_but_statements_survive() -> None:
+    excerpt_id = str(uuid.uuid4())  # the model sometimes puts an excerpt ID where a ref belongs
+    output = ExtractionOutput(
+        statements=[statement("s1"), statement("s2")],
+        reasoning_steps=[
+            step("r1", [excerpt_id], "step1_conclusion"),
+            step("r2", ["s1"], "missing"),
+            step("r3", ["s1"], "s2"),
+        ],
+    )
+    cleaned = drop_unresolvable_steps(output)
+    assert [item.client_ref for item in cleaned.reasoning_steps] == ["r3"]
+    assert len(cleaned.statements) == 2
+
+
+def test_a_cut_off_answer_is_refused_rather_than_used() -> None:
+    with pytest.raises(HTTPException) as error:
+        ensure_complete({"stop_reason": "max_tokens", "content": []}, "extraction")
+    assert error.value.status_code == 502 and "cut off" in error.value.detail
+
+
+@pytest.mark.parametrize("reason", ["tool_use", "end_turn", None])
+def test_complete_answers_pass(reason: str | None) -> None:
+    ensure_complete({"stop_reason": reason}, "extraction")

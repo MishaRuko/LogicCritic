@@ -17,6 +17,8 @@ from app.models import (
     StatementExcerpt,
 )
 from app.schemas import ArgumentCheckOutput, ArgumentCheckRequest, ArgumentCheckResponse
+from app.services.claude_errors import describe_claude_failure, ensure_complete
+from app.services.claude_tools import strict_tool
 
 
 async def check_arguments(
@@ -86,7 +88,7 @@ async def check_arguments(
     model = request.model or get_settings().claude_model
     payload = {
         "model": model,
-        "max_tokens": 4096,
+        "max_tokens": 8192,
         "system": "Audit each argument step conservatively. A conclusion being stated in its own "
         "excerpt is not support. Mark supported only if the premise excerpts "
         "independently establish the conclusion without an unstated calculation, "
@@ -94,11 +96,11 @@ async def check_arguments(
         "choose needs_support. Do not assess truth beyond these excerpts.",
         "messages": [{"role": "user", "content": json.dumps({"steps": steps_payload})}],
         "tools": [
-            {
-                "name": "submit_argument_check",
-                "description": "Return exactly one assessment for every step.",
-                "input_schema": ArgumentCheckOutput.model_json_schema(),
-            }
+            strict_tool(
+                "submit_argument_check",
+                "Return exactly one assessment for every step.",
+                ArgumentCheckOutput,
+            )
         ],
         "tool_choice": {"type": "tool", "name": "submit_argument_check"},
     }
@@ -113,11 +115,13 @@ async def check_arguments(
                 },
             )
             response.raise_for_status()
+            ensure_complete(response.json(), "argument check")
         tool_use = next(item for item in response.json()["content"] if item["type"] == "tool_use")
         output = ArgumentCheckOutput.model_validate(tool_use["input"])
     except (httpx.HTTPError, KeyError, StopIteration, TypeError, ValueError) as error:
         raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY, detail="Claude argument check failed"
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Claude argument check failed. {describe_claude_failure(error)}".strip(),
         ) from error
     assessments = {item.reasoning_step_id: item for item in output.assessments}
     step_ids = {item.id for item in steps}

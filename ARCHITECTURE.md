@@ -1007,7 +1007,7 @@ The backend is the owner of all persistent contracts. The frontend and agent cod
 POSTGRES_URL=
 REDIS_URL=
 CLAUDE_API_KEY=
-CLAUDE_MODEL=claude-sonnet-4-5-20250929
+CLAUDE_MODEL=claude-sonnet-5
 AMASS_API_KEY=
 APP_BASE_URL=
 JWT_SECRET=
