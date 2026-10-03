@@ -1,7 +1,7 @@
 # Integration notes
 
 
-This integration uses only implemented backend endpoints. PDF ingestion, CSV statistical challenges, OpenRouter settings, Amass retrieval, agent replay, semantic search and goal management from the original Trial app have been replaced with supported document/argument workflows.
+This integration uses only implemented backend endpoints. CSV statistical challenges, OpenRouter settings, Amass retrieval, agent replay, semantic search and goal management from the original Trial app have been replaced with supported document/argument workflows.
 
 The API has no workspace source/job listing, excerpt lookup by ID, annotation listing, source-validity read endpoint, or event-history endpoint. Therefore:
 

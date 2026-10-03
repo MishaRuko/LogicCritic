@@ -15,11 +15,11 @@ export function MaterialPanel({ state, busy, perform, refresh, onSelect }: { sta
   const id = state.workspace.id;
   async function patch(operations: PatchOperation[]) { await api.patchGraph(id, operations); await refresh(); }
   return <div className={panel}><h1 className="text-lg tracking-tight">Research material</h1><p className="mt-2 max-w-xl text-[11px] leading-relaxed text-zinc-500">Exact excerpts anchor proposed statements. Review statements and reasoning before relying on the argument.</p>
-    <section className={panelSection}><h2>Add documents</h2><input key={fileKey} aria-label="Research documents" type="file" accept=".md,.markdown,.txt,text/plain,text/markdown" multiple onChange={e => setFiles(Array.from(e.target.files ?? []))} className="my-3 block max-w-full text-[11px]"/>
+    <section className={panelSection}><h2>Add documents</h2><input key={fileKey} aria-label="Research documents" type="file" accept=".md,.markdown,.txt,.pdf,text/plain,text/markdown,application/pdf" multiple onChange={e => setFiles(Array.from(e.target.files ?? []))} className="my-3 block max-w-full text-[11px]"/>
       <label className="mb-3 flex items-center gap-2 text-[11px]"><input type="checkbox" checked={automatic} onChange={e => setAutomatic(e.target.checked)}/>Queue Claude extraction after upload</label>
       <Button size="sm" loading={busy} disabled={!files.length} onClick={() => perform(async () => {
         for (const file of files) {
-          if (!/\.(txt|md|markdown)$/i.test(file.name)) throw new Error('Choose UTF-8 .txt, .md or .markdown files.');
+          if (!/\.(txt|md|markdown|pdf)$/i.test(file.name)) throw new Error('Choose UTF-8 .txt, .md or .markdown files, or text-based PDFs.');
           if (file.size > 10 * 1024 * 1024) throw new Error(`${file.name} exceeds the 10 MB upload limit.`);
           const source = await api.uploadSource(id, file); if (automatic) await api.extract(source);
         }

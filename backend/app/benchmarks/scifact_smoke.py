@@ -31,7 +31,9 @@ def run(manifest: Path, api_url: str, timeout_seconds: int) -> dict:
         by_document[case["document_id"]].append(case)
 
     with httpx.Client(base_url=api_url, timeout=30) as client:
-        workspace_response = client.post("/workspaces", json={"title": "SciFact extraction smoke test"})
+        workspace_response = client.post(
+            "/workspaces", json={"title": "SciFact extraction smoke test"}
+        )
         workspace_response.raise_for_status()
         workspace = workspace_response.json()
         excerpt_sources: dict[str, int] = {}
@@ -71,7 +73,9 @@ def run(manifest: Path, api_url: str, timeout_seconds: int) -> dict:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run a small SciFact manifest through the live extractor")
+    parser = argparse.ArgumentParser(
+        description="Run a small SciFact manifest through the live extractor"
+    )
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--api-url", default="http://localhost:8000/api")
     parser.add_argument("--timeout-seconds", type=int, default=180)

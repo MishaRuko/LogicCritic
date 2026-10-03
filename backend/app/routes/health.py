@@ -41,7 +41,9 @@ async def readiness() -> ReadinessResponse:
             await client.aclose()
         return "ok"
 
-    database, redis_status = await asyncio.gather(check_database(), check_redis(), return_exceptions=True)
+    database, redis_status = await asyncio.gather(
+        check_database(), check_redis(), return_exceptions=True
+    )
     response = ReadinessResponse(
         database="ok" if database == "ok" else "unavailable",
         redis="ok" if redis_status == "ok" else "unavailable",
@@ -49,6 +51,8 @@ async def readiness() -> ReadinessResponse:
     )
 
     if response.status != "ok":
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=response.model_dump())
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=response.model_dump()
+        )
 
     return response

@@ -2,7 +2,10 @@ from app.services.text_ingestion import parse_structured_text
 
 
 def test_parses_markdown_sections_with_stable_character_locators() -> None:
-    text = "# Results\n\nThe intervention reduced the marker.\n\n## Caveat\n\nThe sample was not randomized.\n"
+    text = (
+        "# Results\n\nThe intervention reduced the marker.\n\n"
+        "## Caveat\n\nThe sample was not randomized.\n"
+    )
 
     excerpts = parse_structured_text(text)
 

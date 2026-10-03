@@ -5,7 +5,7 @@ All API routes are served under `/api`. The backend is the source of truth; all 
 ## Workspace Flow
 
 1. `POST /workspaces` with `{ "title": "..." }` creates a session.
-2. `POST /workspaces/{workspaceId}/sources` as multipart form data with `file` uploads UTF-8 `.txt`, `.md`, or `.markdown` content and returns immutable excerpts.
+2. `POST /workspaces/{workspaceId}/sources` as multipart form data with `file` uploads a UTF-8 `.txt`, `.md` or `.markdown` file, or a text-based `.pdf`, and returns immutable excerpts. PDF excerpts carry `page`, `start`, `end` and (when a heading is recognised) `section` in `locator`; the reference list is skipped. Scanned PDFs, password-protected PDFs and PDFs over 300 pages are rejected with a reason (422 or 413).
 3. `POST /sources/{sourceId}/extract` with `{ "idempotency_key": "..." }` queues Claude extraction.
 4. Poll `GET /extraction-jobs/{jobId}` until `status` is `succeeded`, `failed`, or `cancelled`.
 5. `GET /workspaces/{workspaceId}/graph` returns statements, reasoning steps, and relations for graph rendering.
@@ -39,6 +39,18 @@ Each relation has metadata shaped as:
 ```
 
 Show `needs_review` links as warnings, not corroboration or contradiction. The backend deliberately does not create claim clusters or normalized claim labels; connected proposed relations are the visual cluster and remain inspectable at the statement/excerpt level.
+
+## Amass Literature
+
+Requires `AMASS_API_KEY` on the backend; without it these endpoints return 503. Amass is called only by the backend, at most 60 requests a minute, and each record is cached by its Amass ID so a repeat import spends no API credits.
+
+- `POST /integrations/amass/search` with `{ "query": "...", "limit": 10 }` searches BiomedCore and saves nothing. Optional filters: `min_publication_date`, `max_publication_date` (`YYYY-MM-DD`), `min_citation_count`, `is_retracted`. Each result has `amass_id`, `pmid`, `pmcid`, `doi`, `title`, `abstract_preview`, `authors`, `journal`, `publication_date`, `citation_count`, `is_retracted` and `has_fulltext`.
+- `POST /workspaces/{workspaceId}/integrations/amass/import` with exactly one of `amass_id`, `pmid` or `doi` (and optionally `"include_fulltext": false`) creates a source and returns `{ source, already_imported, retracted }`: 201 when new, 200 when the workspace already has that paper. A PMID or DOI is resolved to an Amass ID first; an unknown one is a 404.
+- The source has `kind: "amass_record"`, `origin: "amass"` and `external_ids` holding `amass_id`, `pmid`, `pmcid` and `doi`. Its excerpts are the title, the abstract and any full text, located by `locator.jsonPath` (`title`, `abstract` or `fulltext`) with `start` and `end` offsets into that field, and `section` where the full text has headings. The raw Amass record is stored as a JSON snapshot with its retrieval time. These excerpts extract, verify and synthesize exactly like uploaded ones.
+- If Amass reports the paper as retracted (it mirrors PubMed retraction notices), the source is recorded as `invalidated` with provenance `integration / amass`, and `/verify` then opens `invalidated_source` issues on any statement grounded in it. `POST /sources/{sourceId}/amass/refresh` re-reads the record and does the same for a paper retracted after import; it returns `{ retracted, newly_invalidated }`.
+- `GET /sources/{sourceId}/validity` returns the latest validity decision, whoever made it, or 404 if none. Show a retraction from here rather than from browser-remembered decisions.
+
+Amass failures are reported, never hidden: 404 for an unknown record, 429 with `Retry-After` when rate limited, 422 for a record with nothing to import, and 502 for a rejected key or an Amass outage. A failed import creates nothing.
 
 ## UI Rules
 

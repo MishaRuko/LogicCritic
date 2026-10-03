@@ -14,9 +14,9 @@ make up
 
 Open [localhost](http://localhost). Choose **Try the synthetic study demo** to get started without an API key.
 
-For Claude extraction, argument checks and synthesis, add `CLAUDE_API_KEY` to `.env` before starting the app. You can still edit graphs, review statements and run verification without it.
+For Claude extraction, argument checks and synthesis, add `CLAUDE_API_KEY` to `.env` before starting the app. To search and import papers from Amass, add `AMASS_API_KEY`. You can still edit graphs, review statements and run verification without it.
 
-Upload text or Markdown files (`.txt`, `.md`, `.markdown`, up to 10 MB each). Click a node to inspect its source and reasoning, then accept or reject it. Use **Checks** to run verification and **Export** to save a snapshot.
+Upload text or Markdown files (`.txt`, `.md`, `.markdown`) or text-based PDFs, up to 10 MB each. Scanned PDFs need OCR, which isn't supported yet. Click a node to inspect its source and reasoning, then accept or reject it. Use **Checks** to run verification and **Export** to save a snapshot.
 
 Stop the app with `make down`. Your data stays in Docker volumes.
 

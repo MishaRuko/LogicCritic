@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class APIModel(BaseModel):
@@ -314,3 +314,62 @@ class ReviewDecisionResponse(BaseModel):
     node_type: NodeKind
     node_id: uuid.UUID
     lifecycle: Literal["accepted", "rejected"]
+
+
+DATE_PATTERN = r"^\d{4}-\d{2}-\d{2}$"
+
+
+class AmassSearchRequest(BaseModel):
+    query: str = Field(min_length=2, max_length=500)
+    limit: int = Field(default=10, ge=1, le=25)
+    min_publication_date: str | None = Field(default=None, pattern=DATE_PATTERN)
+    max_publication_date: str | None = Field(default=None, pattern=DATE_PATTERN)
+    min_citation_count: int | None = Field(default=None, ge=0)
+    is_retracted: bool | None = None
+
+
+class AmassSearchResult(BaseModel):
+    amass_id: str
+    pmid: str | None
+    pmcid: str | None
+    doi: str | None
+    url: str | None
+    title: str | None
+    abstract_preview: str | None
+    authors: list[str]
+    journal: str | None
+    publication_date: str | None
+    citation_count: float | None
+    is_retracted: bool | None
+    has_fulltext: bool | None
+
+
+class AmassSearchResponse(BaseModel):
+    results: list[AmassSearchResult]
+
+
+class AmassImportRequest(BaseModel):
+    """Identify one BiomedCore record by exactly one of its Amass ID, PMID or DOI."""
+
+    amass_id: str | None = Field(default=None, pattern=r"^AMBC_\w+$")
+    pmid: str | None = Field(default=None, pattern=r"^\d{1,10}$")
+    doi: str | None = Field(default=None, min_length=5, max_length=255)
+    include_fulltext: bool = True
+
+    @model_validator(mode="after")
+    def _exactly_one_identifier(self) -> "AmassImportRequest":
+        given = [value for value in (self.amass_id, self.pmid, self.doi) if value]
+        if len(given) != 1:
+            raise ValueError("Provide exactly one of amass_id, pmid or doi")
+        return self
+
+
+class AmassImportResponse(BaseModel):
+    source: SourceWithExcerptsResponse
+    already_imported: bool
+    retracted: bool
+
+
+class AmassRefreshResponse(BaseModel):
+    retracted: bool
+    newly_invalidated: bool

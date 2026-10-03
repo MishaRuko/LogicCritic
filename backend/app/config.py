@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     extraction_retry_base_seconds: int = 5
     extraction_stale_after_seconds: int = 300
     amass_api_key: str | None = None
+    amass_base_url: str = "https://api.amass.tech/api/v1"
+    amass_timeout_seconds: float = 30.0
+    amass_requests_per_minute: int = 60
+    amass_cache_ttl_hours: int = 24
     jwt_secret: str
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")

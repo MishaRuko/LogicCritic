@@ -1,7 +1,17 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -41,7 +51,9 @@ class Source(Base):
 
 class Excerpt(Base):
     __tablename__ = "excerpts"
-    __table_args__ = (UniqueConstraint("source_id", "sequence", name="uq_excerpts_source_sequence"),)
+    __table_args__ = (
+        UniqueConstraint("source_id", "sequence", name="uq_excerpts_source_sequence"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     source_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("sources.id", ondelete="CASCADE"))
@@ -53,9 +65,7 @@ class Excerpt(Base):
 
 class Statement(Base):
     __tablename__ = "statements"
-    __table_args__ = (
-        Index("ix_statements_workspace_lifecycle", "workspace_id", "lifecycle"),
-    )
+    __table_args__ = (Index("ix_statements_workspace_lifecycle", "workspace_id", "lifecycle"),)
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"))
@@ -74,7 +84,9 @@ class ReasoningStep(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"))
-    conclusion_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("statements.id", ondelete="CASCADE"))
+    conclusion_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("statements.id", ondelete="CASCADE")
+    )
     explanation: Mapped[str] = mapped_column(Text)
     lifecycle: Mapped[str] = mapped_column(String(32), default="proposed")
     provenance: Mapped[dict] = mapped_column(JSONB)
@@ -137,7 +149,9 @@ class Annotation(Base):
 
 class GraphEvent(Base):
     __tablename__ = "graph_events"
-    __table_args__ = (UniqueConstraint("workspace_id", "idempotency_key", name="uq_events_workspace_key"),)
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "idempotency_key", name="uq_events_workspace_key"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"))
@@ -151,7 +165,9 @@ class GraphEvent(Base):
 class ExtractionJob(Base):
     __tablename__ = "extraction_jobs"
     __table_args__ = (
-        UniqueConstraint("workspace_id", "idempotency_key", name="uq_extraction_jobs_workspace_key"),
+        UniqueConstraint(
+            "workspace_id", "idempotency_key", name="uq_extraction_jobs_workspace_key"
+        ),
         Index("ix_extraction_jobs_status_created", "status", "created_at"),
     )
 
@@ -214,3 +230,15 @@ class Issue(Base):
     details: Mapped[dict] = mapped_column(JSONB)
     status: Mapped[str] = mapped_column(String(32), default="open")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AmassCacheEntry(Base):
+    """A fetched Amass record, kept by canonical Amass ID so repeat imports cost no API credits."""
+
+    __tablename__ = "amass_cache"
+
+    core: Mapped[str] = mapped_column(String(32), primary_key=True)
+    amass_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    record: Mapped[dict] = mapped_column(JSONB)
+    includes_fulltext: Mapped[bool] = mapped_column(Boolean, default=False)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

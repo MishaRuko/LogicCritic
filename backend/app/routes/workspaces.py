@@ -23,7 +23,9 @@ async def create_workspace(
 
 
 @router.get("/{workspace_id}", response_model=WorkspaceResponse)
-async def get_workspace(workspace_id: uuid.UUID, session: AsyncSession = Depends(get_session)) -> Workspace:
+async def get_workspace(
+    workspace_id: uuid.UUID, session: AsyncSession = Depends(get_session)
+) -> Workspace:
     workspace = await session.get(Workspace, workspace_id)
     if workspace is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
@@ -36,7 +38,9 @@ async def list_workspaces(session: AsyncSession = Depends(get_session)) -> list[
 
 
 @router.delete("/{workspace_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_workspace(workspace_id: uuid.UUID, session: AsyncSession = Depends(get_session)) -> None:
+async def delete_workspace(
+    workspace_id: uuid.UUID, session: AsyncSession = Depends(get_session)
+) -> None:
     workspace = await session.get(Workspace, workspace_id)
     if workspace is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")

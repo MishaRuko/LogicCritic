@@ -23,12 +23,16 @@ EXTRACTION_SYSTEM_PROMPT = (
     "Extract only statements directly supported by the supplied source excerpts and explicit "
     "reasoning steps between extracted statements. Every statement must cite one or more excerpt "
     "IDs from the supplied context. A reasoning step is allowed only when the source explicitly "
-    "states the connection between its premises and conclusion. Do not create a step merely because "
+    "states the connection between its premises and conclusion. Do not create a step merely "
+    "because "
     "the statements appear in the same source. Do not add calculations, mechanisms, causal claims, "
-    "generalizations, implications, or background knowledge unless they are explicitly written in the "
-    "cited excerpts. If the connection needs an unstated premise, omit the reasoning step. Keep each "
+    "generalizations, implications, or background knowledge unless they are explicitly written in "
+    "the "
+    "cited excerpts. If the connection needs an unstated premise, omit the reasoning step. Keep "
+    "each "
     "explanation limited to the source-stated connection; do not explain it with new facts. Do not "
-    "invent sources, facts, citations, or certainty. Extract the central explicitly stated methods, "
+    "invent sources, facts, citations, or certainty. Extract the central explicitly stated "
+    "methods, "
     "results, and conclusions from each excerpt set; do not return an empty result when those are "
     "present. Use unique client_ref values. Call the submit_extraction tool with the result."
 )
@@ -72,7 +76,7 @@ async def extract_source_to_patch(
     excerpts = list(await session.scalars(query.order_by(Excerpt.sequence)))
     context = _excerpt_context(excerpts, settings.max_extraction_context_chars)
     if not context:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Source has no extractable excerpts")
+        raise HTTPException(status_code=422, detail="Source has no extractable excerpts")
 
     payload = {
         "model": model,
@@ -81,11 +85,13 @@ async def extract_source_to_patch(
         "messages": [
             {"role": "user", "content": f"Source excerpts:\n\n{context}"},
         ],
-        "tools": [{
-            "name": "submit_extraction",
-            "description": "Submit source-grounded statements and explicit reasoning steps.",
-            "input_schema": extraction_schema(),
-        }],
+        "tools": [
+            {
+                "name": "submit_extraction",
+                "description": "Submit source-grounded statements and explicit reasoning steps.",
+                "input_schema": extraction_schema(),
+            }
+        ],
         "tool_choice": {"type": "tool", "name": "submit_extraction"},
     }
     headers = {
@@ -95,7 +101,9 @@ async def extract_source_to_patch(
     }
     try:
         async with httpx.AsyncClient(timeout=90) as client:
-            response = await client.post("https://api.anthropic.com/v1/messages", json=payload, headers=headers)
+            response = await client.post(
+                "https://api.anthropic.com/v1/messages", json=payload, headers=headers
+            )
             response.raise_for_status()
     except httpx.HTTPError as error:
         raise HTTPException(
@@ -119,7 +127,9 @@ async def extract_source_to_patch(
     if not output.statements and not output.reasoning_steps:
         return model, None
     available_excerpt_ids = {item.id for item in excerpts}
-    cited_excerpt_ids = {excerpt_id for item in output.statements for excerpt_id in item.excerpt_ids}
+    cited_excerpt_ids = {
+        excerpt_id for item in output.statements for excerpt_id in item.excerpt_ids
+    }
     if not cited_excerpt_ids <= available_excerpt_ids:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

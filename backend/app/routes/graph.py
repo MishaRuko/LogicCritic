@@ -5,7 +5,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_session
-from app.models import GraphEdge, GraphEvent, Issue, ProofObligation, ReasoningPremise, ReasoningStep, Statement, StatementExcerpt
+from app.models import (
+    GraphEdge,
+    GraphEvent,
+    Issue,
+    ProofObligation,
+    ReasoningPremise,
+    ReasoningStep,
+    Statement,
+    StatementExcerpt,
+)
 from app.routes.workspaces import require_workspace
 from app.schemas import (
     ArgumentCheckRequest,
@@ -20,13 +29,13 @@ from app.schemas import (
     ReasoningStepResponse,
     ReviewDecisionRequest,
     ReviewDecisionResponse,
+    StatementResponse,
     SynthesisRequest,
     SynthesisResponse,
-    StatementResponse,
     VerificationResponse,
 )
-from app.services.graph_patches import GraphPatchExecutor
 from app.services.argument_check import check_arguments
+from app.services.graph_patches import GraphPatchExecutor
 from app.services.synthesis import synthesize_workspace
 from app.services.verification import run_verification
 
@@ -43,13 +52,17 @@ async def apply_graph_patch(
     return await GraphPatchExecutor(session, workspace_id).apply(payload)
 
 
-async def statement_responses(session: AsyncSession, statements: list[Statement]) -> list[StatementResponse]:
+async def statement_responses(
+    session: AsyncSession, statements: list[Statement]
+) -> list[StatementResponse]:
     ids = [item.id for item in statements]
     if not ids:
         return []
     excerpt_map: dict[uuid.UUID, list[uuid.UUID]] = {item: [] for item in ids}
     for statement_id, excerpt_id in await session.execute(
-        select(StatementExcerpt.statement_id, StatementExcerpt.excerpt_id).where(StatementExcerpt.statement_id.in_(ids))
+        select(StatementExcerpt.statement_id, StatementExcerpt.excerpt_id).where(
+            StatementExcerpt.statement_id.in_(ids)
+        )
     ):
         excerpt_map[statement_id].append(excerpt_id)
     responses = []
@@ -82,11 +95,21 @@ async def reasoning_step_responses(
 
 
 @router.get("/workspaces/{workspace_id}/graph", response_model=GraphResponse)
-async def get_graph(workspace_id: uuid.UUID, session: AsyncSession = Depends(get_session)) -> GraphResponse:
+async def get_graph(
+    workspace_id: uuid.UUID, session: AsyncSession = Depends(get_session)
+) -> GraphResponse:
     await require_workspace(workspace_id, session)
-    statements = list(await session.scalars(select(Statement).where(Statement.workspace_id == workspace_id)))
-    steps = list(await session.scalars(select(ReasoningStep).where(ReasoningStep.workspace_id == workspace_id)))
-    edges = list(await session.scalars(select(GraphEdge).where(GraphEdge.workspace_id == workspace_id)))
+    statements = list(
+        await session.scalars(select(Statement).where(Statement.workspace_id == workspace_id))
+    )
+    steps = list(
+        await session.scalars(
+            select(ReasoningStep).where(ReasoningStep.workspace_id == workspace_id)
+        )
+    )
+    edges = list(
+        await session.scalars(select(GraphEdge).where(GraphEdge.workspace_id == workspace_id))
+    )
     return GraphResponse(
         statements=await statement_responses(session, statements),
         reasoning_steps=await reasoning_step_responses(session, steps),
@@ -94,7 +117,10 @@ async def get_graph(workspace_id: uuid.UUID, session: AsyncSession = Depends(get
     )
 
 
-@router.get("/workspaces/{workspace_id}/statements/{statement_id}/context", response_model=GraphContextResponse)
+@router.get(
+    "/workspaces/{workspace_id}/statements/{statement_id}/context",
+    response_model=GraphContextResponse,
+)
 async def get_statement_context(
     workspace_id: uuid.UUID, statement_id: uuid.UUID, session: AsyncSession = Depends(get_session)
 ) -> GraphContextResponse:
@@ -106,7 +132,8 @@ async def get_statement_context(
     incoming_steps = list(
         await session.scalars(
             select(ReasoningStep).where(
-                ReasoningStep.workspace_id == workspace_id, ReasoningStep.conclusion_id == statement_id
+                ReasoningStep.workspace_id == workspace_id,
+                ReasoningStep.conclusion_id == statement_id,
             )
         )
     )
@@ -114,19 +141,30 @@ async def get_statement_context(
         await session.scalars(
             select(ReasoningStep)
             .join(ReasoningPremise, ReasoningPremise.reasoning_step_id == ReasoningStep.id)
-            .where(ReasoningStep.workspace_id == workspace_id, ReasoningPremise.statement_id == statement_id)
+            .where(
+                ReasoningStep.workspace_id == workspace_id,
+                ReasoningPremise.statement_id == statement_id,
+            )
         )
     )
     all_steps = {item.id: item for item in [*incoming_steps, *outgoing_steps]}
     premise_ids = set(
         await session.scalars(
-            select(ReasoningPremise.statement_id).where(ReasoningPremise.reasoning_step_id.in_([item.id for item in incoming_steps]))
+            select(ReasoningPremise.statement_id).where(
+                ReasoningPremise.reasoning_step_id.in_([item.id for item in incoming_steps])
+            )
         )
     )
     downstream_ids = {item.conclusion_id for item in outgoing_steps}
-    upstream = list(await session.scalars(select(Statement).where(Statement.id.in_(premise_ids)))) if premise_ids else []
+    upstream = (
+        list(await session.scalars(select(Statement).where(Statement.id.in_(premise_ids))))
+        if premise_ids
+        else []
+    )
     downstream = (
-        list(await session.scalars(select(Statement).where(Statement.id.in_(downstream_ids)))) if downstream_ids else []
+        list(await session.scalars(select(Statement).where(Statement.id.in_(downstream_ids))))
+        if downstream_ids
+        else []
     )
     obligations = list(
         await session.scalars(
@@ -138,7 +176,11 @@ async def get_statement_context(
     )
     issues = list(
         await session.scalars(
-            select(Issue).where(Issue.workspace_id == workspace_id, Issue.node_type == "statement", Issue.node_id == statement_id)
+            select(Issue).where(
+                Issue.workspace_id == workspace_id,
+                Issue.node_type == "statement",
+                Issue.node_id == statement_id,
+            )
         )
     )
     return GraphContextResponse(
@@ -161,7 +203,9 @@ async def verify_workspace(
 
 @router.post("/workspaces/{workspace_id}/argument-check", response_model=ArgumentCheckResponse)
 async def argument_check_workspace(
-    workspace_id: uuid.UUID, payload: ArgumentCheckRequest, session: AsyncSession = Depends(get_session)
+    workspace_id: uuid.UUID,
+    payload: ArgumentCheckRequest,
+    session: AsyncSession = Depends(get_session),
 ) -> ArgumentCheckResponse:
     await require_workspace(workspace_id, session)
     return await check_arguments(session, workspace_id, payload)
@@ -183,7 +227,9 @@ async def review_node(
 ) -> ReviewDecisionResponse:
     await require_workspace(workspace_id, session)
     if payload.provenance.actor_type != "user":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only a user can review graph nodes")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Only a user can review graph nodes"
+        )
     existing = await session.scalar(
         select(GraphEvent).where(
             GraphEvent.workspace_id == workspace_id,
@@ -192,7 +238,9 @@ async def review_node(
     )
     if existing is not None:
         if existing.event_type != "review_decision":
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Idempotency key is already in use")
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail="Idempotency key is already in use"
+            )
         return ReviewDecisionResponse(event_id=existing.id, **existing.payload)
 
     model = Statement if payload.node_type == "statement" else ReasoningStep
@@ -204,7 +252,11 @@ async def review_node(
         workspace_id=workspace_id,
         event_type="review_decision",
         idempotency_key=payload.idempotency_key,
-        payload={"node_type": payload.node_type, "node_id": str(payload.node_id), "lifecycle": payload.decision},
+        payload={
+            "node_type": payload.node_type,
+            "node_id": str(payload.node_id),
+            "lifecycle": payload.decision,
+        },
         provenance=payload.provenance.model_dump(mode="json", exclude_none=True),
     )
     session.add(event)
