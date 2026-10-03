@@ -1,0 +1,19 @@
+:80 {
+  encode zstd gzip
+
+  handle /api/* {
+    reverse_proxy api:8000
+  }
+
+  handle /docs* {
+    reverse_proxy api:8000
+  }
+
+  handle /openapi.json {
+    reverse_proxy api:8000
+  }
+
+  handle {
+    reverse_proxy frontend:80
+  }
+}

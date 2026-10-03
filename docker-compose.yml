@@ -1,0 +1,75 @@
+services:
+  caddy:
+    image: caddy:2.10-alpine
+    depends_on:
+      api:
+        condition: service_started
+      frontend:
+        condition: service_started
+    ports:
+      - "80:80"
+    volumes:
+      - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  frontend:
+    build:
+      context: ./frontend
+    expose:
+      - "80"
+
+  api:
+    build:
+      context: ./backend
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost}
+      POSTGRES_URL: ${POSTGRES_URL:-postgresql://${POSTGRES_USER:-logiccritic}:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-logiccritic}}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      UPLOAD_DIR: ${UPLOAD_DIR:-/data/uploads}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-}
+      AMASS_API_KEY: ${AMASS_API_KEY:-}
+      JWT_SECRET: ${JWT_SECRET:-change-me-before-deploying}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    expose:
+      - "8000"
+    volumes:
+      - uploads:/data/uploads
+
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-logiccritic}
+      POSTGRES_USER: ${POSTGRES_USER:-logiccritic}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7.4-alpine
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - redis_data:/data
+
+volumes:
+  caddy_data:
+  caddy_config:
+  postgres_data:
+  redis_data:
+  uploads:
