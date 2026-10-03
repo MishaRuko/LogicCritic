@@ -8,6 +8,8 @@ from app.database import get_session
 from app.models import GraphEdge, GraphEvent, Issue, ProofObligation, ReasoningPremise, ReasoningStep, Statement, StatementExcerpt
 from app.routes.workspaces import require_workspace
 from app.schemas import (
+    ArgumentCheckRequest,
+    ArgumentCheckResponse,
     GraphContextResponse,
     GraphEdgeResponse,
     GraphPatchRequest,
@@ -18,10 +20,14 @@ from app.schemas import (
     ReasoningStepResponse,
     ReviewDecisionRequest,
     ReviewDecisionResponse,
+    SynthesisRequest,
+    SynthesisResponse,
     StatementResponse,
     VerificationResponse,
 )
 from app.services.graph_patches import GraphPatchExecutor
+from app.services.argument_check import check_arguments
+from app.services.synthesis import synthesize_workspace
 from app.services.verification import run_verification
 
 router = APIRouter(tags=["graph"])
@@ -151,6 +157,22 @@ async def verify_workspace(
 ) -> VerificationResponse:
     await require_workspace(workspace_id, session)
     return await run_verification(session, workspace_id)
+
+
+@router.post("/workspaces/{workspace_id}/argument-check", response_model=ArgumentCheckResponse)
+async def argument_check_workspace(
+    workspace_id: uuid.UUID, payload: ArgumentCheckRequest, session: AsyncSession = Depends(get_session)
+) -> ArgumentCheckResponse:
+    await require_workspace(workspace_id, session)
+    return await check_arguments(session, workspace_id, payload)
+
+
+@router.post("/workspaces/{workspace_id}/synthesize", response_model=SynthesisResponse)
+async def synthesize_workspace_graph(
+    workspace_id: uuid.UUID, payload: SynthesisRequest, session: AsyncSession = Depends(get_session)
+) -> SynthesisResponse:
+    await require_workspace(workspace_id, session)
+    return await synthesize_workspace(session, workspace_id, payload)
 
 
 @router.post("/workspaces/{workspace_id}/review", response_model=ReviewDecisionResponse)

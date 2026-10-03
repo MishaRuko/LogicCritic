@@ -85,7 +85,7 @@ class RelationCreateOperation(BaseModel):
     op: Literal["create_relation"]
     source_node_kind: NodeKind
     source_node_id: str | uuid.UUID
-    relation: Literal["rebuts", "undercuts", "qualifies", "specializes", "revises"]
+    relation: Literal["supports", "rebuts", "undercuts", "qualifies", "specializes", "revises"]
     target_node_kind: NodeKind
     target_node_id: str | uuid.UUID
     metadata: dict = Field(default_factory=dict)
@@ -201,6 +201,40 @@ class VerificationResponse(BaseModel):
     issues_resolved: int
     obligations_opened: int
     obligations_resolved: int
+
+
+class ArgumentCheckRequest(BaseModel):
+    idempotency_key: str = Field(min_length=1, max_length=255)
+    model: str | None = Field(default=None, max_length=255)
+
+
+class ArgumentCheckAssessment(BaseModel):
+    reasoning_step_id: uuid.UUID
+    verdict: Literal["supported", "needs_support"]
+    rationale: str = Field(min_length=1)
+
+
+class ArgumentCheckOutput(BaseModel):
+    assessments: list[ArgumentCheckAssessment]
+
+
+class ArgumentCheckResponse(BaseModel):
+    event_id: uuid.UUID
+    checked_steps: int
+    flagged_steps: int
+
+
+class SynthesisRequest(BaseModel):
+    idempotency_key: str = Field(min_length=1, max_length=255)
+    model: str | None = Field(default=None, max_length=255)
+
+
+class SynthesisResponse(BaseModel):
+    event_id: uuid.UUID
+    candidates_considered: int
+    proposed_links: int
+    audited_links: int
+    links_needing_review: int
 
 
 class SourceExtractionRequest(BaseModel):
