@@ -39,9 +39,42 @@ button { background-image: none !important; box-shadow: none !important; }
 button > span[aria-hidden="true"] { display: none; }
 button.bg-kumo-brand { background-color: var(--color-ink) !important; color: white !important; }
 
+.research-progress { appearance: none; overflow: hidden; border: 0; border-radius: 999px; background: #e4e4e7; }
+.research-progress::-webkit-progress-bar { background: #e4e4e7; border-radius: 999px; }
+.research-progress::-webkit-progress-value { background: #60a5fa; border-radius: 999px; transition: width .7s ease; }
+.research-progress::-moz-progress-bar { background: #60a5fa; border-radius: 999px; }
+
+.research-workspace :is(button, h1, h2, h3, strong, b, [class*="font-"]) { font-weight: 400 !important; }
+.research-composer, .research-progress-card { border-radius: 10px; }
+.research-introduction { animation: research-appear .5s ease both; }
+.research-graph-node { animation: research-appear .6s ease; }
+.research-processing-dot { width: 7px; height: 7px; border-radius: 50%; background: #60a5fa; animation: research-pulse 1.6s ease-in-out infinite; }
+.research-stage-active { background-image: linear-gradient(100deg, #60a5fa 20%, #bfdbfe 45%, #3b82f6 70%); background-size: 200% 100%; animation: research-shimmer 2s linear infinite; }
+.research-stage-indeterminate { animation: research-sweep 1.8s ease-in-out infinite; }
+@keyframes research-appear { from { opacity: 0; } to { opacity: 1; } }
+@keyframes research-pulse { 0%, 100% { opacity: .4; } 50% { opacity: 1; } }
+@keyframes research-shimmer { from { background-position: 200% 0; } to { background-position: 0 0; } }
+@keyframes research-sweep { from { transform: translateX(-100%); } to { transform: translateX(390%); } }
+
 /* React Flow renders these elements itself, so they cannot take utility classes. */
 .react-flow { background: var(--color-paper); }
 .react-flow__node { cursor: pointer; }
 .react-flow__node:focus-visible { outline: 2px solid var(--color-running); outline-offset: 5px; border-radius: 50%; }
 .react-flow__handle { opacity: 0; width: 3px; height: 3px; min-width: 3px; min-height: 3px; border: 0; }
 .react-flow__attribution { font-size: 8px !important; background: transparent !important; opacity: .45; }
+
+.research-paper-preview { width: 290px; height: 280px; max-width: 85%; overflow: hidden; border: 1px solid #e4e4e7; border-radius: 8px; background: white; box-shadow: 0 3px 5px #27272a05, 0 8px 22px #27272a09; transform: rotate(-3deg); }
+.research-paper-preview img { object-position: center 18%; }
+.research-upload-stack { position: relative; isolation: isolate; }
+.research-upload-stack .research-progress-card { z-index: 0; width: calc(100% - 48px); max-width: 640px; margin-inline: auto; box-shadow: 0 -3px 14px #27272a06; }
+.research-upload-stack[data-chat-open="true"] .research-progress-card { margin-bottom: -10px; }
+.research-upload-stack[data-chat-open="true"] .research-progress-track { bottom: 10px; }
+@media (max-width: 500px) {
+  .research-upload-stack .research-progress-card { width: calc(100% - 24px); }
+}
+.research-composer { position: relative; }
+.research-composer-processing { border-color: #bfdbfe; }
+.research-composer-processing::before, .research-composer-processing::after { content: ''; pointer-events: none; position: absolute; left: 12px; right: 12px; height: 1px; background: linear-gradient(90deg, transparent 15%, #93c5fd 40%, #60a5fa 50%, transparent 65%); background-size: 240% 100%; animation: research-composer-line 3s ease-in-out infinite; }
+.research-composer-processing::before { top: -1px; }
+.research-composer-processing::after { bottom: -1px; animation-direction: reverse; animation-delay: -.8s; }
+@keyframes research-composer-line { from { background-position: 180% 0; } to { background-position: -80% 0; } }

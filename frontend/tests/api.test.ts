@@ -47,4 +47,37 @@ describe('backend contract', () => {
     expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ idempotency_key: expect.any(String) });
     expect(api.readRegistry(source.workspace_id).jobIds).toContain('job-extract');
   });
+  it('reports transfer progress, then waits for the PDF to be processed before marking it saved', async () => {
+    const source = { id: 'pdf-progress', workspace_id: 'workspace-progress', original_filename: 'paper.pdf', excerpts: [] };
+    const xhr = {
+      status: 201, responseText: JSON.stringify(source), open: vi.fn(),
+      upload: { onprogress: null as ((event: { lengthComputable: boolean; loaded: number; total: number }) => void) | null, onload: null as (() => void) | null },
+      onload: null as (() => void) | null,
+      send: vi.fn(),
+    };
+    vi.stubGlobal('XMLHttpRequest', vi.fn(function () { return xhr; }));
+    const onProgress = vi.fn();
+    const pending = api.uploadResearch(source.workspace_id, [new File(['PDF'], 'paper.pdf', { type: 'application/pdf' })], false, onProgress);
+    expect(xhr.open).toHaveBeenCalledWith('POST', `/api/workspaces/${source.workspace_id}/sources`);
+    expect(xhr.send.mock.calls[0][0]).toBeInstanceOf(FormData);
+    xhr.upload.onprogress!({ lengthComputable: true, loaded: 50, total: 100 });
+    expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({ stage: 'uploading', percent: 50 }));
+    xhr.upload.onload!();
+    expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({ stage: 'processing', percent: 100 }));
+    xhr.onload!();
+    await pending;
+    expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({ stage: 'saved', percent: 100 }));
+    expect(api.readRegistry(source.workspace_id).sourceIds).toContain(source.id);
+  });
+  it('surfaces PDF parsing errors and reports failed progress instead of a completed upload', async () => {
+    const xhr = { status: 422, responseText: JSON.stringify({ detail: 'This PDF needs OCR.' }), upload: {}, open: vi.fn(), onload: null as (() => void) | null, send: vi.fn() };
+    vi.stubGlobal('XMLHttpRequest', vi.fn(function () { return xhr; }));
+    const onProgress = vi.fn();
+    const pending = api.uploadResearch('workspace-bad-pdf', [new File(['PDF'], 'scan.pdf')], true, onProgress);
+    const rejected = expect(pending).rejects.toThrow('This PDF needs OCR.');
+    xhr.onload!();
+    await rejected;
+    expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({ stage: 'failed' }));
+    expect(api.readRegistry('workspace-bad-pdf').sourceIds).toEqual([]);
+  });
 });
