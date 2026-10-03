@@ -4,7 +4,11 @@ from pathlib import Path
 from fastapi import FastAPI
 
 from app.config import get_settings
+from app.routes.extraction import router as extraction_router
+from app.routes.graph import router as graph_router
 from app.routes.health import router as health_router
+from app.routes.sources import router as sources_router
+from app.routes.workspaces import router as workspaces_router
 
 
 @asynccontextmanager
@@ -19,3 +23,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.include_router(health_router, prefix="/api")
+app.include_router(workspaces_router, prefix="/api")
+app.include_router(sources_router, prefix="/api")
+app.include_router(graph_router, prefix="/api")
+app.include_router(extraction_router, prefix="/api")

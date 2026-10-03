@@ -28,8 +28,8 @@ services:
       POSTGRES_URL: ${POSTGRES_URL:-postgresql://${POSTGRES_USER:-logiccritic}:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-logiccritic}}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       UPLOAD_DIR: ${UPLOAD_DIR:-/data/uploads}
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
-      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-}
+      CLAUDE_API_KEY: ${CLAUDE_API_KEY:-}
+      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-sonnet-4-5-20250929}
       AMASS_API_KEY: ${AMASS_API_KEY:-}
       JWT_SECRET: ${JWT_SECRET:-change-me-before-deploying}
     depends_on:
@@ -39,8 +39,30 @@ services:
         condition: service_healthy
     expose:
       - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health/ready')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     volumes:
       - uploads:/data/uploads
+
+  worker:
+    build:
+      context: ./backend
+    command: python -m app.worker
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost}
+      POSTGRES_URL: ${POSTGRES_URL:-postgresql://${POSTGRES_USER:-logiccritic}:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-logiccritic}}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CLAUDE_API_KEY: ${CLAUDE_API_KEY:-}
+      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-sonnet-4-5-20250929}
+      JWT_SECRET: ${JWT_SECRET:-change-me-before-deploying}
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
 
   postgres:
     image: pgvector/pgvector:pg17

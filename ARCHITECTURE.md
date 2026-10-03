@@ -38,12 +38,12 @@ Citation lists and reproducible code are useful but insufficient. A citation may
 
 The system is a verifier and state layer. It does not replace the research agent.
 
-| Component | Responsibility |
-| --- | --- |
-| Evidence ledger | Stores sources, excerpts, tool outputs, identifiers, and provenance. |
-| Argument graph | Stores natural-language statements and explicit reasoning steps. |
-| Verifier | Runs deterministic checks where structured information is available. |
-| Planner agent | Chooses which proof obligation to resolve and proposes an action. |
+| Component       | Responsibility                                                                            |
+| --------------- | ----------------------------------------------------------------------------------------- |
+| Evidence ledger | Stores sources, excerpts, tool outputs, identifiers, and provenance.                      |
+| Argument graph  | Stores natural-language statements and explicit reasoning steps.                          |
+| Verifier        | Runs deterministic checks where structured information is available.                      |
+| Planner agent   | Chooses which proof obligation to resolve and proposes an action.                         |
 | Execution agent | Searches sources, queries tools such as Amass, runs analysis, and proposes graph updates. |
 
 The core distinction is:
@@ -103,10 +103,10 @@ This is an argument/provenance hypergraph represented as a normal directed graph
 
 The model has three distinct layers.
 
-| Layer | Contents | Purpose |
-| --- | --- | --- |
-| Evidence layer | Sources, excerpts, API records, datasets, tool outputs, agent messages | Lets users see exactly where information came from. |
-| Argument layer | Statements, reasoning steps, support/rebuttal/qualification links, goals | The primary graph rendered in the UI. |
+| Layer          | Contents                                                                 | Purpose                                                |
+| -------------- | ------------------------------------------------------------------------ | ------------------------------------------------------ |
+| Evidence layer | Sources, excerpts, API records, datasets, tool outputs, agent messages   | Lets users see exactly where information came from.    |
+| Argument layer | Statements, reasoning steps, support/rebuttal/qualification links, goals | The primary graph rendered in the UI.                  |
 | Semantic layer | Optional annotations such as entities, scope, claim kind, inference risk | Enables retrieval, matching, and deterministic checks. |
 
 Natural-language content in the evidence and argument layers remains the source of truth. Semantic annotations are versioned claims about how that content should be interpreted.
@@ -133,15 +133,21 @@ Required fields:
 
 ```ts
 type Source = {
-  id: string
-  kind: "document" | "amass_record" | "dataset" | "tool_output" | "agent_message" | "note"
-  title?: string
-  externalIds: Record<string, string>
-  origin: "upload" | "amass" | "agent" | "user" | "system"
-  contentHash?: string
-  createdAt: string
-  metadata: Record<string, unknown>
-}
+  id: string;
+  kind:
+    | "document"
+    | "amass_record"
+    | "dataset"
+    | "tool_output"
+    | "agent_message"
+    | "note";
+  title?: string;
+  externalIds: Record<string, string>;
+  origin: "upload" | "amass" | "agent" | "user" | "system";
+  contentHash?: string;
+  createdAt: string;
+  metadata: Record<string, unknown>;
+};
 ```
 
 ### 5.2 Excerpt
@@ -158,20 +164,20 @@ Examples:
 
 ```ts
 type Excerpt = {
-  id: string
-  sourceId: string
-  text: string
+  id: string;
+  sourceId: string;
+  text: string;
   locator: {
-    page?: number
-    section?: string
-    start?: number
-    end?: number
-    figure?: string
-    table?: string
-    jsonPath?: string
-  }
-  createdAt: string
-}
+    page?: number;
+    section?: string;
+    start?: number;
+    end?: number;
+    figure?: string;
+    table?: string;
+    jsonPath?: string;
+  };
+  createdAt: string;
+};
 ```
 
 ### 5.3 Statement
@@ -188,15 +194,20 @@ Do not require all statements to fit subject-predicate-object form. The followin
 
 ```ts
 type Statement = {
-  id: string
-  text: string
-  sourceExcerptIds: string[]
-  assertionMode: "asserted" | "hypothesis" | "conditional" | "question" | "reported"
-  role?: "premise" | "conclusion" | "assumption" | "objection" | "definition"
-  lifecycle: "proposed" | "accepted" | "superseded" | "rejected"
-  createdBy: Provenance
-  createdAt: string
-}
+  id: string;
+  text: string;
+  sourceExcerptIds: string[];
+  assertionMode:
+    | "asserted"
+    | "hypothesis"
+    | "conditional"
+    | "question"
+    | "reported";
+  role?: "premise" | "conclusion" | "assumption" | "objection" | "definition";
+  lifecycle: "proposed" | "accepted" | "superseded" | "rejected";
+  createdBy: Provenance;
+  createdAt: string;
+};
 ```
 
 `reported` means that the system is recording what a source or agent said, not independently asserting that it is true.
@@ -207,15 +218,15 @@ A reasoning step explicitly connects zero or more premises to a conclusion. It i
 
 ```ts
 type ReasoningStep = {
-  id: string
-  premiseIds: string[]
-  conclusionId: string
-  explanation: string
-  lifecycle: "proposed" | "accepted" | "superseded" | "rejected"
-  sourceExcerptIds: string[]
-  createdBy: Provenance
-  createdAt: string
-}
+  id: string;
+  premiseIds: string[];
+  conclusionId: string;
+  explanation: string;
+  lifecycle: "proposed" | "accepted" | "superseded" | "rejected";
+  sourceExcerptIds: string[];
+  createdBy: Provenance;
+  createdAt: string;
+};
 ```
 
 The `explanation` should be natural language. Optional semantic annotations may identify it as an extrapolation, causal inference, deduction, induction, or analogy.
@@ -226,13 +237,13 @@ A goal represents the question or decision currently being investigated.
 
 ```ts
 type ResearchGoal = {
-  id: string
-  question: string
-  targetStatementIds: string[]
-  completionCriteria: string[]
-  falsifiers: string[]
-  status: "open" | "conditionally_answered" | "answered" | "abandoned"
-}
+  id: string;
+  question: string;
+  targetStatementIds: string[];
+  completionCriteria: string[];
+  falsifiers: string[];
+  status: "open" | "conditionally_answered" | "answered" | "abandoned";
+};
 ```
 
 Completion criteria are important. They state what sort of support is needed for a claim to count as addressed, such as "direct human interventional evidence with an outcome matching Y."
@@ -243,16 +254,22 @@ A proof obligation is a system-generated or user-generated requirement that bloc
 
 ```ts
 type ProofObligation = {
-  id: string
-  kind: "missing_direct_evidence" | "missing_premise" | "scope_mismatch" | "conflict_unresolved" | "source_invalidated" | "underspecified"
-  description: string
-  blocksStatementIds: string[]
-  blocksGoalIds: string[]
-  requiredCondition: string
-  generatedByRule?: string
-  status: "open" | "resolved" | "waived"
-  createdAt: string
-}
+  id: string;
+  kind:
+    | "missing_direct_evidence"
+    | "missing_premise"
+    | "scope_mismatch"
+    | "conflict_unresolved"
+    | "source_invalidated"
+    | "underspecified";
+  description: string;
+  blocksStatementIds: string[];
+  blocksGoalIds: string[];
+  requiredCondition: string;
+  generatedByRule?: string;
+  status: "open" | "resolved" | "waived";
+  createdAt: string;
+};
 ```
 
 Proof obligations are not generic todos. They state why a claim is presently unearned. The agent can convert them into actions.
@@ -263,12 +280,12 @@ Every generated object must record how it came to exist.
 
 ```ts
 type Provenance = {
-  actorType: "user" | "agent" | "extractor" | "rule_engine" | "integration"
-  actorId: string
-  model?: string
-  promptVersion?: string
-  runId?: string
-}
+  actorType: "user" | "agent" | "extractor" | "rule_engine" | "integration";
+  actorId: string;
+  model?: string;
+  promptVersion?: string;
+  runId?: string;
+};
 ```
 
 ## 6. Optional Semantic Annotations
@@ -277,30 +294,30 @@ Semantic annotations are optional, extensible, versioned, and reviewable. They m
 
 ```ts
 type Annotation = {
-  id: string
-  subjectType: "statement" | "reasoning_step" | "source" | "excerpt"
-  subjectId: string
-  type: string
-  value: unknown
-  producedBy: Provenance
-  confidence?: number
-  status: "proposed" | "accepted" | "rejected"
-  createdAt: string
-}
+  id: string;
+  subjectType: "statement" | "reasoning_step" | "source" | "excerpt";
+  subjectId: string;
+  type: string;
+  value: unknown;
+  producedBy: Provenance;
+  confidence?: number;
+  status: "proposed" | "accepted" | "rejected";
+  createdAt: string;
+};
 ```
 
 Useful initial annotation types:
 
-| Annotation | Example | Use |
-| --- | --- | --- |
-| `claim_kind` | `causal`, `association`, `methodological`, `recommendation` | Enables targeted rules. |
-| `entities` | Drug X, EGFR, clinical outcome | Improves retrieval and linking. |
-| `scope` | human adults, in-vitro, mouse, endpoint, dose | Detects scope leaps and contradictions. |
-| `evidence_type` | RCT, observational study, simulation, review | Supports evidence requirement checks. |
-| `inference_method` | extrapolation, deduction, induction, causal inference | Makes reasoning inspectable. |
-| `inference_risk` | in-vitro-to-human extrapolation | Produces targeted critique. |
-| `formal_pattern` | conditional antecedent/consequent | Supports future logical analysis. |
-| `source_status` | retracted, corrected, superseded | Enables source invalidation checks. |
+| Annotation         | Example                                                     | Use                                     |
+| ------------------ | ----------------------------------------------------------- | --------------------------------------- |
+| `claim_kind`       | `causal`, `association`, `methodological`, `recommendation` | Enables targeted rules.                 |
+| `entities`         | Drug X, EGFR, clinical outcome                              | Improves retrieval and linking.         |
+| `scope`            | human adults, in-vitro, mouse, endpoint, dose               | Detects scope leaps and contradictions. |
+| `evidence_type`    | RCT, observational study, simulation, review                | Supports evidence requirement checks.   |
+| `inference_method` | extrapolation, deduction, induction, causal inference       | Makes reasoning inspectable.            |
+| `inference_risk`   | in-vitro-to-human extrapolation                             | Produces targeted critique.             |
+| `formal_pattern`   | conditional antecedent/consequent                           | Supports future logical analysis.       |
+| `source_status`    | retracted, corrected, superseded                            | Enables source invalidation checks.     |
 
 Example scope annotation:
 
@@ -322,17 +339,17 @@ Rules should only draw a strong conclusion when their required annotations are a
 
 Core graph relations are deliberately limited:
 
-| From | Relation | To | Meaning |
-| --- | --- | --- | --- |
-| Statement | `premise_of` | ReasoningStep | Statement is used by a reasoning step. |
-| ReasoningStep | `concludes` | Statement | Reasoning step produces a conclusion. |
-| Excerpt | `grounds` | Statement | Excerpt is evidence for the statement as reported. |
-| Statement | `rebuts` | Statement | Statement offers contrary evidence/conclusion. |
-| Statement | `undercuts` | ReasoningStep | Statement challenges an inference without necessarily asserting the opposite conclusion. |
-| Statement | `qualifies` | Statement/ReasoningStep | Statement narrows conditions or interpretation. |
-| Statement | `specializes` | Statement | Statement is a more specific version of another. |
-| Statement | `revises` | Statement | Explicit correction/revision. Never inferred solely from similarity. |
-| ProofObligation | `blocks` | Statement/Goal | Requirement prevents acceptance. |
+| From            | Relation      | To                      | Meaning                                                                                  |
+| --------------- | ------------- | ----------------------- | ---------------------------------------------------------------------------------------- |
+| Statement       | `premise_of`  | ReasoningStep           | Statement is used by a reasoning step.                                                   |
+| ReasoningStep   | `concludes`   | Statement               | Reasoning step produces a conclusion.                                                    |
+| Excerpt         | `grounds`     | Statement               | Excerpt is evidence for the statement as reported.                                       |
+| Statement       | `rebuts`      | Statement               | Statement offers contrary evidence/conclusion.                                           |
+| Statement       | `undercuts`   | ReasoningStep           | Statement challenges an inference without necessarily asserting the opposite conclusion. |
+| Statement       | `qualifies`   | Statement/ReasoningStep | Statement narrows conditions or interpretation.                                          |
+| Statement       | `specializes` | Statement               | Statement is a more specific version of another.                                         |
+| Statement       | `revises`     | Statement               | Explicit correction/revision. Never inferred solely from similarity.                     |
+| ProofObligation | `blocks`      | Statement/Goal          | Requirement prevents acceptance.                                                         |
 
 Use an undercut when a source demonstrates a confounder, invalid method, scope mismatch, or retraction. This differs from a rebuttal, which argues for incompatible substantive content.
 
@@ -927,14 +944,14 @@ Deployment requirements:
 
 ## 21. Team Ownership Suggestions
 
-| Area | Deliverable |
-| --- | --- |
-| Backend/graph | Models, migrations, graph patch validation, event log, dependency traversal, rules. |
-| Extraction/LLM | Prompt/schema design, chunking, structured output validation, annotation/link proposal. |
-| Amass | API adapter, canonical-source import, caching, demo source snapshots. |
-| Frontend | Graph canvas, inspector, source viewer, obligations, replay. |
-| Agent/evaluation | MCP/client wrapper, research contract, baseline/guarded runs, benchmark fixtures. |
-| DevOps | Docker Compose, Caddy, environment/secrets, VPS deployment. |
+| Area             | Deliverable                                                                             |
+| ---------------- | --------------------------------------------------------------------------------------- |
+| Backend/graph    | Models, migrations, graph patch validation, event log, dependency traversal, rules.     |
+| Extraction/LLM   | Prompt/schema design, chunking, structured output validation, annotation/link proposal. |
+| Amass            | API adapter, canonical-source import, caching, demo source snapshots.                   |
+| Frontend         | Graph canvas, inspector, source viewer, obligations, replay.                            |
+| Agent/evaluation | MCP/client wrapper, research contract, baseline/guarded runs, benchmark fixtures.       |
+| DevOps           | Docker Compose, Caddy, environment/secrets, VPS deployment.                             |
 
 ## 22. Decisions That Must Remain Consistent Across All Work
 
@@ -989,15 +1006,15 @@ The backend is the owner of all persistent contracts. The frontend and agent cod
 ```text
 POSTGRES_URL=
 REDIS_URL=
-OPENROUTER_API_KEY=
-OPENROUTER_MODEL=
+CLAUDE_API_KEY=
+CLAUDE_MODEL=claude-sonnet-4-5-20250929
 AMASS_API_KEY=
 APP_BASE_URL=
 JWT_SECRET=
 UPLOAD_DIR=/data/uploads
 ```
 
-`.env.example` lists variable names and safe placeholder values. `.env` is never committed. Keep OpenRouter and Amass calls in the backend/worker only.
+`.env.example` lists variable names and safe placeholder values. `.env` is never committed. Keep Anthropic and Amass calls in the backend/worker only.
 
 ### Background-job states
 

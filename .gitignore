@@ -10,3 +10,5 @@ node_modules/
 dist/
 coverage/
 data/
+backend/build/
+backend/*.egg-info/
