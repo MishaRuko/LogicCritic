@@ -16,3 +16,5 @@ backend/*.egg-info/
 *.tsbuildinfo
 test-results/
 playwright-report/
+vision/runs/
+vision/src/*.egg-info/

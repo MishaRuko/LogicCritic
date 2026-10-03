@@ -1,0 +1,66 @@
+id: mock-transformation
+title: Mock bacterial transformation
+version: '1'
+steps:
+- id: s1
+  description: Add 5 μL of plasmid DNA to the competent E. coli cells.
+  source_text: Add 5 μL of plasmid DNA to the competent E. coli cells.
+  objects:
+  - handheld pipette with digital display
+  - small tube held in gloved hand
+  checks:
+  - id: volume
+    question: What volume is set on the pipette for adding plasmid DNA?
+    kind: numeric
+    expected: 5.0
+    unit: μL
+    target: handheld pipette with digital display
+- id: s2
+  description: Mix gently by flicking the tube 4-5 times.
+  source_text: Mix gently by flicking the tube 4-5 times.
+  objects:
+  - small tube held in gloved hand
+- id: s3
+  description: Incubate the DNA-cell mixture on ice for 5 seconds.
+  source_text: Incubate the DNA-cell mixture on ice for 5 seconds.
+  objects:
+  - small tube held in gloved hand
+  - green box of crushed ice
+- id: s4
+  description: Rapidly transfer the tube to a water bath pre-heated to 42°C and keep it there for exactly
+    5 seconds.
+  source_text: Rapidly transfer the tube to a pre-heated 42°C water bath for exactly 5 seconds.
+  objects:
+  - small tube held in gloved hand
+  - water bath with temperature display
+  checks:
+  - id: temperature
+    question: What temperature is shown on the water bath display?
+    kind: numeric
+    expected: 42.0
+    unit: °C
+    target: water bath with temperature display
+- id: s5
+  description: Immediately return the tube to ice for 5 seconds.
+  source_text: Immediately return the tube to ice for 5 seconds.
+  objects:
+  - small tube held in gloved hand
+  - green box of crushed ice
+- id: s6
+  description: Spread 50 μL of culture onto an LB agar plate containing the appropriate selective antibiotic.
+  source_text: Spread 50μL of culture onto an LB agar plate containing the appropriate selective antibiotic.
+  objects:
+  - handheld pipette with digital display
+  - round petri dish
+  checks:
+  - id: volume
+    question: What volume is set on the pipette for dispensing culture onto the plate?
+    kind: numeric
+    expected: 50.0
+    unit: μL
+    target: handheld pipette with digital display
+- id: s7
+  description: Invert the plates.
+  source_text: Invert the plates.
+  objects:
+  - round petri dish

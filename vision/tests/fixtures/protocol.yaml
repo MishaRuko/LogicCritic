@@ -1,0 +1,26 @@
+id: serial-dilution
+title: Two-step dilution
+version: "1"
+steps:
+  - id: add-diluent
+    description: Add diluent to tube B using the micropipette.
+    objects: [micropipette, tube B]
+    checks:
+      - id: volume
+        question: What volume is set on the micropipette?
+        kind: numeric
+        expected: 900
+        unit: uL
+        tolerance: 5
+  - id: transfer-sample
+    description: Transfer sample from tube A into tube B.
+    objects: [micropipette, tube A, tube B]
+    checks:
+      - id: destination
+        question: Which tube is the sample being dispensed into?
+        kind: equals
+        expected: tube B
+        accept: [B]
+  - id: vortex
+    description: Vortex tube B.
+    objects: [vortex mixer]

@@ -1,0 +1,13 @@
+{
+  "clip_id": "DJI-091",
+  "deviations": [
+    {
+      "kind": "skipped_step",
+      "step_id": "s3",
+      "span": {
+        "start_s": 38,
+        "end_s": 46
+      }
+    }
+  ]
+}
