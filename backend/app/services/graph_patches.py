@@ -243,6 +243,7 @@ class GraphPatchExecutor:
             text=operation.text,
             assertion_mode=operation.assertion_mode,
             role=operation.role,
+            salience=operation.salience,
             lifecycle=operation.lifecycle,
             provenance=provenance_dict(operation.provenance),
         )

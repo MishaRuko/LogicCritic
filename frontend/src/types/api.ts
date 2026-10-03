@@ -3,7 +3,7 @@ export interface Provenance { actor_type: 'user' | 'agent' | 'extractor' | 'rule
 export type Lifecycle = 'proposed' | 'accepted' | 'rejected';
 export type AssertionMode = 'asserted' | 'hypothesis' | 'conditional' | 'question' | 'reported';
 export type StatementRole = 'premise' | 'conclusion' | 'assumption' | 'objection' | 'definition';
-export interface Statement { id: string; workspace_id: string; text: string; assertion_mode: AssertionMode; role: StatementRole | null; lifecycle: Lifecycle; provenance: Provenance; created_at: string; excerpt_ids: string[] }
+export interface Statement { id: string; workspace_id: string; text: string; assertion_mode: AssertionMode; role: StatementRole | null; salience: 'core' | 'supporting'; lifecycle: Lifecycle; provenance: Provenance; created_at: string; excerpt_ids: string[] }
 export interface ReasoningStep { id: string; workspace_id: string; conclusion_id: string; premise_ids: string[]; explanation: string; lifecycle: Lifecycle; provenance: Provenance; created_at: string }
 export interface Relation { id: string; source_node_kind: string; source_node_id: string; target_node_kind: string; target_node_id: string; relation: string; metadata: Record<string, unknown> }
 export interface Graph { statements: Statement[]; reasoning_steps: ReasoningStep[]; relations: Relation[] }
@@ -17,7 +17,7 @@ export interface Context { focus_statement: Statement; upstream_statements: Stat
 export interface Verification { verification_event_id: string; rules_run: string[]; issues_opened: number; issues_resolved: number; obligations_opened: number; obligations_resolved: number }
 export interface Validity { id: string; source_id: string; status: 'valid' | 'invalidated'; reason: string; provenance: Provenance; created_at: string }
 export type PatchOperation =
-  | { op: 'create_statement'; client_ref: string; text: string; assertion_mode: AssertionMode; role?: StatementRole; excerpt_ids: string[]; provenance: Provenance; lifecycle?: 'proposed' }
+  | { op: 'create_statement'; client_ref: string; text: string; assertion_mode: AssertionMode; role?: StatementRole; salience?: 'core' | 'supporting'; excerpt_ids: string[]; provenance: Provenance; lifecycle?: 'proposed' }
   | { op: 'create_reasoning_step'; client_ref: string; premise_ids: string[]; conclusion_id: string; explanation: string; provenance: Provenance; lifecycle?: 'proposed' }
   | { op: 'create_relation'; source_node_kind: 'statement' | 'reasoning_step'; source_node_id: string; relation: 'supports' | 'rebuts' | 'undercuts' | 'qualifies' | 'specializes' | 'revises'; target_node_kind: 'statement' | 'reasoning_step'; target_node_id: string; metadata: Record<string, unknown> }
   | { op: 'create_annotation'; subject_type: 'statement' | 'reasoning_step'; subject_id: string; type: string; value: Record<string, unknown>; provenance: Provenance; confidence?: number; status?: 'proposed' };

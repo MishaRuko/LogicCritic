@@ -95,7 +95,11 @@ async def synthesize_workspace(
         .join(StatementExcerpt, StatementExcerpt.statement_id == Statement.id)
         .join(Excerpt, Excerpt.id == StatementExcerpt.excerpt_id)
         .join(Source, Source.id == Excerpt.source_id)
-        .where(Statement.workspace_id == workspace_id, Statement.lifecycle != "rejected")
+        .where(
+            Statement.workspace_id == workspace_id,
+            Statement.lifecycle != "rejected",
+            Statement.salience == "core",
+        )
     )
     candidates: dict[uuid.UUID, dict] = {}
     for statement_id, text, source_id, excerpt in rows:

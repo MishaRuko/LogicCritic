@@ -19,7 +19,8 @@ from app.services.claude_errors import describe_claude_failure, ensure_complete
 from app.services.claude_tools import strict_input_schema, strict_tool
 from app.services.graph_patches import GraphPatchExecutor, graph_patch_response_from_event
 
-PROMPT_VERSION = "source_extraction_v2"
+PROMPT_VERSION = "source_extraction_v4"
+NON_CLAIM_SECTIONS = {"retraction notice"}
 
 EXTRACTION_SYSTEM_PROMPT = (
     "Extract only statements directly supported by the supplied source excerpts and explicit "
@@ -38,8 +39,11 @@ EXTRACTION_SYSTEM_PROMPT = (
     "limitations, directly tested mechanisms, and final conclusions. Exclude routine procedures, "
     "registry or administrative details, citation/background boilerplate, repeated wording, and "
     "retraction-process metadata. Prefer one precise claim over several sentence-level restatements. "
-    "Return at most 12 statements and 8 reasoning steps for this excerpt set. Do not return an empty "
-    "result when consequential claims are present. Use unique client_ref values. Call the "
+    "Classify paper-level results, conclusions, substantive limitations, and essential design facts "
+    "as core. Classify details useful only as premises for another extracted claim as supporting. "
+    "Do not impose a numeric claim limit: include every consequential claim, but not sentence-level "
+    "coverage. Use the supplied document overview to judge paper-level importance. Do not return an "
+    "empty result when consequential claims are present. Use unique client_ref values. Call the "
     "submit_extraction tool with the result."
 )
 
@@ -98,7 +102,11 @@ async def extract_source_to_patch(
     query = select(Excerpt).where(Excerpt.source_id == source.id)
     if excerpt_ids is not None:
         query = query.where(Excerpt.id.in_(excerpt_ids))
-    excerpts = list(await session.scalars(query.order_by(Excerpt.sequence)))
+    excerpts = [
+        excerpt
+        for excerpt in await session.scalars(query.order_by(Excerpt.sequence))
+        if is_extractable_excerpt(excerpt)
+    ]
     context = _excerpt_context(excerpts, settings.max_extraction_context_chars)
     if not context:
         raise HTTPException(status_code=422, detail="Source has no extractable excerpts")
@@ -108,7 +116,10 @@ async def extract_source_to_patch(
         "max_tokens": EXTRACTION_MAX_TOKENS,
         "system": EXTRACTION_SYSTEM_PROMPT,
         "messages": [
-            {"role": "user", "content": f"Source excerpts:\n\n{context}"},
+            {
+                "role": "user",
+                "content": f"Document overview (for importance only):\n\n{await _document_overview(session, source.id)}\n\nSource excerpts to extract:\n\n{context}",
+            },
         ],
         "tools": [
             strict_tool(
@@ -182,6 +193,7 @@ async def extract_source_to_patch(
                     text=item.text,
                     assertion_mode=item.assertion_mode,
                     role=item.role,
+                    salience=item.salience,
                     excerpt_ids=item.excerpt_ids,
                     provenance=provenance,
                 )
@@ -214,3 +226,34 @@ def _excerpt_context(excerpts: list[Excerpt], limit: int) -> str:
         chunks.append(chunk)
         used += len(chunk)
     return "\n".join(chunks)
+
+
+def is_extractable_excerpt(excerpt: Excerpt) -> bool:
+    """Retain document metadata as context without turning it into graph claims."""
+    section = str(excerpt.locator.get("section", "")).strip().casefold()
+    path = str(excerpt.locator.get("jsonPath", "")).strip().casefold()
+    return section not in NON_CLAIM_SECTIONS and path != "title"
+
+
+async def _document_overview(session: AsyncSession, source_id: uuid.UUID, limit: int = 6000) -> str:
+    excerpts = list(
+        await session.scalars(
+            select(Excerpt).where(Excerpt.source_id == source_id).order_by(Excerpt.sequence)
+        )
+    )
+    preferred = []
+    for excerpt in excerpts:
+        section = str(excerpt.locator.get("section", "")).casefold()
+        path = str(excerpt.locator.get("jsonPath", "")).casefold()
+        if path == "title" or section in {
+            "abstract",
+            "summary",
+            "conclusion",
+            "conclusions",
+            "limitations",
+        }:
+            preferred.append(excerpt.text)
+    if not preferred:
+        preferred = [item.text for item in excerpts[:3]]
+    overview = "\n\n".join(preferred)
+    return overview[:limit]

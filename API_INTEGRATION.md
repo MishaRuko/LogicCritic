@@ -10,7 +10,7 @@ All API routes are served under `/api`. The backend is the source of truth; all 
 4. Poll `GET /extraction-jobs/{jobId}` until `status` is `succeeded`, `failed`, or `cancelled`.
 5. `GET /workspaces/{workspaceId}/graph` returns statements, reasoning steps, and relations for graph rendering.
 
-Statements include `excerpt_ids`; retrieve excerpt text with `GET /sources/{sourceId}/excerpts`. Reasoning steps contain `premise_ids` and `conclusion_id`.
+Statements include `excerpt_ids` and `salience` (`core` or `supporting`); retrieve excerpt text with `GET /sources/{sourceId}/excerpts`. Reasoning steps contain `premise_ids` and `conclusion_id`. Extraction has no numeric claim cap: it retains every consequential claim, while marking details used only as evidence as `supporting`. AMASS titles remain document context rather than graph claims. Retraction-notice excerpts remain available as source evidence but are excluded from scientific claim extraction because source validity represents the retraction itself.
 
 ## Review And Verification
 
@@ -21,6 +21,8 @@ Statements include `excerpt_ids`; retrieve excerpt text with `GET /sources/{sour
 ## Cross-Source Synthesis
 
 `POST /workspaces/{workspaceId}/synthesize` with `{ "idempotency_key": "..." }` considers statements from different uploaded sources. It creates only proposed statement-to-statement relations:
+
+Synthesis considers all `core` statements in the workspace; it does not truncate the candidate list. Keep `supporting` statements available in source/evidence views rather than presenting them as paper-level synthesis candidates.
 
 - `supports`: independently compatible evidence for substantially the same proposition.
 - `rebuts`: directly incompatible propositions.

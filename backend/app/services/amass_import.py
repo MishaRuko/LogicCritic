@@ -16,10 +16,15 @@ from app.services.amass import BIOMEDCORE, AmassClient, AmassError, BiomedRecord
 from app.services.source_store import DuplicateSource, NewSource, store_source
 from app.services.text_ingestion import ParsedExcerpt, parse_structured_text
 
-PARSER = "amass_biomedcore_v2"
+PARSER = "amass_biomedcore_v3"
 MAX_EXCERPT_CHARS = 1500
 # A structured-abstract heading on its own line: "BACKGROUND:", "PATIENTS AND METHODS:".
 ABSTRACT_HEADING = re.compile(r"^[A-Z][A-Z &/,-]{2,50}:$")
+RETRACTION_NOTICE = re.compile(
+    r"^(?:this (?:article|publication) has been retracted|retraction(?: notice)?\b|"
+    r"the (?:article|paper) (?:has been|was) retracted)",
+    re.IGNORECASE,
+)
 SENTENCE_BREAK = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9(\[])")
 INTEGRATION_PROVENANCE = {"actor_type": "integration", "actor_id": "amass"}
 RETRACTION_REASON = (
@@ -90,17 +95,25 @@ def split_block(text: str, start: int, section: str | None) -> list[tuple[str, i
     Splits fall on a heading line, then a line break, then a sentence boundary. A heading such
     as "RESULTS:" becomes the section label of the excerpts under it.
     """
-    if len(text) <= MAX_EXCERPT_CHARS:
+    lines = text.split("\n")
+    if len(text) <= MAX_EXCERPT_CHARS and not any(
+        ABSTRACT_HEADING.match(line.strip()) or RETRACTION_NOTICE.match(line.strip())
+        for line in lines
+    ):
         return [(text, start, section)]
 
     pieces: list[tuple[int, int, str | None]] = []  # (offset, end, section) within `text`
     offset = 0
-    for line in text.split("\n"):
+    for line in lines:
         line_end = offset + len(line)
         stripped = line.strip()
         if ABSTRACT_HEADING.match(stripped):
             section = stripped.rstrip(":").title()
             pieces.append((offset, line_end, section))  # a heading line, merged below
+        elif RETRACTION_NOTICE.match(stripped):
+            section = "Retraction Notice"
+            for a, b in _sentence_spans(line, offset):
+                pieces.append((a, b, section))
         elif stripped:
             for a, b in _sentence_spans(line, offset):
                 pieces.append((a, b, section))
@@ -120,7 +133,11 @@ def split_block(text: str, start: int, section: str | None) -> list[tuple[str, i
 
     for piece in pieces:
         heading = ABSTRACT_HEADING.match(text[piece[0] : piece[1]].strip())
-        if group and (heading or piece[1] - group[0][0] > MAX_EXCERPT_CHARS):
+        if group and (
+            heading
+            or piece[2] != group[-1][2]
+            or piece[1] - group[0][0] > MAX_EXCERPT_CHARS
+        ):
             flush()
         group.append(piece)
     flush()

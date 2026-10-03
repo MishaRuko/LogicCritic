@@ -50,6 +50,7 @@ NodeKind = Literal["statement", "reasoning_step"]
 Lifecycle = Literal["proposed"]
 AssertionMode = Literal["asserted", "hypothesis", "conditional", "question", "reported"]
 StatementRole = Literal["premise", "conclusion", "assumption", "objection", "definition"]
+StatementSalience = Literal["core", "supporting"]
 
 
 class ProvenanceInput(BaseModel):
@@ -66,6 +67,7 @@ class StatementCreateOperation(BaseModel):
     text: str = Field(min_length=1)
     assertion_mode: AssertionMode
     role: StatementRole | None = None
+    salience: StatementSalience = "core"
     excerpt_ids: list[uuid.UUID] = Field(default_factory=list)
     provenance: ProvenanceInput
     lifecycle: Lifecycle = "proposed"
@@ -129,6 +131,7 @@ class StatementResponse(APIModel):
     text: str
     assertion_mode: str
     role: str | None
+    salience: str
     lifecycle: str
     provenance: dict
     created_at: datetime
@@ -250,6 +253,9 @@ class ExtractedStatement(BaseModel):
     text: str = Field(min_length=1)
     assertion_mode: AssertionMode
     role: StatementRole | None = None
+    salience: StatementSalience = Field(
+        description="core for a paper-level result, conclusion, limitation, or essential design fact; supporting for evidence used only to support another claim."
+    )
     excerpt_ids: list[uuid.UUID] = Field(
         min_length=1,
         description="IDs of the supplied source excerpts that contain this statement.",
@@ -272,8 +278,8 @@ class ExtractedReasoningStep(BaseModel):
 
 
 class ExtractionOutput(BaseModel):
-    statements: list[ExtractedStatement] = Field(default_factory=list, max_length=12)
-    reasoning_steps: list[ExtractedReasoningStep] = Field(default_factory=list, max_length=8)
+    statements: list[ExtractedStatement] = Field(default_factory=list)
+    reasoning_steps: list[ExtractedReasoningStep] = Field(default_factory=list)
 
 
 class SourceExtractionResponse(BaseModel):

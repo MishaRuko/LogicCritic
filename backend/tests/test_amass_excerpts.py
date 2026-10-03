@@ -62,6 +62,21 @@ def test_a_heading_with_nothing_under_it_produces_no_excerpt() -> None:
     assert all(body.strip() != "CONCLUSION:" for body, _, _ in pieces)
 
 
+def test_retraction_notice_does_not_inherit_conclusion_section() -> None:
+    text = (
+        "CONCLUSION:\nThe treatment was associated with viral clearance.\n"
+        "This article has been retracted: please see the publisher policy.\n"
+        "Concerns were raised about the study methodology and conclusions."
+    )
+
+    pieces = split_block(text, 0, None)
+
+    assert [section for _, _, section in pieces] == ["Conclusion", "Retraction Notice"]
+    assert pieces[0][0].endswith("viral clearance.")
+    assert pieces[1][0].startswith("This article has been retracted")
+    assert_offsets_are_exact(text, pieces)
+
+
 def test_record_excerpts_use_the_split_and_keep_jsonpath_offsets() -> None:
     abstract = f"BACKGROUND:\n{words(150)}\nRESULTS:\n{words(150)}\nCONCLUSION:\nShort."
     record = BiomedRecord.model_validate(

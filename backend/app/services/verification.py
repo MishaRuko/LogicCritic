@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
     Annotation,
-    Excerpt,
     GraphEvent,
     Issue,
     ProofObligation,
@@ -281,26 +280,17 @@ async def _invalidated_source_findings(
     }
     if not invalidated_source_ids:
         return []
-    statement_sources = list(
-        await session.execute(
-            select(Statement.id, Source.id)
-            .join(StatementExcerpt, StatementExcerpt.statement_id == Statement.id)
-            .join(Excerpt, Excerpt.id == StatementExcerpt.excerpt_id)
-            .join(Source, Source.id == Excerpt.source_id)
-            .where(Statement.workspace_id == workspace_id, Source.id.in_(invalidated_source_ids))
-        )
-    )
     return [
         Finding(
             "invalidated_source",
-            "statement",
-            statement_id,
-            {"message": "Statement cites an invalidated source", "source_id": str(source_id)},
+            "source",
+            source_id,
+            {"message": "Source has been invalidated", "source_id": str(source_id)},
             "replacement_evidence",
             "Replace or qualify evidence from the invalidated source.",
-            "Link a valid replacement source or reject/narrow the statement.",
+            "Link a valid replacement source or reject/narrow claims grounded in this source.",
         )
-        for statement_id, source_id in statement_sources
+        for source_id in sorted(invalidated_source_ids, key=str)
     ]
 
 

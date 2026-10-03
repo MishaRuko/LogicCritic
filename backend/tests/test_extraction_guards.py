@@ -1,11 +1,16 @@
 import uuid
+from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
 
 from app.schemas import ExtractedReasoningStep, ExtractedStatement, ExtractionOutput
 from app.services.claude_errors import ensure_complete
-from app.services.extraction import drop_unresolvable_steps, extraction_schema
+from app.services.extraction import (
+    drop_unresolvable_steps,
+    extraction_schema,
+    is_extractable_excerpt,
+)
 
 
 def statement(ref: str) -> ExtractedStatement:
@@ -13,6 +18,7 @@ def statement(ref: str) -> ExtractedStatement:
         client_ref=ref,
         text=f"Statement {ref}.",
         assertion_mode="asserted",
+        salience="core",
         excerpt_ids=[uuid.uuid4()],
     )
 
@@ -36,6 +42,23 @@ def test_reference_fields_say_they_are_not_excerpt_ids() -> None:
         in defs["ExtractedReasoningStep"]["properties"]["premise_refs"]["description"]
     )
     assert "excerpts" in defs["ExtractedStatement"]["properties"]["excerpt_ids"]["description"]
+    assert set(defs["ExtractedStatement"]["properties"]["salience"]["enum"]) == {"core", "supporting"}
+
+
+def test_extraction_has_no_fixed_claim_count_cap() -> None:
+    properties = extraction_schema()["properties"]
+    assert "maxItems" not in properties["statements"]
+    assert "maxItems" not in properties["reasoning_steps"]
+
+
+def test_retraction_notice_is_retained_but_not_extracted() -> None:
+    title = SimpleNamespace(locator={"jsonPath": "title"})
+    notice = SimpleNamespace(locator={"jsonPath": "abstract", "section": "Retraction Notice"})
+    conclusion = SimpleNamespace(locator={"section": "Conclusion"})
+
+    assert is_extractable_excerpt(title) is False
+    assert is_extractable_excerpt(notice) is False
+    assert is_extractable_excerpt(conclusion) is True
 
 
 def test_steps_citing_statements_that_exist_are_kept() -> None:

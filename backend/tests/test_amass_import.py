@@ -1,13 +1,14 @@
 import json
+import uuid
 
 import httpx
 import pytest
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 
 from app.config import get_settings
 from app.database import engine, session_factory
 from app.main import app
-from app.models import AmassCacheEntry
+from app.models import AmassCacheEntry, Issue
 from app.routes.amass import amass_client
 from app.services.amass import AmassError, BiomedRecord
 
@@ -138,7 +139,7 @@ async def test_import_by_amass_id_creates_an_amass_source_with_located_excerpts(
     )
     assert source["title"] == "Compound X in a mouse model"
     assert source["external_ids"] == {"amass_id": "AMBC_1", "pmid": "111", "doi": "10.1000/x1"}
-    assert source["metadata"]["parser"] == "amass_biomedcore_v2"
+    assert source["metadata"]["parser"] == "amass_biomedcore_v3"
     assert (
         source["metadata"]["fulltext_imported"] is True
         and source["metadata"]["journal"] == "Journal of Examples"
@@ -249,12 +250,18 @@ async def test_a_retracted_paper_is_invalidated_and_flagged_by_verification(amas
             ],
         },
     )
-    statement_id = patch.json()["id_map"]["claim"]
+    assert patch.json()["id_map"]["claim"]
     await amass.post(f"/api/workspaces/{amass.workspace}/verify")
-    context = (
-        await amass.get(f"/api/workspaces/{amass.workspace}/statements/{statement_id}/context")
-    ).json()
-    assert "invalidated_source" in {issue["rule_code"] for issue in context["issues"]}
+    async with session_factory() as session:
+        [issue] = list(
+            await session.scalars(
+                select(Issue).where(
+                    Issue.workspace_id == amass.workspace,
+                    Issue.rule_code == "invalidated_source",
+                )
+            )
+        )
+    assert issue.node_type == "source" and issue.node_id == uuid.UUID(source["id"])
 
 
 async def test_a_clean_paper_has_no_validity_decision(amass) -> None:

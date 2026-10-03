@@ -9,7 +9,7 @@ from app.config import get_settings
 from app.database import session_factory
 from app.models import Excerpt, ExtractionJob, Source
 from app.schemas import SourceExtractionRequest
-from app.services.extraction import extract_source_to_patch
+from app.services.extraction import extract_source_to_patch, is_extractable_excerpt
 
 
 async def create_extraction_job(
@@ -95,7 +95,10 @@ async def process_extraction_job(job_id: uuid.UUID) -> None:
                     select(Excerpt).where(Excerpt.source_id == source.id).order_by(Excerpt.sequence)
                 )
             )
-            chunks = chunk_excerpt_ids(excerpts, settings.max_extraction_context_chars)
+            chunks = chunk_excerpt_ids(
+                [excerpt for excerpt in excerpts if is_extractable_excerpt(excerpt)],
+                settings.max_extraction_context_chars,
+            )
             if not chunks:
                 raise ValueError("Source has no extractable excerpts")
 

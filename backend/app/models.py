@@ -65,13 +65,17 @@ class Excerpt(Base):
 
 class Statement(Base):
     __tablename__ = "statements"
-    __table_args__ = (Index("ix_statements_workspace_lifecycle", "workspace_id", "lifecycle"),)
+    __table_args__ = (
+        Index("ix_statements_workspace_lifecycle", "workspace_id", "lifecycle"),
+        Index("ix_statements_workspace_salience", "workspace_id", "salience"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"))
     text: Mapped[str] = mapped_column(Text)
     assertion_mode: Mapped[str] = mapped_column(String(32))
     role: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    salience: Mapped[str] = mapped_column(String(32), default="core")
     lifecycle: Mapped[str] = mapped_column(String(32), default="proposed")
     provenance: Mapped[dict] = mapped_column(JSONB)
     superseded_by: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
