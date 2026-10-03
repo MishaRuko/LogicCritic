@@ -1,24 +1,45 @@
 {
-  "name": "logiccritic-frontend",
+  "name": "logiccritic-trial-frontend",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vue-tsc --noEmit && vite build",
-    "dev": "vite",
-    "preview": "vite preview",
-    "typecheck": "vue-tsc --noEmit"
+    "dev": "next dev --hostname 127.0.0.1 --port 5173",
+    "build": "next build",
+    "start": "next start --hostname 127.0.0.1 --port 5173",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "node tests/e2e/api-flow.mjs"
   },
   "dependencies": {
-    "vue": "^3.5.13"
+    "@cloudflare/kumo": "2.14.0",
+    "@dagrejs/dagre": "^3.1.1",
+    "@phosphor-icons/react": "^2.1.10",
+    "@tanstack/react-query": "^5.90.0",
+    "@xyflow/react": "^12.10.0",
+    "next": "^16.3.8",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
   },
   "devDependencies": {
-    "@tsconfig/node22": "^22.0.0",
-    "@types/node": "^22.10.2",
-    "@vitejs/plugin-vue": "^5.2.1",
-    "@vue/tsconfig": "^0.7.0",
-    "typescript": "~5.7.2",
-    "vite": "^6.0.5",
-    "vue-tsc": "^2.2.0"
+    "@tailwindcss/postcss": "^4.3.3",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@types/node": "26.6.4",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "jsdom": "^26.1.0",
+    "postcss": "^8.5.28",
+    "tailwindcss": "^4.1.0",
+    "typescript": "^5.9.0",
+    "vite": "^6.3.0",
+    "vitest": "^3.2.0"
+  },
+  "packageManager": "pnpm@10.17.1",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }
