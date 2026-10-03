@@ -272,8 +272,8 @@ class ExtractedReasoningStep(BaseModel):
 
 
 class ExtractionOutput(BaseModel):
-    statements: list[ExtractedStatement] = Field(default_factory=list)
-    reasoning_steps: list[ExtractedReasoningStep] = Field(default_factory=list)
+    statements: list[ExtractedStatement] = Field(default_factory=list, max_length=12)
+    reasoning_steps: list[ExtractedReasoningStep] = Field(default_factory=list, max_length=8)
 
 
 class SourceExtractionResponse(BaseModel):

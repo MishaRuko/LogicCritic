@@ -105,10 +105,7 @@ async def synthesize_workspace(
         )
         item["source_ids"].add(str(source_id))
         item["excerpts"].append(excerpt[:1200])
-    material = [
-        {**item, "source_ids": sorted(item["source_ids"])}
-        for item in list(candidates.values())[:100]
-    ]
+    material = [{**item, "source_ids": sorted(item["source_ids"])} for item in candidates.values()]
     if len({source for item in material for source in item["source_ids"]}) < 2:
         raise HTTPException(
             status_code=422, detail="Workspace needs statements from at least two sources"

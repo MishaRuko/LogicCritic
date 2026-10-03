@@ -24,6 +24,7 @@ HEADING = re.compile(rf"^(?:\d+(?:\.\d+)*\.?\s+)?(?P<name>{SECTION_NAMES})\s*:?$
 # Any numbered heading ("3.1 Encoder and Decoder Stacks"): short, capitalised, no final period.
 NUMBERED_HEADING = re.compile(r"^\d+(?:\.\d+){0,2}\.?\s+(?P<title>[A-Z][^.\n]{2,70})$")
 REFERENCES = re.compile(r"^(?:\d+\.?\s+)?(?:references|bibliography|literature cited)\s*:?$", re.I)
+RETRACTION_NOTICE = re.compile(r"^(?:retraction|expression of concern|editorial notice)\b", re.I)
 SENTENCE_BREAK = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9(\[])")
 HYPHEN_BREAK = re.compile(r"(?<=[a-z])-\n(?=[a-z])")
 
@@ -167,6 +168,10 @@ def _paragraphs(text: str, noise: set[str]) -> list[_Paragraph]:
         if REFERENCES.match(stripped):
             close()
             spans.append(_Paragraph(line_start, line_end, heading="References", is_references=True))
+            continue
+        if RETRACTION_NOTICE.match(stripped):
+            close()
+            spans.append(_Paragraph(line_start, line_end, heading="Retraction Notice"))
             continue
         heading = HEADING.match(stripped)
         if heading:

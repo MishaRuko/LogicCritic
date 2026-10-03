@@ -33,10 +33,14 @@ EXTRACTION_SYSTEM_PROMPT = (
     "cited excerpts. If the connection needs an unstated premise, omit the reasoning step. Keep "
     "each "
     "explanation limited to the source-stated connection; do not explain it with new facts. Do not "
-    "invent sources, facts, citations, or certainty. Extract the central explicitly stated "
-    "methods, "
-    "results, and conclusions from each excerpt set; do not return an empty result when those are "
-    "present. Use unique client_ref values. Call the submit_extraction tool with the result."
+    "invent sources, facts, citations, or certainty. Extract only consequential claims: primary "
+    "outcomes and effect sizes, essential study design needed to interpret them, substantive "
+    "limitations, directly tested mechanisms, and final conclusions. Exclude routine procedures, "
+    "registry or administrative details, citation/background boilerplate, repeated wording, and "
+    "retraction-process metadata. Prefer one precise claim over several sentence-level restatements. "
+    "Return at most 12 statements and 8 reasoning steps for this excerpt set. Do not return an empty "
+    "result when consequential claims are present. Use unique client_ref values. Call the "
+    "submit_extraction tool with the result."
 )
 
 

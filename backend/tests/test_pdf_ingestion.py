@@ -86,6 +86,17 @@ def test_headings_label_sections_and_are_not_excerpts() -> None:
     ]
 
 
+def test_retraction_notice_does_not_inherit_a_conclusion_section() -> None:
+    parsed = parse_pdf(make_pdf([[
+        "Conclusion", "The intervention improved the primary outcome.", "",
+        "Retraction Notice", "The journal withdrew the article after an investigation.",
+    ]]))
+    assert [(item.locator.get("section"), item.text) for item in parsed.excerpts] == [
+        ("Conclusion", "The intervention improved the primary outcome."),
+        ("Retraction Notice", "The journal withdrew the article after an investigation."),
+    ]
+
+
 def test_reference_list_is_skipped_until_the_next_real_section() -> None:
     parsed = parse_pdf(
         make_pdf(
