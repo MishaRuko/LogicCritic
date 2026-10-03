@@ -222,23 +222,24 @@ files are 960x720 low-resolution proxies. Labels are in
 
 ### A/B: detection off vs on (current code)
 
-Same protocol and settings in both arms. "Conf. FA" = confident deviation matching no label.
-Reproduce with `scripts/ab_stream.sh off|on` then `python scripts/ab_score.py`. **9 of the 12
-planned runs were scored when this was written** (detection-on repeat 2 was still running), and
-repeats were near-identical, so the table is representative.
+Same protocol and settings in both arms, 3 clips x 2 repeats each (12 runs). "Conf. FA" =
+confident deviation matching no label. Reproduce with `scripts/ab_stream.sh off|on` then
+`python scripts/ab_score.py`.
 
-| Clip (label) | Detection off, 2 runs | Detection on, 1 run |
+| Clip (label) | Detection off, 2 runs | Detection on, 2 runs |
 | --- | --- | --- |
-| DJI-091 (skip step 3) | **missed** both; 0 conf. FA; 9-10 review flags | **missed**; 0 conf. FA; 9 review flags |
-| DJI-092 (correct) | 0 conf. FA; 7 review flags | 0 conf. FA; 7 review flags |
+| DJI-091 (skip step 3) | **missed** both; 0 conf. FA; 9-10 review flags | **missed** both; 0 conf. FA; 9-10 review flags |
+| DJI-092 (correct) | 0 conf. FA; 7 review flags | 0 conf. FA; 6-7 review flags |
 | DJI-093 (correct) | **2 conf. FA** (steps 4, 5 "skipped"); 4 review flags | **3 conf. FA**; 4 review flags |
 
-Usable value readings (value given, confidence 0.6 or more): **one in total**, 42 degC in
-DJI-091, identical in both arms. The pipette volumes were never read. Cost was $4.42 for the six
-detection-off runs; detection-on runs cost about 8% more.
+Usable value readings (value given, confidence 0.6 or more): **4 per arm across all six runs**,
+all of them the 42 degC thermal-cycler screen in DJI-091. The pipette volumes (5 uL, 50 uL) were
+never read in either arm. Total cost was **$9.21**: $4.42 for the six detection-off runs and
+$4.79 for the six detection-on runs (about 8% more). The only consistent difference between
+the arms is one extra confident false alarm on DJI-093 with detection on.
 
-The model is nearly deterministic here (identical input tokens, identical review counts across
-repeats), so repeats add little. More **clips**, not more repeats, are what would add
+The model is nearly deterministic here (identical input tokens and near-identical review counts
+across repeats), so repeats add little. More **clips**, not more repeats, are what would add
 information.
 
 ### How the verdicts changed as the code changed
