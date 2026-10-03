@@ -1,0 +1,6 @@
+# Optional port publishing for a local Next.js development server.
+# Usage: docker compose -f docker-compose.yml -f compose.dev.yml up -d postgres redis api worker
+services:
+  api:
+    ports:
+      - "127.0.0.1:8000:8000"

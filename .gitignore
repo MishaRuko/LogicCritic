@@ -12,3 +12,7 @@ coverage/
 data/
 backend/build/
 backend/*.egg-info/
+.next/
+*.tsbuildinfo
+test-results/
+playwright-report/
