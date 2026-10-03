@@ -8,7 +8,7 @@ import { ResearchGlyph, researchColor } from './ResearchGlyph';
 type ArgumentNode = Node<{ argument: ResearchNode; dimmed: boolean }, 'argument'>;
 const GraphNode = memo(function GraphNode({ data, selected }: NodeProps<ArgumentNode>) {
   const node = data.argument;
-  return <div style={{ ...researchSize(node), opacity: data.dimmed ? .3 : 1 }} className="flex flex-col items-center pt-1 text-center" data-testid={`research-node-${node.id}`} title={node.label}>
+  return <div style={{ ...researchSize(node), opacity: data.dimmed ? .3 : 1 }} className="research-graph-node flex flex-col items-center pt-1 text-center" data-testid={`research-node-${node.id}`} title={node.label}>
     <div className={cn('rounded-full', selected && 'outline outline-offset-4 outline-zinc-400')}><ResearchGlyph kind={node.kind} state={node.state} proposed={node.proposed} size={researchGlyphSize(node)}/></div>
     <Handle type="target" position={Position.Left} id="in" style={{ top: researchCentre(node), left: researchSize(node).width / 2 - researchGlyphSize(node) / 2 }}/>
     <Handle type="source" position={Position.Right} id="out" style={{ top: researchCentre(node), left: researchSize(node).width / 2 + researchGlyphSize(node) / 2 }}/>
@@ -56,7 +56,7 @@ export function ResearchCanvas({ graph, selected, onSelect }: { graph: ResearchG
         labelStyle: { fill: '#85858e', fontSize: 9 }, labelBgStyle: { fill: '#fafaf9', fillOpacity: .96 }, labelBgPadding: [6, 3] as [number, number] };
     });
   }, [graph, nodes]);
-  useEffect(() => { if (flow) void flow.fitView({ padding: .2, maxZoom: 1.1 }); }, [flow, !!selected, graph.nodes.length]);
+  useEffect(() => { if (flow) void flow.fitView({ padding: .2, maxZoom: 1.1, duration: 650 }); }, [flow, !!selected, graph.nodes.length]);
   return <div className={cn("absolute inset-0", selected && "min-[900px]:right-[350px]")} data-testid="research-canvas"><ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes} onInit={setFlow}
     onNodeClick={(_, node) => onSelect(node.id)} onEdgeClick={(_, edge) => onSelect(!['grounds', 'premise_of', 'concludes', 'blocks'].includes(graph.edges.find(e => e.id === edge.id)?.relation ?? '') ? edge.id : edge.source)} onPaneClick={() => onSelect()} onNodeMouseEnter={(_, n) => setHovered(n.id)} onNodeMouseLeave={() => setHovered(undefined)}
     onNodesChange={changes => { let moved = false; for (const change of changes) if (change.type === 'position' && change.position) { const prior = positions.current[change.id]; if (!prior || prior.x !== change.position.x || prior.y !== change.position.y) { positions.current[change.id] = change.position; moved = true; } } if (moved) setLayoutVersion(v => v + 1); }}

@@ -38,16 +38,74 @@ export const deleteWorkspace = (id: string) => request<void>(`/workspaces/${id}`
 export const fetchGraph = (id: string) => request<Graph>(`/workspaces/${id}/graph`);
 export const fetchContext = (workspace: string, statement: string) => request<Context>(`/workspaces/${workspace}/statements/${statement}/context`);
 export const health = () => request<{ status: string; database: string; redis: string }>('/health/ready');
-export async function uploadSource(workspace: string, file: File): Promise<SourceWithExcerpts> {
+export interface UploadProgress {
+  stage: 'uploading' | 'processing' | 'queued' | 'saved' | 'failed';
+  percent: number;
+  filename: string;
+  current: number;
+  total: number;
+  jobIds?: string[];
+}
+function uploadWithProgress(path: string, form: FormData, onProgress: (percent: number) => void): Promise<SourceWithExcerpts> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `/api${path}`);
+    xhr.timeout = 240_000;
+    xhr.upload.onprogress = event => { if (event.lengthComputable) onProgress(Math.round(event.loaded / event.total * 100)); };
+    xhr.upload.onload = () => onProgress(100);
+    xhr.onerror = () => reject(new Error('The upload was interrupted. Check your connection and try again.'));
+    xhr.onabort = () => reject(new Error('Upload cancelled.'));
+    xhr.ontimeout = () => reject(new Error('The upload took too long. Try a smaller document or retry.'));
+    xhr.onload = () => {
+      let data: unknown;
+      try { data = JSON.parse(xhr.responseText); } catch { data = xhr.responseText; }
+      if (xhr.status >= 200 && xhr.status < 300) resolve(data as SourceWithExcerpts);
+      else {
+        const detail = data && typeof data === 'object' && 'detail' in data ? data.detail : data;
+        reject(new ApiError(describe(detail), xhr.status, detail));
+      }
+    };
+    xhr.send(form);
+  });
+}
+export async function uploadSource(workspace: string, file: File, onProgress?: (percent: number) => void): Promise<SourceWithExcerpts> {
   const form = new FormData(); form.append('file', file);
   try {
-    const source = await request<SourceWithExcerpts>(`/workspaces/${workspace}/sources`, { method: 'POST', body: form });
+    const path = `/workspaces/${workspace}/sources`;
+    const source = onProgress ? await uploadWithProgress(path, form, onProgress) : await request<SourceWithExcerpts>(path, { method: 'POST', body: form });
     remember(workspace, 'sourceIds', source.id); return source;
   } catch (e) {
     if (e instanceof ApiError && e.status === 409 && e.detail && typeof e.detail === 'object' && 'source_id' in e.detail) {
       const source = await attachSource(workspace, String(e.detail.source_id)); return source;
     }
     throw e;
+  }
+}
+export async function uploadResearch(workspace: string, files: File[], automatic: boolean, onProgress: (progress: UploadProgress) => void) {
+  const sources: SourceWithExcerpts[] = [];
+  const jobIds: string[] = [];
+  let progress: UploadProgress = { stage: 'uploading', percent: 0, filename: files[0].name, current: 1, total: files.length };
+  try {
+    for (const [index, file] of files.entries()) {
+      progress = { stage: 'uploading', percent: Math.round(index / files.length * 100), filename: file.name, current: index + 1, total: files.length };
+      onProgress(progress);
+      sources.push(await uploadSource(workspace, file, percent => {
+        progress = { ...progress, stage: percent === 100 ? 'processing' : 'uploading', percent: Math.round((index + percent / 100) / files.length * 100) };
+        onProgress(progress);
+      }));
+    }
+    if (automatic) {
+      for (const source of sources) {
+        progress = { ...progress, stage: 'processing', percent: 100, filename: source.original_filename };
+        onProgress(progress);
+        const job = await extract(source);
+        jobIds.push(job.id);
+      }
+    }
+    onProgress({ ...progress, stage: automatic ? 'queued' : 'saved', percent: 100, jobIds });
+  } catch (error) {
+    onProgress({ ...progress, stage: 'failed' });
+    throw error;
   }
 }
 export async function attachSource(workspace: string, id: string): Promise<SourceWithExcerpts> {
