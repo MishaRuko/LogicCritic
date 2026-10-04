@@ -45,6 +45,8 @@ Starting a run extracts methodology when no current protocol is supplied. Resear
 
 Protocols are immutable versions stored by migration `0012_experiments`. Each step retains its original text and excerpt ids. Explicit numbered instructions use deterministic extraction, with numeric checks for named pipette volumes, temperatures and reagent concentrations. Unnumbered methods use `lab_vision.structure_protocol` and must ground every step in a source passage. Missing methods and invalidated sources produce actionable errors.
 
+When the research agent hands over a protocol, its latest procedure is selected by default. The experiment setup previews its steps, basis and original cited research passages, and uses the prepared protocol when it is current. The Method tab also links back to those passages after analysis. Results default to runs for the selected source; older procedures remain available under Previous runs. Choose New experiment to change the protocol source or recording.
+
 ## Execution
 
 Runs are durable database jobs. The main worker processes video independently of research-agent and extraction loops; a separate `replay-worker` handles fast samples and replays so a long live video cannot block a demo. Video progress shows methodology extraction, overview frames and the windows the agent requests for closer inspection. Jobs with no heartbeat for ten minutes are marked failed. Results are persisted as temporal excerpts and `reported` statements; uncertain findings remain marked for review.

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button, Tabs } from '@cloudflare/kumo';
 import { FileTextIcon, DownloadSimpleIcon } from '@phosphor-icons/react';
+import { agentProtocolSteps, ProtocolCitations } from './ProtocolProvenance';
 import { ExecutionWorkspace } from './ExecutionWorkspace';
 import { RecordView, downloadJSON } from './RecordView';
 import { experimentPresentation } from '../../lib/experiment/bridge';
@@ -13,7 +14,7 @@ import { time } from '../../lib/experiment/demo';
 import type { ExperimentRecord, RecordSnapshot } from '../../lib/experiment/types';
 import type { ExperimentProtocol, ExperimentRun, SourceWithExcerpts } from '../../types/api';
 
-export function ExperimentDetail({ job, protocol, source, onSource, actions }: { job: ExperimentRun; protocol: ExperimentProtocol; source?: SourceWithExcerpts; onSource: (id: string) => void; actions?: ReactNode }) {
+export function ExperimentDetail({ job, protocol, source, sources = [], onSource, actions }: { job: ExperimentRun; protocol: ExperimentProtocol; source?: SourceWithExcerpts; sources?: SourceWithExcerpts[]; onSource: (id: string) => void; actions?: ReactNode }) {
   const [tab, setTab] = useState('execution');
   const [selected, setSelected] = useState(protocol.protocol.steps[0]?.id ?? '');
   const [currentTime, setCurrentTime] = useState(0);
@@ -74,7 +75,7 @@ export function ExperimentDetail({ job, protocol, source, onSource, actions }: {
         onTimeUpdate={seconds => { setCurrentTime(seconds); if (playing) { const active = observationAt(run.observations, seconds); if (active) setSelected(active.stepId); } }} onPlaying={setPlaying} onMethod={() => setTab('method')} onNotice={setNotice}/>
     </div> : tab === 'method' ? <div className="method-page"><div className="section-heading"><div><h2>Extracted methodology</h2><span>From {method.source} · {method.requirements.length} source-grounded steps</span></div><Button size="sm" variant="ghost" onClick={() => downloadJSON(method, 'trial-method.json')}><DownloadSimpleIcon size={14} className="mr-2"/>Export</Button></div>
       <Button size="xs" variant="ghost" className="mb-4" onClick={() => onSource(protocol.source_id)}>Open original research source</Button>
-      <ol className="method-list">{method.requirements.map(requirement => <li key={requirement.id}><span className="mono">{String(requirement.order).padStart(2, '0')}</span><div><strong>{requirement.title}</strong><p>{requirement.description}</p><blockquote className="source-quote">{requirement.quote}</blockquote>{!!requirement.checks?.length && <ul className="checks">{requirement.checks.map(check => <li key={check}>{check}</li>)}</ul>}<p className="caveats">Source passages: {protocol.step_excerpts[requirement.id]?.join(', ')}</p></div></li>)}</ol>
+      <ol className="method-list">{method.requirements.map(requirement => <li key={requirement.id}><span className="mono">{String(requirement.order).padStart(2, '0')}</span><div><strong>{requirement.title}</strong><p>{requirement.description}</p><blockquote className="source-quote">{requirement.quote}</blockquote>{!!requirement.checks?.length && <ul className="checks">{requirement.checks.map(check => <li key={check}>{check}</li>)}</ul>}<ProtocolCitations excerptIds={agentProtocolSteps(source).find(step => step.n === requirement.order)?.excerpt_ids ?? protocol.step_excerpts[requirement.id] ?? []} sources={sources} onSource={onSource}/></div></li>)}</ol>
       <details className="agent-trace"><summary>Analysis provenance</summary><p>Extraction: {protocol.extraction_method}. Run: {job.id}. {run.subtitle}. The verdicts reflect the lab-vision verifier; an unreadable or incomplete observation remains unverifiable.</p></details>
     </div> : currentRecord ? <RecordView record={currentRecord} onStep={id => { setTab('execution'); select(id); }}/>
     : <div className="py-12"><h2>Experiment record</h2><p className="muted mt-3 mb-5">A traceable report of the methodology, observations, findings and what this recording could not establish.</p>{stored.error && <p role="alert" className="text-fail mb-3">{stored.error.message}</p>}<Button size="sm" variant="outline" loading={generating} onClick={() => void generate()}>Generate record</Button></div>}

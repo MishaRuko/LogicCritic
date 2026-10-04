@@ -460,6 +460,8 @@ async def test_the_handed_over_protocol_is_prepared_for_the_experiment_tools(api
 
 
 async def test_an_experiment_started_with_nothing_chosen_uses_the_agents_protocol(api) -> None:
+    from app.services.experiments import process_experiment_run
+
     world = await make_world(sources=METHODS)
     await execute_run(world.run_id, client=concluding_run(world))
     prepared = (await events_named(world, "experiment_ready"))[0].payload["protocol_id"]
@@ -467,6 +469,16 @@ async def test_an_experiment_started_with_nothing_chosen_uses_the_agents_protoco
         f"/api/workspaces/{world.workspace_id}/experiment-runs", data={"mode": "demo"}
     )
     assert started.status_code == 202 and started.json()["protocol_id"] == prepared
+    await process_experiment_run(uuid.UUID(started.json()["id"]))
+    experiments = (await api.get(f"/api/workspaces/{world.workspace_id}/experiments")).json()
+    run = next(run for run in experiments["runs"] if run["id"] == started.json()["id"])
+    assert run["status"] == "succeeded", run
+    assessed_steps = {observation["step_id"] for observation in run["result"]["observations"]}
+    assessed_steps.update(deviation["step_id"] for deviation in run["result"]["deviations"])
+    assert assessed_steps == {"s1", "s2", "s3"}  # synthetic demo intentionally skips step 2
+    assert run["result"]["source_id"]
+    assert experiments["verified"]
+    assert next(p for p in experiments["protocols"] if p["id"] == prepared)["current"]
 
 
 async def test_a_stale_protocol_is_not_used_by_default(api) -> None:

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as api from '../src/lib/research/api';
 import { ResearchExperiments } from '../src/components/research/ResearchExperiments';
-import type { Experiments, ExperimentProtocol, Snapshot } from '../src/types/api';
+import type { Experiments, ExperimentProtocol, ExperimentRun, Snapshot } from '../src/types/api';
 
 const source = { id: 'source', title: 'Bench study', original_filename: 'study.md', origin: 'upload', excerpts: [] };
 const state = { workspace: { id: 'workspace' }, sources: [source], jobs: [] } as unknown as Snapshot;
@@ -39,6 +39,49 @@ describe('research to experiment handoff', () => {
     fireEvent.change(screen.getByLabelText('Research source'), { target: { value: 'paper' } });
     fireEvent.click(screen.getByRole('button', { name: 'Run sample experiment' }));
     await waitFor(() => expect(start).toHaveBeenCalledWith('workspace', undefined, 'demo', undefined, 'paper', false));
+  });
+
+  it('previews the agent protocol and uses its prepared version when older experiments exist', async () => {
+    const start = vi.spyOn(api, 'startExperiment').mockResolvedValue({ id: 'new-run' } as never);
+    const research = { ...paper, excerpts: [{ id: 'evidence', text: 'Set the pipette to 50 uL.', source_id: 'paper' }] };
+    const handedOver = { ...agentSource('handed-over', '2026-10-05T11:00:00Z'), metadata: {
+      parser: 'agent_protocol_v1', basis: 'Follows the paper method.', steps: [{ n: 1, action: 'Set the pipette to 50 uL.', excerpt_ids: ['evidence'] }],
+    } };
+    const prepared = { ...protocol, id: 'prepared', source_id: 'handed-over' };
+    const oldRun = { id: 'old-run', protocol_id: protocol.id, status: 'succeeded', filename: 'old.mp4', created_at: '2026-10-04', result: {} } as ExperimentRun;
+    render(<ResearchExperiments {...props} state={withSources(research, handedOver)} data={{ ...data, protocols: [prepared, protocol], runs: [oldRun] }}/>);
+    expect(screen.getByRole('region', { name: 'Selected protocol' })).toHaveTextContent('From the research agent');
+    expect(screen.getByText('Follows the paper method.')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Review protocol steps'));
+    fireEvent.click(screen.getByText('Research evidence · 1 passage'));
+    fireEvent.click(screen.getByRole('button', { name: 'A paper' }));
+    expect(props.onSource).toHaveBeenCalledWith('paper');
+    fireEvent.click(screen.getByRole('button', { name: 'Run sample experiment' }));
+    await waitFor(() => expect(start).toHaveBeenCalledWith('workspace', 'prepared', 'demo', undefined, 'handed-over', false));
+  });
+
+  it('uses the uploaded video with the prepared agent protocol', async () => {
+    const start = vi.spyOn(api, 'startExperiment').mockResolvedValue({ id: 'run' } as never);
+    const prepared = { ...protocol, id: 'prepared', source_id: 'handed-over' };
+    render(<ResearchExperiments {...props} state={withSources(paper, agentSource('handed-over', '2026-10-05T11:00:00Z'))} data={{ ...data, protocols: [prepared] }}/>);
+    const video = new File(['recording'], 'bench.mp4', { type: 'video/mp4' });
+    fireEvent.change(screen.getByLabelText('Choose a lab video or saved observations'), { target: { files: [video] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Run experiment analysis' }));
+    await waitFor(() => expect(start).toHaveBeenCalledWith('workspace', 'prepared', 'video', video, 'handed-over', false));
+  });
+
+  it('keeps an old run available without making it the result for a new protocol', () => {
+    vi.stubGlobal('matchMedia', vi.fn().mockImplementation(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn() })));
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true, json: async () => [] } as Response);
+    Element.prototype.scrollTo = vi.fn();
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const oldRun = { id: 'old-run', protocol_id: protocol.id, mode: 'demo', status: 'succeeded', filename: 'old.mp4', created_at: '2026-10-04', result: {} } as ExperimentRun;
+    render(<QueryClientProvider client={client}><ResearchExperiments {...props} state={withSources(source, agentSource('newer', '2026-10-05T12:00:00Z'))} data={{ ...data, runs: [oldRun] }}/></QueryClientProvider>);
+    expect(screen.queryByRole('region', { name: 'Experiment results' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /old.mp4/ }));
+    expect(screen.getByRole('region', { name: 'Experiment results' })).toHaveTextContent('Bench study');
+    fireEvent.click(screen.getByRole('button', { name: 'New experiment' }));
+    expect(screen.getByLabelText('Research source')).toHaveValue('newer');
   });
 
   it('keeps the first source as the default when no agent protocol exists', () => {
