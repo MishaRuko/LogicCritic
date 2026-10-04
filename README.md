@@ -49,4 +49,6 @@ make test-e2e   # Live API checks; the app must be running at localhost
 
 Built with Next.js, React Flow, Kumo and FastAPI. See the [integration notes](docs/integration.md) for current API limits.
 
-The onboarding thumbnail previews the first page of [Deep Residual Learning for Image Recognition](https://arxiv.org/abs/1512.03385) by Kaiming He, Xiangyu Zhang, Shaoqing Ren and Jian Sun.
+The API and worker Docker images also install the local `vision/` package. For a standalone backend environment, install both packages: `pip install -e './backend[dev]' -e './vision[dev]'`. See [the experiment integration guide](docs/experiments.md) for endpoints and limitations.
+
+The onboarding video and downloadable protocol are attributed to [LabSuperVision / LabOS LSV](https://huggingface.co/datasets/cong-lab/lsv), under CC BY-NC 4.0. The video is a 30-second preparation excerpt.

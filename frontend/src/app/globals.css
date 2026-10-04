@@ -45,9 +45,34 @@ button.bg-kumo-brand { background-color: var(--color-ink) !important; color: whi
 .research-progress::-moz-progress-bar { background: #60a5fa; border-radius: 999px; }
 
 .research-workspace :is(button, h1, h2, h3, strong, b, [class*="font-"]) { font-weight: 400 !important; }
+.research-main { container-type: inline-size; }
+.research-header { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px; padding: 8px 20px; }
+.research-stages { justify-self: center; }
+.research-stage button { white-space: nowrap; }
+@container (max-width: 1200px) {
+  .research-header-chat-label { display: none; }
+}
+@container (max-width: 900px) {
+  .research-header { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; }
+  .research-stages { grid-column: 1 / -1; grid-row: 1; }
+  .research-header-title { grid-column: 1; grid-row: 2; }
+  .research-header-actions { grid-column: 2; grid-row: 2; }
+  .research-header-actions:empty { display: none; }
+}
+@container (max-width: 550px) {
+  .research-header { padding-inline: 8px; }
+  .research-header-title { display: none; }
+  .research-header-actions { grid-column: 1 / -1; justify-content: center; }
+  .research-stages { width: 100%; gap: 4px; }
+  .research-stage { flex: 1; min-width: 0; justify-content: center; }
+  .research-stage > svg { display: none; }
+  .research-stage button { gap: 4px; padding-inline: 4px; font-size: 10px; white-space: normal; }
+}
 .research-composer, .research-progress-card { border-radius: 10px; }
 .research-introduction { animation: research-appear .5s ease both; }
 .research-graph-node { animation: research-appear .6s ease; }
+.research-verification-active { outline: 1px solid #60a5fa; outline-offset: 5px; box-shadow: 0 0 0 6px #60a5fa18; animation: verification-node-pulse 1.2s ease-in-out infinite; }
+@keyframes verification-node-pulse { 0%, 100% { box-shadow: 0 0 0 6px #60a5fa18; } 50% { box-shadow: 0 0 0 10px #60a5fa08; } }
 .research-processing-dot { width: 7px; height: 7px; border-radius: 50%; background: #60a5fa; animation: research-pulse 1.6s ease-in-out infinite; }
 .research-stage-active { background-image: linear-gradient(100deg, #60a5fa 20%, #bfdbfe 45%, #3b82f6 70%); background-size: 200% 100%; animation: research-shimmer 2s linear infinite; }
 .research-stage-indeterminate { animation: research-sweep 1.8s ease-in-out infinite; }

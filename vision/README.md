@@ -15,7 +15,7 @@ video -> windows -> [detection] -> perception (Claude vision) -> verification (r
 
 **Built and working end to end.** Video in, deviations out. 67 unit tests pass, and the whole
 pipeline has been run against real footage with real Claude calls. Nothing in this package
-imports from the backend. Graph integration is designed but **not written**, by decision (see
+imports from the backend. Graph integration is now implemented through the research workspace (see
 [Connecting to the graph](#connecting-to-the-graph)).
 
 **Not yet good enough to trust.** Measured on the three LSV mock-transformation clips (see
@@ -327,39 +327,11 @@ In priority order. The first two address what the data shows is wrong.
 
 ## Connecting to the graph
 
-**Not implemented, by decision**: no backend changes were to be made while this was tested
-separately. Everything the graph needs is already in the models. Write a `RunSink` that maps:
+The research workspace now connects this package to the full **Add research → Verify research → Run experiment** flow. Protocol extraction uses `structure_protocol` for unnumbered methods and a deterministic parser for explicit numbered instructions. Steps retain their source excerpt ids and are extracted automatically when an experiment starts. Explicit protocol review remains available through the API.
 
-| lab-vision | graph (ARCHITECTURE.md) |
-| --- | --- |
-| the recording | `Source` with kind `tool_output` or a new `lab_stream` kind |
-| `Observation.span`, `frame_indices` | `Excerpt.locator` (time range and frames) |
-| `Observation` | a `reported` `Statement` grounded by that excerpt |
-| `Observation.produced_by` | `Provenance`, already the same shape |
-| `Deviation` | an `undercuts` link on the reasoning step the protocol step supports, plus a `ProofObligation` |
-| `ProtocolStep.obligation_ids` | the obligations the step is meant to resolve |
+The backend worker runs the adaptive experiment agent for uploaded videos and `ProtocolVerifier` for saved observations or clearly labelled synthetic demo inputs. `VISION_STRATEGY=windows` selects the original `Pipeline`. Results and deviations are stored in the workspace, with time-range excerpts and `reported` statements; uncertain findings remain marked for human review. Research changes invalidate earlier verification and require a current extracted methodology. Partial recordings omit end-of-run skipped-step findings.
 
-What the backend allows today (checked against `backend/app` at the time):
-
-- Sources are created only by uploading UTF-8 text or Markdown; excerpts get character
-  locators. There is no way to register a recording with time-range excerpts.
-- Graph patches can create statements, reasoning steps, relations and annotations. Obligations
-  and issues come only from `/verify`, and there is no obligation kind for protocol deviations.
-- A deviation needs a reasoning step to attach to, which the theory phase would have to create.
-
-Two options were discussed:
-
-- **A. No backend changes.** Upload the observations as a generated Markdown log, then post
-  patches: `reported` statements for deviations, a `scope_transition` annotation with
-  `justified: false` on the dependent reasoning step, and let `/verify` open a `scope_leap`
-  issue. Works today, but the issue wording is about extrapolation and the time locators are
-  lost.
-- **B. Small backend additions.** An endpoint to register a recording with time-range excerpts
-  and a `protocol_deviation` rule and obligation kind. Cleaner, but needs the backend owners.
-
-Two backend notes: its `CLAUDE_MODEL` default (Sonnet 4.5) is not usable for vision, and its
-extraction uses forced `tool_choice`, which returns a 400 on Opus 5.5 and Sonnet 5.5, so it will
-break if `CLAUDE_MODEL` moves to a newer model.
+See [docs/experiments.md](../docs/experiments.md) for the demo walkthrough, API, deployment, and current integration limits. The model-accuracy findings above are unchanged by this integration.
 
 ## Known limits
 
@@ -394,3 +366,7 @@ Each run directory holds `observations.jsonl`, `deviations.jsonl`, `summary.json
 Environment notes: the extras install torch and transformers, so use a virtual environment (this
 was developed in the global Python, which produced unrelated dependency warnings). The
 `opencv-python-headless` dependency has no GUI; see Viewing a run.
+
+## Research workspace video agent
+
+The integrated app now defaults to the adaptive video agent ported from the `experiment` branch. It uses the original inspection prompts and tools, samples overview frames, requests higher-resolution windows, and persists per-step visual checks and evidence in the research workspace. See [docs/experiments.md](../docs/experiments.md). Set `VISION_STRATEGY=windows` to run the original pipeline described above.

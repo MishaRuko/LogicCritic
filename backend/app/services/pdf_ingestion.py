@@ -17,7 +17,8 @@ MIN_EXCERPT_CHARS = 25
 # Headings recognised by name only, so ordinary short lines are never mistaken for sections.
 SECTION_NAMES = (
     "abstract|summary|introduction|background|methods|materials and methods|methodology|"
-    "experimental procedures|results|results and discussion|discussion|conclusions?|"
+    "experimental procedures|procedure|protocol|equipment|reagents|results|"
+    "results and discussion|discussion|conclusions?|"
     "limitations|acknowledg(?:e)?ments|supplementary(?: materials?| information)?|appendix"
 )
 HEADING = re.compile(rf"^(?:\d+(?:\.\d+)*\.?\s+)?(?P<name>{SECTION_NAMES})\s*:?$", re.IGNORECASE)
@@ -81,7 +82,12 @@ def parse_pdf(content: bytes) -> ParsedPdf:
                 continue
             if in_references:
                 continue
-            for start, end, chunk in _chunks(text, paragraph.start, paragraph.end):
+            for start, end, chunk in _chunks(
+                text,
+                paragraph.start,
+                paragraph.end,
+                preserve_short=section in {"Procedure", "Protocol", "Experimental Procedures"},
+            ):
                 locator: dict[str, int | str] = {
                     "page": number,
                     "start": start,
@@ -151,6 +157,7 @@ def _paragraphs(text: str, noise: set[str]) -> list[_Paragraph]:
     start: int | None = None
     end = 0
     offset = 0
+    in_procedure = False
 
     def close() -> None:
         nonlocal start
@@ -176,10 +183,17 @@ def _paragraphs(text: str, noise: set[str]) -> list[_Paragraph]:
         heading = HEADING.match(stripped)
         if heading:
             close()
+            in_procedure = heading.group("name").lower() in {
+                "procedure",
+                "protocol",
+                "experimental procedures",
+            }
             spans.append(_Paragraph(line_start, line_end, heading=heading.group("name").title()))
             continue
+        if in_procedure and re.match(r"^\d+[.)]\s", stripped):
+            close()
         numbered = NUMBERED_HEADING.match(stripped)
-        if numbered and len(stripped.split()) <= 10:
+        if numbered and not in_procedure and len(stripped.split()) <= 10:
             close()
             spans.append(_Paragraph(line_start, line_end, heading=numbered.group("title").strip()))
             continue
@@ -190,7 +204,9 @@ def _paragraphs(text: str, noise: set[str]) -> list[_Paragraph]:
     return spans
 
 
-def _chunks(text: str, start: int, end: int) -> list[tuple[int, int, str]]:
+def _chunks(
+    text: str, start: int, end: int, preserve_short: bool = False
+) -> list[tuple[int, int, str]]:
     """Cut one paragraph into excerpts of at most MAX_EXCERPT_CHARS, on sentence boundaries."""
     raw = text[start:end]
     pieces: list[tuple[int, int]] = []
@@ -216,6 +232,8 @@ def _chunks(text: str, start: int, end: int) -> list[tuple[int, int, str]]:
         for offset in range(chunk_start, chunk_end, MAX_EXCERPT_CHARS):
             limit = min(offset + MAX_EXCERPT_CHARS, chunk_end)
             chunk = " ".join(raw[offset:limit].split())
-            if len(chunk) >= MIN_EXCERPT_CHARS and re.search(r"[A-Za-z]{3}", chunk):
+            if (preserve_short or len(chunk) >= MIN_EXCERPT_CHARS) and re.search(
+                r"[A-Za-z]{3}", chunk
+            ):
                 results.append((start + offset, start + limit, chunk))
     return results

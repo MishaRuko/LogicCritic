@@ -180,3 +180,35 @@ def test_usage_and_served_model_are_tracked():
     llm.generate(system="s", content=[], output=PerceptionOut)
     assert llm.usage == {"requests": 2, "input_tokens": 2000, "output_tokens": 400}
     assert llm.served_models == {"claude-opus-5-5"}
+
+
+@pytest.mark.parametrize("fallbacks", [False, True])
+def test_streamed_output_publishes_text_and_retains_validation_and_usage(fallbacks):
+    class Stream:
+        text_stream = iter(['{"observations":', ' []}'])
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+        def get_final_message(self):
+            return reply("validated")
+
+    class Messages(FakeMessages):
+        def stream(self, **kwargs):
+            self.kwargs = kwargs
+            return Stream()
+
+    messages = Messages()
+    llm = llm_with(messages, fallbacks=fallbacks)
+    updates = []
+    result = llm.generate_streamed(
+        system="s", content=[], output=PerceptionOut, on_text=updates.append
+    )
+    assert updates == ['{"observations":', '{"observations": []}']
+    assert result == "validated"
+    assert messages.kwargs["output_format"] is PerceptionOut
+    assert ("fallbacks" in messages.kwargs) == fallbacks
+    assert llm.usage == {"requests": 1, "input_tokens": 1000, "output_tokens": 200}

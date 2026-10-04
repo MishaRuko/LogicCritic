@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Callable
 from typing import Any, Protocol, TypeVar
 
 import anthropic
@@ -52,6 +53,26 @@ class ClaudeLLM:
         self._client = client or anthropic.Anthropic(api_key=api_key)
 
     def generate(self, *, system: str, content: list[dict[str, Any]], output: type[T]) -> T:
+        return self._generate(system=system, content=content, output=output)
+
+    def generate_streamed(
+        self,
+        *,
+        system: str,
+        content: list[dict[str, Any]],
+        output: type[T],
+        on_text: Callable[[str], None],
+    ) -> T:
+        return self._generate(system=system, content=content, output=output, on_text=on_text)
+
+    def _generate(
+        self,
+        *,
+        system: str,
+        content: list[dict[str, Any]],
+        output: type[T],
+        on_text: Callable[[str], None] | None = None,
+    ) -> T:
         request: dict[str, Any] = {
             "model": self.model,
             "max_tokens": self.max_tokens,
@@ -62,7 +83,21 @@ class ClaudeLLM:
         if self.effort:
             request["output_config"] = {"effort": self.effort}
         try:
-            if self.fallbacks:
+            if on_text is not None:
+                stream = (
+                    self._client.beta.messages.stream(
+                        **request, betas=[_FALLBACK_BETA], fallbacks="default"
+                    )
+                    if self.fallbacks
+                    else self._client.messages.stream(**request)
+                )
+                with stream as messages:
+                    text = ""
+                    for delta in messages.text_stream:
+                        text += delta
+                        on_text(text)
+                    response = messages.get_final_message()
+            elif self.fallbacks:
                 response = self._client.beta.messages.parse(
                     **request, betas=[_FALLBACK_BETA], fallbacks="default"
                 )
@@ -91,3 +126,30 @@ class ClaudeLLM:
         model = getattr(response, "model", None)
         if isinstance(model, str):
             self.served_models.add(model)
+
+    def call_tools(self, *, system: str, messages: list[dict], tools: list[dict]) -> Any:
+        """One turn of the experiment branch's adaptive frame-inspection agent."""
+        request = {
+            "model": self.model,
+            "max_tokens": 32_000,
+            "system": system,
+            "messages": messages,
+            "tools": tools,
+            "thinking": {"type": "adaptive", "display": "summarized"},
+            "cache_control": {"type": "ephemeral"},
+        }
+        if self.effort:
+            request["output_config"] = {"effort": self.effort}
+        try:
+            if self.fallbacks:
+                stream = self._client.beta.messages.stream(
+                    **request, betas=[_FALLBACK_BETA], fallbacks="default"
+                )
+            else:
+                stream = self._client.messages.stream(**request)
+            with stream as response:
+                message = response.get_final_message()
+        except anthropic.APIError as exc:
+            raise LLMError(f"Claude video inspection failed: {exc}") from exc
+        self._record(message)
+        return message

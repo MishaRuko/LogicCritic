@@ -1,10 +1,14 @@
+import asyncio
+import json
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_session
+from app.database import get_session, session_factory
 from app.models import (
     GraphEdge,
     GraphEvent,
@@ -199,6 +203,41 @@ async def verify_workspace(
 ) -> VerificationResponse:
     await require_workspace(workspace_id, session)
     return await run_verification(session, workspace_id)
+
+
+@router.post("/workspaces/{workspace_id}/verify/stream")
+async def stream_verification(
+    workspace_id: uuid.UUID, session: AsyncSession = Depends(get_session)
+) -> StreamingResponse:
+    await require_workspace(workspace_id, session)
+
+    async def events():
+        queue = asyncio.Queue()
+
+        async def verify():
+            try:
+                async with session_factory() as verification_session:
+                    result = await run_verification(verification_session, workspace_id, queue.put)
+                    await queue.put({"type": "completed", "result": result.model_dump(mode="json")})
+            except Exception:
+                logging.getLogger(__name__).exception("Live verification failed")
+                await queue.put({"type": "error", "message": "Verification failed. Please retry."})
+            finally:
+                await queue.put(None)
+
+        task = asyncio.create_task(verify())
+        try:
+            while (event := await queue.get()) is not None:
+                yield json.dumps(event) + "\n"
+        finally:
+            if not task.done():
+                task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+    return StreamingResponse(
+        events(), media_type="application/x-ndjson",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.post("/workspaces/{workspace_id}/argument-check", response_model=ArgumentCheckResponse)

@@ -3,6 +3,7 @@ import asyncio
 from app.agent.loop import execute_run
 from app.agent.runs import claim_next_agent_run, recover_stale_agent_runs
 from app.config import get_settings
+from app.services.experiments import claim_next_experiment_run, process_experiment_run
 from app.services.extraction_jobs import (
     claim_next_extraction_job,
     process_extraction_job,
@@ -33,8 +34,17 @@ async def run_agent_loop() -> None:
         await execute_run(run_id)
 
 
+async def run_experiment_loop(modes: tuple[str, ...] = ("video",)) -> None:
+    while True:
+        run_id = await claim_next_experiment_run(modes)
+        if run_id is None:
+            await asyncio.sleep(get_settings().extraction_worker_poll_seconds)
+            continue
+        await process_experiment_run(run_id)
+
+
 async def run() -> None:
-    await asyncio.gather(run_extraction_loop(), run_agent_loop())
+    await asyncio.gather(run_extraction_loop(), run_agent_loop(), run_experiment_loop())
 
 
 if __name__ == "__main__":

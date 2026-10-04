@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentRun, AgentRunInput, Context, Graph, Job, PatchOperation, Snapshot, Source, SourceWithExcerpts, Validity, Verification, Workspace } from '../../types/api';
+import type { AgentEvent, AgentRun, AgentRunInput, Context, Graph, Job, PatchOperation, Snapshot, Source, SourceWithExcerpts, Validity, Verification, VerificationEvent, Workspace } from '../../types/api';
 export const userProvenance = { actor_type: 'user', actor_id: 'workspace-reviewer' } as const;
 export class ApiError extends Error {
   constructor(message: string, public status: number, public detail: unknown) { super(message); }
@@ -136,6 +136,43 @@ export const cancelJob = (id: string) => request<Job>(`/extraction-jobs/${id}`, 
 export const patchGraph = (id: string, operations: PatchOperation[]) => post<{ patch_id: string; id_map: Record<string, string>; accepted_event_ids: string[]; affected_node_ids: string[] }>(`/workspaces/${id}/graph-patches`, { operations }, true);
 export const review = (id: string, node_type: 'statement' | 'reasoning_step', node_id: string, decision: 'accepted' | 'rejected') => post(`/workspaces/${id}/review`, { node_type, node_id, decision, provenance: userProvenance }, true);
 export const verify = (id: string) => post<Verification>(`/workspaces/${id}/verify`);
+export async function verifyLive(id: string, onEvent: (event: VerificationEvent) => void | Promise<void>, signal?: AbortSignal): Promise<Verification> {
+  const response = await fetch(`/api/workspaces/${id}/verify/stream`, { method: 'POST', cache: 'no-store', signal });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new ApiError(describe(body.detail ?? 'Verification could not start.'), response.status, body);
+  }
+  if (!response.body) throw new Error('Live verification is unavailable. Please retry.');
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = ''; let result: Verification | undefined;
+  async function consume(line: string) {
+    if (!line.trim()) return;
+    const event = JSON.parse(line) as VerificationEvent;
+    if (event.type === 'error') throw new Error(event.message);
+    await onEvent(event);
+    if (event.type === 'completed') result = event.result;
+  }
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      buffer += done ? decoder.decode() : decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n'); buffer = lines.pop() ?? '';
+      for (const line of lines) { signal?.throwIfAborted(); await consume(line); }
+      if (done) break;
+    }
+    await consume(buffer);
+  } finally { reader.releaseLock(); }
+  if (!result) throw new Error('Verification was interrupted before results were saved. Please retry.');
+  return result;
+}
+export const fetchExperiments = (id: string) => request<import('../../types/api').Experiments>(`/workspaces/${id}/experiments`);
+export const prepareProtocol = (id: string, source_id: string) => post<import('../../types/api').ExperimentProtocol>(`/workspaces/${id}/protocols`, { source_id });
+export const approveProtocol = (id: string, protocol: string) => post<import('../../types/api').ExperimentProtocol>(`/workspaces/${id}/protocols/${protocol}/approve`);
+export function startExperiment(id: string, protocol: string | undefined, mode: 'demo' | 'replay' | 'video', file?: File, source?: string, partial = false) {
+  const body = new FormData(); if (protocol) body.append('protocol_id', protocol); if (source) body.append('source_id', source); body.append('mode', mode); body.append('partial_recording', String(partial)); if (file) body.append('file', file);
+  return request<import('../../types/api').ExperimentRun>(`/workspaces/${id}/experiment-runs`, { method: 'POST', body });
+}
 export const checkArguments = (id: string) => post<{ event_id: string; checked_steps: number; flagged_steps: number }>(`/workspaces/${id}/argument-check`, {}, true);
 export const synthesize = (id: string) => post<{ event_id: string; candidates_considered: number; proposed_links: number; audited_links: number; links_needing_review: number }>(`/workspaces/${id}/synthesize`, {}, true);
 export async function setValidity(workspace: string, source: string, status: 'valid' | 'invalidated', reason: string) {
