@@ -14,7 +14,7 @@ import anthropic
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.agent import prompts
+from app.agent import assurance, prompts
 from app.agent.conversation import conversation_messages, workspace_context
 from app.agent.runs import EventLog
 from app.agent.tool_models import GUARD_TOOLS, RECORDING_TOOLS, RESEARCH_TOOLS
@@ -44,6 +44,8 @@ TERMINAL_TOOLS = {"finalize_conclusion", "abstain"}
 
 
 def build_tools(mode: str, max_web_searches: int) -> list[dict]:
+    # The basic web search tool: the newer version lets the model call search from inside a code
+    # cell, where it mis-shaped the arguments and every search failed.
     specs = dict(RESEARCH_TOOLS)
     if mode == "guarded":
         specs |= RECORDING_TOOLS | GUARD_TOOLS
@@ -52,7 +54,7 @@ def build_tools(mode: str, max_web_searches: int) -> list[dict]:
     ]
     if max_web_searches > 0:
         tools.append(
-            {"type": "web_search_20260209", "name": "web_search", "max_uses": max_web_searches}
+            {"type": "web_search_20250305", "name": "web_search", "max_uses": max_web_searches}
         )
     return tools
 
@@ -105,6 +107,8 @@ async def execute_run(
     toolbox = Toolbox(sessions, run_id, amass, judge)
     state = _State(run_id, sessions, log_, toolbox, mode, model, budgets, judge)
     try:
+        if state.assurance is not None:
+            await log_.add("assurance", state.assurance)
         if judge is not None:
             await _settle_criteria(state, goal, judge)
         await _drive(state, client, goal)
@@ -131,6 +135,8 @@ class _State:
             "web_searches": 0,
         }
         self.finished = False
+        # Only a guarded run has a verifier to say how settled the answer is.
+        self.assurance = assurance.unexplored().as_dict() if mode == "guarded" else None
 
     async def tick(self, response: Any) -> dict[str, int]:
         """Add this turn's usage to the run's totals, and return the turn's own numbers."""
@@ -154,7 +160,7 @@ class _State:
             run = await session.scalar(
                 select(AgentRun).where(AgentRun.id == self.run_id).with_for_update()
             )
-            run.usage = {**run.usage, **self.usage, **self._cost()}
+            run.usage = {**run.usage, **self.usage, **self._cost(), "assurance": self.assurance}
             if heartbeat:
                 run.heartbeat_at = datetime.now(UTC)
             for name, value in fields.items():
@@ -174,6 +180,17 @@ class _State:
         extra = estimate_cost(self.judge.model, spent)
         total = None if cost is None or extra is None else round(cost + extra, 4)
         return {"cost_usd": total, "judge": dict(self.judge.usage), "judge_cost_usd": extra}
+
+    async def set_assurance(self, new: dict) -> None:
+        """Record a change in how settled the answer is, as an event and on the run."""
+        if self.assurance is None or (new["level"], new["holding_back"]) == (
+            self.assurance["level"],
+            self.assurance["holding_back"],
+        ):
+            return
+        self.assurance = new
+        await self.events.add("assurance", new)
+        await self._save()
 
     async def beat(self) -> None:
         await self._save(heartbeat=True)
@@ -352,9 +369,56 @@ async def _run_tools(state: _State, response: Any) -> tuple[list[dict], bool]:
             kind or "tool_result",
             {"tool_use_id": block.id, "name": block.name, "result": result, "is_error": is_error},
         )
+        change = None if is_error else _graph_change(block.name, dict(block.input), result)
+        if change:
+            await state.events.add("graph_change", change)
+        if not is_error:
+            await _update_assurance(state, block.name, dict(block.input), result)
         if block.name in TERMINAL_TOOLS and result.get("accepted"):
             concluded = True
     return results, concluded
+
+
+async def _update_assurance(state: _State, tool: str, args: dict, result: dict) -> None:
+    level = (state.assurance or {}).get("level")
+    if tool == "record_claim" and args.get("role") == "conclusion" and level == "unexplored":
+        await state.set_assurance(assurance.exploring().as_dict())
+    elif tool == "check_conclusion" and "assurance" in result:
+        await state.set_assurance(result["assurance"])
+    elif tool == "finalize_conclusion" and result.get("accepted"):
+        if result.get("certainty") == "established":
+            await state.set_assurance(assurance.Assurance("settled", []).as_dict())
+
+
+def _graph_change(tool: str, args: dict, result: dict) -> dict | None:
+    """What a successful recording tool did to the graph, for a live or replayed view of it."""
+    if tool == "record_claim":
+        return {
+            "change": "claim_added",
+            "statement_id": result["statement_id"],
+            "text": args.get("text"),
+            "role": args.get("role"),
+            "claim_strength": args.get("claim_strength"),
+            "excerpt_ids": args.get("excerpt_ids"),
+            "position": args.get("role") == "conclusion",
+        }
+    if tool == "record_reasoning":
+        return {
+            "change": "step_added",
+            "step_id": result["step_id"],
+            "premise_ids": args.get("premise_ids"),
+            "conclusion_id": args.get("conclusion_id"),
+            "revises_step_id": args.get("revises_step_id"),
+        }
+    if tool == "revise_claim":
+        return {
+            "change": "claim_superseded" if result.get("replaced_by") else "claim_withdrawn",
+            "statement_id": result["withdrawn"],
+            "replaced_by_id": result.get("replaced_by"),
+            "reason": args.get("reason"),
+            "position": result.get("role") == "conclusion",
+        }
+    return None
 
 
 async def _record_blocks(state: _State, response: Any) -> None:

@@ -11,7 +11,7 @@ from app.agent.loop import execute_run
 from app.agent.toolbox import Toolbox
 from app.config import get_settings
 from app.database import engine, session_factory
-from app.models import AgentEvent, AgentRun, ResearchGoal
+from app.models import AgentEvent, AgentRun, JudgeVerdict, ResearchGoal
 from app.services.claude_call import ClaudeCallFailed
 from app.services.judge import (
     DEFAULT_CRITERIA,
@@ -380,3 +380,43 @@ async def test_the_kind_shapes_the_opening_message() -> None:
             await session.commit()
         *_, client = await run_goal(world, FakeJudge())
         assert phrase in client.requests[0]["messages"][0]["content"], kind
+
+
+async def test_a_partly_met_criterion_is_not_met() -> None:
+    client = FakeClaude(
+        judge_reply(
+            criteria=[
+                {
+                    "index": 0,
+                    "met": True,
+                    "gap": "Severe and hospitalised patients are not covered.",
+                    "rationale": "Mostly covered by the trial.",
+                    "supporting_statement_ids": ["s1"],
+                }
+            ],
+            designs=[],
+        )
+    )
+    output = await Judge(client, model="m").assess(
+        {"criteria": ["c"], "claims": [{"statement_id": "s1"}]}
+    )
+    assert output.criteria[0].met is False
+    assert "Still missing: Severe and hospitalised" in output.criteria[0].rationale
+
+
+async def test_verdicts_are_kept_in_their_own_table_not_in_the_run_usage() -> None:
+    world = await make_world(criteria=["A randomised trial"], sources=SOURCES)
+    judge = FakeJudge(verdict=judged())
+    toolbox = box(world, judge)
+    claim = await record(toolbox, world, "Drug X works.", "trial", role="conclusion")
+    await call(toolbox, "check_conclusion", statement_id=claim)
+    await call(toolbox, "check_conclusion", statement_id=claim)
+    async with session_factory() as session:
+        rows = list(
+            await session.scalars(select(JudgeVerdict).where(JudgeVerdict.run_id == world.run_id))
+        )
+        run = await session.get(AgentRun, world.run_id)
+    assert len(rows) == 1 and judge.usage["calls"] == 1
+    assert rows[0].material["criteria"] == ["A randomised trial"]
+    assert rows[0].verdict["criteria"][0]["met"] is True
+    assert "judge_cache" not in run.usage

@@ -34,7 +34,12 @@ DEFAULT_CRITERIA = [
 
 class CriterionVerdict(BaseModel):
     index: int = Field(description="The criterion's number, from 0.")
-    met: bool = Field(description="True only if the evidence actually meets the criterion.")
+    met: bool = Field(description="True only if the evidence fully meets the criterion.")
+    gap: str = Field(
+        default="",
+        description="What the evidence still lacks for this criterion. Empty only if it is "
+        "fully met; a criterion that is only partly met is not met.",
+    )
     rationale: str = Field(
         description="One or two sentences citing the claim or search that decides it."
     )
@@ -58,7 +63,7 @@ class JudgeOutput(BaseModel):
 
 class ProposedCriteria(BaseModel):
     completion_criteria: list[str] = Field(
-        description="3 to 6 conditions the evidence must meet before the question can be answered."
+        description="3 to 5 conditions the evidence must meet before the question can be answered."
     )
     falsifiers: list[str] = Field(
         description="1 to 3 findings that would show a tentative answer is wrong."
@@ -88,14 +93,25 @@ For each causal claim with a declared design, say whether the cited text itself 
 design (for example 'randomly assigned', 'randomised'). A design that is only asserted, or that \
 the text contradicts, is not shown.
 
-Be concise. If you are unsure, say the criterion is not met."""
+A criterion that is only partly met is not met: say in `gap` what is still missing, and leave \
+`gap` empty only when nothing is. Be concise. If you are unsure, say the criterion is not met."""
 
 PROPOSE_SYSTEM = """\
 You set the standard of evidence for a research question before any research is done. Given a \
 question, claim or hypothesis, state what the evidence must show before an answer could be \
-justified: the right kind of evidence for the population and outcome involved, independent \
-sources, and active search for opposing evidence. Also state what would show a tentative answer \
-wrong. Be specific to this topic, not generic. Do not guess the answer."""
+justified, as 3 to 5 criteria. Each criterion must be something a reviewer can check from the \
+text of a cited paper:
+- the kind of evidence needed: study design, population, outcome measured;
+- agreement across more than one independent study, or replication;
+- that evidence against the answer was looked for and is accounted for.
+Criteria must be neutral about the answer: they say what evidence would settle the question \
+either way, so a conclusion that refutes the claim can meet them as well as one that confirms \
+it. Never phrase one as 'consistent evidence of benefit' or any other direction; say 'consistent \
+findings, in whichever direction'. Do not ask for things a paper's text cannot show: who \
+funded or conducted the work, the researchers' motives or affiliations. Do not name \
+particular trials or papers. Be specific to this topic, not generic. Also state 1 to 3 \
+findings that would show a tentative answer wrong. Do \
+not guess the answer."""
 
 
 class LinkAudit(BaseModel):
@@ -115,7 +131,15 @@ STEP_AUDIT_SYSTEM = (
     "excerpt is not support. Mark supported only if the premise excerpts "
     "independently establish the conclusion without an unstated calculation, "
     "mechanism, causal assumption, generalization, or background fact. If unsure, "
-    "choose needs_support. Do not assess truth beyond these excerpts."
+    "choose needs_support. Do not assess truth beyond these excerpts. A step may carry a "
+    "declared_weighing: the principle its author uses to weigh the evidence (for example, "
+    "randomised trials outrank observational studies for causal effects; larger, more precise or "
+    "lower-bias studies outrank smaller or weaker ones). Accept a declared weighing that is a "
+    "recognised principle of evidence appraisal, that fits the premises as the excerpts describe "
+    "them, and that is not tailored to favour the conclusion: it then does not count as an "
+    "unstated premise. If the conclusion depends on weighing and none is declared, or the one "
+    "declared is ad hoc or does not fit this evidence, choose needs_support and say what "
+    "weighing is needed."
 )
 
 LINK_AUDIT_SYSTEM = (
@@ -204,6 +228,9 @@ def _tidy(output: JudgeOutput, material: dict) -> JudgeOutput:
             verdict.supporting_statement_ids = [
                 s for s in verdict.supporting_statement_ids if s in known
             ]
+            if verdict.met and verdict.gap.strip():
+                verdict.met = False  # "partly met" is not met
+                verdict.rationale += f" Still missing: {verdict.gap.strip()}"
             if verdict.met and not verdict.supporting_statement_ids and not _search_based(verdict):
                 verdict.met = False  # "met" with nothing to point at is not met
                 verdict.rationale += " (No supporting claim was identified.)"

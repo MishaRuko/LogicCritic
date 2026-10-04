@@ -309,3 +309,129 @@ async def test_the_guardrails_own_critic_call_lands_in_the_judges_tally() -> Non
     )
     await toolbox.call("check_conclusion", {"statement_id": conclusion}, "toolu_check")
     assert judge.usage["calls"] == 1 and client.requests[0]["model"] == "claude-sonnet-5"
+
+
+# -- declared weighing -------------------------------------------------------------------------
+
+
+async def step_with(weighing):
+    world = await make_world(sources=SOURCES)
+    toolbox = Toolbox(session_factory, world.run_id, None)
+    premise = await record(toolbox, world, "A trial found no effect.", "a")
+    conclusion = await record(toolbox, world, "So the effect is doubtful.", "b")
+    result = await toolbox.call(
+        "record_reasoning",
+        {
+            "premise_ids": [premise],
+            "conclusion_id": conclusion,
+            "explanation": "Weighing the evidence.",
+            "scope_change": None,
+            "revises_step_id": None,
+            "weighing": weighing,
+        },
+        "toolu_weigh",
+    )
+    assert "step_id" in result, result
+    return world, result["step_id"]
+
+
+async def test_a_declared_weighing_is_stored_on_the_step() -> None:
+    world, step_id = await step_with("  randomised trials outrank observational studies  ")
+    async with session_factory() as session:
+        rows = list(
+            await session.scalars(
+                select(Annotation).where(
+                    Annotation.workspace_id == world.workspace_id,
+                    Annotation.type == "custom:weighing",
+                )
+            )
+        )
+    assert [(str(r.subject_id), r.value) for r in rows] == [
+        (step_id, {"principle": "randomised trials outrank observational studies"})
+    ]
+
+
+@pytest.mark.parametrize("weighing", [None, "", "   "])
+async def test_no_weighing_stores_nothing(weighing) -> None:
+    world, _ = await step_with(weighing)
+    async with session_factory() as session:
+        rows = list(
+            await session.scalars(
+                select(Annotation).where(
+                    Annotation.workspace_id == world.workspace_id,
+                    Annotation.type == "custom:weighing",
+                )
+            )
+        )
+    assert rows == []
+
+
+async def test_the_critic_is_shown_the_declared_weighing() -> None:
+    world, step_id = await step_with("larger, lower-bias studies outrank smaller ones")
+    client = FakeClaude(
+        lambda request: reply(
+            tool(
+                "submit_argument_check",
+                assessments=[
+                    {"reasoning_step_id": step_id, "verdict": "supported", "rationale": "ok"}
+                ],
+            ),
+            stop="tool_use",
+        )
+    )
+    async with session_factory() as session:
+        await check_arguments(
+            session,
+            world.workspace_id,
+            ArgumentCheckRequest(idempotency_key="w1"),
+            judge=Judge(client, model="m"),
+        )
+    step = material_of(client.requests[0])["steps"][0]
+    assert step["declared_weighing"] == "larger, lower-bias studies outrank smaller ones"
+
+
+async def test_a_step_without_weighing_says_so_to_the_critic() -> None:
+    world, _, _, step_id = await two_claims_and_a_step()
+    client = FakeClaude(
+        reply(
+            tool(
+                "submit_argument_check",
+                assessments=[
+                    {"reasoning_step_id": step_id, "verdict": "supported", "rationale": "ok"}
+                ],
+            ),
+            stop="tool_use",
+        )
+    )
+    async with session_factory() as session:
+        await check_arguments(
+            session,
+            world.workspace_id,
+            ArgumentCheckRequest(idempotency_key="w2"),
+            judge=Judge(client, model="m"),
+        )
+    assert material_of(client.requests[0])["steps"][0]["declared_weighing"] is None
+
+
+def test_the_critic_is_told_how_to_treat_a_declared_weighing() -> None:
+    from app.services.judge import STEP_AUDIT_SYSTEM
+
+    assert "declared_weighing" in STEP_AUDIT_SYSTEM
+    assert "tailored to favour the conclusion" in STEP_AUDIT_SYSTEM
+    assert "none is declared" in STEP_AUDIT_SYSTEM  # a missing weighing is still a gap
+
+
+def test_the_weighing_field_is_offered_to_the_agent_and_may_be_null() -> None:
+    from app.agent.loop import build_tools
+
+    tool_def = next(t for t in build_tools("guarded", 0) if t["name"] == "record_reasoning")
+    properties = tool_def["input_schema"]["properties"]
+    assert "weighing" in properties and "weighing" in tool_def["input_schema"]["required"]
+    assert any(option.get("type") == "null" for option in properties["weighing"]["anyOf"])
+
+
+def test_proposed_criteria_must_not_presuppose_the_answer() -> None:
+    from app.services.judge import PROPOSE_SYSTEM
+
+    assert "neutral about the answer" in PROPOSE_SYSTEM
+    assert "whichever direction" in PROPOSE_SYSTEM

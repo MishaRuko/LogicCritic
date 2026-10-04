@@ -1,17 +1,24 @@
 'use client';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, type Dispatch, type SetStateAction } from 'react';
+import { AnimatePresence, MotionConfig, animate, motion } from 'framer-motion';
 import { Button, cn } from '@cloudflare/kumo';
-import { ArrowUpRightIcon, FileTextIcon, MagnifyingGlassIcon, StopIcon, XIcon } from '@phosphor-icons/react';
+import { ArrowUpRightIcon, CaretDownIcon, CaretUpIcon, FileTextIcon, MagnifyingGlassIcon, SidebarSimpleIcon, StopIcon, XIcon } from '@phosphor-icons/react';
 import { agentStatusLabel, eventDescription, eventTitle, isAgentActive, safeSourceUrl, useAgentEvents } from '../../lib/research/agent';
 import type { AgentEvent, AgentRun, Snapshot } from '../../types/api';
 import type { UploadProgress } from '../../lib/research/api';
 import { ResearchComposer, ResearchProgress, type ResearchComposerMode, type ResearchMessage } from './ResearchUpload';
 
-export function ResearchChat({ mode, onModeChange, workspaceId, runs, loading, error, busy, open, state, progress, onSubmit, onStop, onClose, onSelect, onRetry, onCancelExtraction }: {
+export type ChatLayout = { dock: 'centre' | 'side'; open: boolean; details: boolean };
+export const isSidebarOpen = (layout: ChatLayout) => layout.dock === 'side' ? layout.open : layout.details;
+export const withSidebar = (layout: ChatLayout, open: boolean): ChatLayout => layout.dock === 'side' ? { ...layout, open } : { ...layout, details: open };
+const slide = { duration: 0.24, ease: [0.32, 0.72, 0, 1] } as const;
+
+export function ResearchChat({ mode, onModeChange, workspaceId, runs, loading, error, busy, layout, onLayout, state, progress, onSubmit, onStop, onSelect, onRetry, onCancelExtraction }: {
   mode: ResearchComposerMode; onModeChange: (mode: ResearchComposerMode) => void;
-  workspaceId?: string; runs: AgentRun[]; loading: boolean; error: Error | null; busy: boolean; open: boolean;
+  workspaceId?: string; runs: AgentRun[]; loading: boolean; error: Error | null; busy: boolean;
+  layout: ChatLayout; onLayout: Dispatch<SetStateAction<ChatLayout>>;
   state?: Snapshot; progress?: UploadProgress;
-  onSubmit: (message: ResearchMessage) => Promise<void>; onStop: (run: AgentRun) => void; onClose: () => void;
+  onSubmit: (message: ResearchMessage) => Promise<void>; onStop: (run: AgentRun) => void;
   onSelect: (id: string) => void; onRetry: () => void; onCancelExtraction: () => void;
 }) {
   const feed = useRef<HTMLDivElement>(null);
@@ -19,6 +26,7 @@ export function ResearchChat({ mode, onModeChange, workspaceId, runs, loading, e
   const active = runs.filter(isAgentActive);
   const queued = active.filter(run => run.status === 'queued');
   const running = active.find(run => run.status === 'running');
+  const latest = running ?? queued[0] ?? runs[0];
   const entries = [
     ...runs.map(run => ({ id: run.id, createdAt: run.created_at, run, source: undefined })),
     ...(state?.sources ?? []).filter(source => source.origin === 'upload').map(source => ({ id: source.id, createdAt: source.created_at, source, run: undefined })),
@@ -31,27 +39,61 @@ export function ResearchChat({ mode, onModeChange, workspaceId, runs, loading, e
     scrollToLatest();
   }, [workspaceId, entries.length, scrollToLatest]);
 
-  return <aside id="research-chat" aria-label="Research chat" className={cn(
-    'flex min-h-0 shrink-0 flex-col',
-    !open && 'hidden!',
-    workspaceId ? 'w-[380px] border-l border-line bg-zinc-50 max-[1000px]:h-[52%] max-[1000px]:w-full max-[1000px]:border-t max-[1000px]:border-l-0' : 'w-full px-5 pt-3 pb-5 sm:px-8',
-  )}>
-    {workspaceId && <header className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-4 py-3">
-      <div><h2 className="text-xs">Research chat</h2><p className="mt-1 text-[10px] text-zinc-400">{state?.graph.statements.length ?? 0} claims · {state?.sources.length ?? 0} {state?.sources.length === 1 ? 'source' : 'sources'}</p></div>
-      <div className="flex items-center gap-1">{running && <Button size="xs" variant="ghost" disabled={busy} icon={<StopIcon size={12}/>} onClick={() => onStop(running)}>Stop</Button>}<Button size="xs" variant="ghost" shape="square" aria-label="Hide research chat" icon={<XIcon size={14}/>} onClick={onClose}/></div>
-    </header>}
-    {workspaceId && <div ref={feed} role="log" aria-label="Research conversation" aria-live="polite" className="min-h-0 flex-1 space-y-6 overflow-y-auto px-4 py-5 [scrollbar-width:thin]" onScroll={() => { const el = feed.current; if (el) follow.current = el.scrollHeight - el.scrollTop - el.clientHeight < 64; }}>
-      {loading && <p className="text-[11px] text-zinc-400">Loading conversation…</p>}
-      {error && <div role="alert" className="text-[11px] text-fail">{error.message}<Button size="xs" variant="ghost" className="mt-2" onClick={onRetry}>Retry connection</Button></div>}
-      {!entries.length && !loading && !error && <div className="py-6 text-center">{mode === 'material' ? <FileTextIcon size={22} className="mx-auto text-zinc-400"/> : <MagnifyingGlassIcon size={22} className="mx-auto text-zinc-400"/>}<p className="mt-3 text-xs text-zinc-600">{mode === 'material' ? 'Bring your research into the graph' : 'What would you like to investigate?'}</p><p className="mt-2 text-[11px] leading-relaxed text-zinc-400">{mode === 'material' ? 'Paste text or attach a paper below. Switch to Agent whenever you want to ask a question.' : 'Ask a question below. I’ll gather evidence and build the graph alongside our conversation.'}</p></div>}
-      {entries.map(entry => entry.run ? <ResearchTurn key={entry.id} run={entry.run} busy={busy} onStop={() => onStop(entry.run)} onSelect={onSelect} onActivity={scrollToLatest}/> : <article key={entry.id} aria-label={`Added material: ${entry.source!.original_filename}`} className="ml-auto max-w-[94%] rounded-xl rounded-br-sm border border-line bg-white px-3.5 py-3"><p className="mb-2 flex items-center gap-2 text-[10px] text-zinc-500"><FileTextIcon size={14}/>Added material</p><p className="break-words text-xs">{entry.source!.original_filename}</p><p className="mt-2 line-clamp-3 whitespace-pre-wrap break-words text-[11px] leading-5 text-zinc-400">{entry.source!.excerpts[0]?.text.slice(0, 400)}</p><Button size="xs" variant="ghost" className="mt-2" icon={<ArrowUpRightIcon size={12}/>} onClick={() => onSelect(entry.source!.id)}>View source</Button></article>)}
-    </div>}
-    <div className={cn('shrink-0', workspaceId ? 'px-3 pt-2 pb-3' : 'mx-auto w-full max-w-3xl')}>
-      <ResearchProgress progress={progress} state={state} busy={busy} onCancel={onCancelExtraction}/>
-      <ResearchComposer mode={mode} onModeChange={onModeChange} workspaceId={workspaceId} busy={busy} blocked={mode === 'agent' && (!!workspaceId && loading || !!error)} processing={!!active.length} queued={running ? queued.length : Math.max(0, queued.length - 1)} submit={async message => { await onSubmit(message); follow.current = true; scrollToLatest(); }}/>
-      <p className="mt-2 text-center text-[9px] text-zinc-400">Enter to send · Shift+Enter for a new line · {mode === 'agent' ? 'Agent research uses paid model tokens' : 'Extraction uses paid model tokens'}</p>
+  const dock = workspaceId ? layout.dock : 'centre';
+  const sideOpen = !!workspaceId && isSidebarOpen(layout);
+  const centreOpen = dock === 'centre' && (!workspaceId || layout.open);
+  const home = useRef<HTMLDivElement>(null);
+  const composer = useRef<HTMLDivElement>(null);
+  const sideSlot = useRef<HTMLDivElement>(null);
+  const lastDock = useRef(dock);
+  // Move the composer's DOM node between docks instead of re-rendering it, so drafts, attachments and options survive the move.
+  useLayoutEffect(() => {
+    const node = composer.current, origin = home.current;
+    if (dock !== 'side' || !node || !origin) return;
+    sideSlot.current?.appendChild(node);
+    return () => { origin.appendChild(node); };
+  }, [dock]);
+  useEffect(() => {
+    if (lastDock.current === dock) return;
+    lastDock.current = dock;
+    if (composer.current) animate(composer.current, { opacity: [0, 1], y: [6, 0] }, slide);
+  }, [dock]);
+
+  return <MotionConfig reducedMotion="user">
+    <motion.aside id="research-chat" aria-label={dock === 'side' ? 'Research chat' : 'Agent details'} aria-hidden={!sideOpen} inert={!sideOpen} initial={false} animate={{ width: sideOpen ? 380 : 0 }} transition={slide} className={cn(
+      'z-10 col-start-2 row-span-2 row-start-1 flex min-h-0 min-w-0 justify-end overflow-hidden max-[1000px]:col-start-1 max-[1000px]:row-span-1',
+      sideOpen ? 'max-[1000px]:w-full!' : 'max-[1000px]:hidden',
+    )}><div className="flex w-[380px] shrink-0 flex-col border-l border-line bg-zinc-50 max-[1000px]:w-full max-[1000px]:border-l-0">
+      {workspaceId && <header className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-4 py-3">
+        <div><h2 className="text-xs">{dock === 'side' ? 'Research chat' : 'Agent details'}</h2><p className="mt-1 text-[10px] text-zinc-400">{state?.graph.statements.length ?? 0} claims · {state?.sources.length ?? 0} {state?.sources.length === 1 ? 'source' : 'sources'}</p></div>
+        <div className="flex items-center gap-1">{dock === 'side' && running && <Button size="xs" variant="ghost" disabled={busy} icon={<StopIcon size={12}/>} onClick={() => onStop(running)}>Stop</Button>}<Button size="xs" variant="ghost" shape="square" aria-label={dock === 'side' ? 'Close chat sidebar' : 'Close agent details'} icon={<XIcon size={14}/>} onClick={() => onLayout(current => withSidebar(current, false))}/></div>
+      </header>}
+      {workspaceId && <div ref={feed} role="log" aria-label="Research conversation" aria-live="polite" className="min-h-0 flex-1 space-y-6 overflow-y-auto px-4 py-5 [scrollbar-width:thin]" onScroll={() => { const el = feed.current; if (el) follow.current = el.scrollHeight - el.scrollTop - el.clientHeight < 64; }}>
+        {loading && <p className="text-[11px] text-zinc-400">Loading conversation…</p>}
+        {error && <div role="alert" className="text-[11px] text-fail">{error.message}<Button size="xs" variant="ghost" className="mt-2" onClick={onRetry}>Retry connection</Button></div>}
+        {!entries.length && !loading && !error && <div className="py-6 text-center">{mode === 'material' ? <FileTextIcon size={22} className="mx-auto text-zinc-400"/> : <MagnifyingGlassIcon size={22} className="mx-auto text-zinc-400"/>}<p className="mt-3 text-xs text-zinc-600">{mode === 'material' ? 'Bring your research into the graph' : 'What would you like to investigate?'}</p><p className="mt-2 text-[11px] leading-relaxed text-zinc-400">{mode === 'material' ? 'Paste text or attach a paper below. Switch to Agent whenever you want to ask a question.' : 'Ask a question below. I’ll gather evidence and build the graph alongside our conversation.'}</p></div>}
+        {entries.map(entry => entry.run ? <ResearchTurn key={entry.id} run={entry.run} busy={busy} onStop={() => onStop(entry.run)} onSelect={onSelect} onActivity={scrollToLatest}/> : <article key={entry.id} aria-label={`Added material: ${entry.source!.original_filename}`} className="ml-auto max-w-[94%] rounded-xl rounded-br-sm border border-line bg-white px-3.5 py-3"><p className="mb-2 flex items-center gap-2 text-[10px] text-zinc-500"><FileTextIcon size={14}/>Added material</p><p className="break-words text-xs">{entry.source!.original_filename}</p><p className="mt-2 line-clamp-3 whitespace-pre-wrap break-words text-[11px] leading-5 text-zinc-400">{entry.source!.excerpts[0]?.text.slice(0, 400)}</p><Button size="xs" variant="ghost" className="mt-2" icon={<ArrowUpRightIcon size={12}/>} onClick={() => onSelect(entry.source!.id)}>View source</Button></article>)}
+      </div>}
+      <div ref={sideSlot} className="shrink-0 px-3 pt-2 pb-3 empty:hidden"/>
+    </div></motion.aside>
+    <div className="col-start-1 row-start-2 min-w-0">
+      <motion.div aria-label="Centred research chat" aria-hidden={!centreOpen} inert={!centreOpen} initial={false} animate={centreOpen ? { height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } } : { height: 0, opacity: 0, overflow: 'hidden' }} transition={slide}><div className="px-5 pt-3 pb-5 sm:px-8"><div className="mx-auto w-full max-w-3xl">
+        {workspaceId && dock === 'centre' && mode === 'agent' && latest && <div role="status" aria-label="Agent summary" className="mb-3 rounded-lg border border-line bg-white px-4 py-3"><div className="flex items-center justify-between gap-2"><p className="flex items-center gap-2 text-[11px] text-zinc-500">{isAgentActive(latest) && <span className="research-processing-dot" aria-hidden/>}Research agent · {agentStatusLabel(latest.status)}</p><div className="flex gap-1">{running && <Button size="xs" variant="ghost" disabled={busy} icon={<StopIcon size={12}/>} onClick={() => onStop(running)}>Stop</Button>}<Button size="xs" variant="ghost" onClick={() => onLayout(current => withSidebar(current, true))}>View details</Button></div></div>{!sideOpen && <p className={cn('mt-2 line-clamp-2 whitespace-pre-wrap break-words text-xs leading-5', latest.error ? 'text-fail' : 'text-zinc-500')}>{latest.final_report || latest.error || latest.question}</p>}</div>}
+        {workspaceId && error && !sideOpen && <div role="alert" className="mb-3 text-[11px] text-fail">{error.message}<Button size="xs" variant="ghost" onClick={onRetry}>Retry connection</Button></div>}
+        <div ref={home}><div ref={composer} className="research-upload-stack" data-chat-open="true" data-agent-mode={mode === 'agent'} data-dock={dock}>
+          <ResearchProgress progress={progress} state={state} busy={busy} onCancel={onCancelExtraction}/>
+          <ResearchComposer mode={mode} onModeChange={onModeChange} workspaceId={workspaceId} busy={busy} blocked={mode === 'agent' && (!!workspaceId && loading || !!error)} processing={!!active.length} queued={running ? queued.length : Math.max(0, queued.length - 1)} submit={async message => { await onSubmit(message); follow.current = true; scrollToLatest(); }} actions={workspaceId ? <>
+            <Button size="xs" variant="ghost" shape="square" aria-label={dock === 'side' ? 'Move chat to centre' : 'Move chat to sidebar'} title={dock === 'side' ? 'Move chat to centre' : 'Move chat to sidebar'} icon={<SidebarSimpleIcon size={14} mirrored weight={dock === 'side' ? 'fill' : 'regular'}/>} onClick={() => onLayout(current => ({ dock: current.dock === 'side' ? 'centre' : 'side', open: true, details: false }))}/>
+            {dock === 'centre' && <Button size="xs" variant="ghost" shape="square" aria-label="Hide chat" title="Hide chat" icon={<CaretDownIcon size={14}/>} onClick={() => onLayout(current => ({ ...current, open: false }))}/>}
+          </> : undefined}/>
+          <p className="mt-2 text-center text-[9px] text-zinc-400">Enter to send · Shift+Enter for a new line · {mode === 'agent' ? 'Agent research uses paid model tokens' : 'Extraction uses paid model tokens'}</p>
+        </div></div>
+      </div></div></motion.div>
+      <AnimatePresence initial={false}>{workspaceId && !layout.open && <motion.div key="show-chat" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={slide} className="overflow-hidden">
+        <div className="flex justify-center border-t border-line py-2"><Button size="xs" variant="ghost" icon={<CaretUpIcon size={12}/>} onClick={() => onLayout(current => ({ ...current, open: true }))}>Show chat</Button></div>
+      </motion.div>}</AnimatePresence>
     </div>
-  </aside>;
+  </MotionConfig>;
 }
 
 function ResearchTurn({ run, busy, onStop, onSelect, onActivity }: { run: AgentRun; busy: boolean; onStop: () => void; onSelect: (id: string) => void; onActivity: () => void }) {

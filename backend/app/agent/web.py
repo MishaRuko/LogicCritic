@@ -76,8 +76,8 @@ async def fetch_public(
     try:
         current = url
         for _ in range(max_redirects + 1):
-            parts, address = await _vet(current, resolver)
-            response, body = await _get_pinned(http, parts, address, max_bytes, user_agent)
+            parts, addresses = await _vet(current, resolver)
+            response, body = await _get_from_any(http, parts, addresses, max_bytes, user_agent)
             if response.status_code in REDIRECT_STATUSES:
                 location = response.headers.get("location")
                 if not location:
@@ -117,7 +117,20 @@ async def _vet(url: str, resolver: Resolver):
         raise FetchError(
             f"{parts.hostname} is not a public internet address, so it was not fetched."
         )
-    return parts, addresses[0]
+    # IPv4 first: a host with no IPv6 route (a container, say) would otherwise stall on AAAA.
+    return parts, sorted(addresses, key=lambda address: ":" in address)
+
+
+async def _get_from_any(
+    http: httpx.AsyncClient, parts, addresses: list[str], max_bytes: int, user_agent: str
+):
+    """Try each vetted address in turn; only a failure to connect moves on to the next."""
+    for index, address in enumerate(addresses):
+        try:
+            return await _get_pinned(http, parts, address, max_bytes, user_agent)
+        except (httpx.ConnectError, httpx.ConnectTimeout):
+            if index == len(addresses) - 1:
+                raise
 
 
 async def _get_pinned(

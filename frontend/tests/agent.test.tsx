@@ -22,7 +22,7 @@ function mount(runs: AgentRun[] = []) {
   const onSelect = vi.fn();
   const onSubmit = vi.fn().mockResolvedValue(undefined);
   const onStop = vi.fn();
-  render(<QueryClientProvider client={client}><ResearchChat mode="agent" onModeChange={() => {}} workspaceId="workspace-1" runs={runs} loading={false} error={null} busy={false} open={true} onSubmit={onSubmit} onStop={onStop} onClose={() => {}} onSelect={onSelect} onRetry={() => {}} onCancelExtraction={() => {}}/></QueryClientProvider>);
+  render(<QueryClientProvider client={client}><ResearchChat mode="agent" onModeChange={() => {}} workspaceId="workspace-1" runs={runs} loading={false} error={null} busy={false} layout={{ dock: 'centre', open: true, details: true }} onLayout={() => {}} onSubmit={onSubmit} onStop={onStop} onSelect={onSelect} onRetry={() => {}} onCancelExtraction={() => {}}/></QueryClientProvider>);
   return { client, onSelect, onSubmit, onStop };
 }
 beforeEach(() => { vi.spyOn(api, 'listAgentEvents').mockResolvedValue([]); });
@@ -36,7 +36,7 @@ describe('research conversation', () => {
     const error = new Error('Agent history unavailable');
     function Chat() {
       const [mode, setMode] = useState<ResearchComposerMode>('agent');
-      return <ResearchChat mode={mode} onModeChange={setMode} workspaceId="workspace-1" runs={[]} loading={false} error={error} busy={false} open={true} onSubmit={onSubmit} onStop={() => {}} onClose={() => {}} onSelect={() => {}} onRetry={() => {}} onCancelExtraction={() => {}}/>;
+      return <ResearchChat mode={mode} onModeChange={setMode} workspaceId="workspace-1" runs={[]} loading={false} error={error} busy={false} layout={{ dock: 'centre', open: true, details: true }} onLayout={() => {}} onSubmit={onSubmit} onStop={() => {}} onSelect={() => {}} onRetry={() => {}} onCancelExtraction={() => {}}/>;
     }
     render(<QueryClientProvider client={client}><Chat/></QueryClientProvider>);
     fireEvent.change(screen.getByLabelText('Research message'), { target: { value: 'Pasted research findings.' } });

@@ -7,9 +7,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agent.runs import cancel_run, create_run
 from app.config import get_settings
 from app.database import get_session
-from app.models import AgentEvent, AgentRun, ResearchGoal
+from app.models import AgentEvent, AgentRun, JudgeVerdict, ResearchGoal
 from app.routes.workspaces import require_workspace
-from app.schemas import AgentEventResponse, AgentRunCreate, AgentRunResponse
+from app.schemas import (
+    AgentEventResponse,
+    AgentGoalResponse,
+    AgentRunCreate,
+    AgentRunResponse,
+    AgentVerdictResponse,
+)
 
 router = APIRouter(tags=["agent"])
 
@@ -26,8 +32,9 @@ def _response(run: AgentRun, goal: ResearchGoal) -> AgentRunResponse:
         **{
             name: getattr(run, name)
             for name in AgentRunResponse.model_fields
-            if name not in {"question", "kind"}
+            if name not in {"question", "kind", "goal"}
         },
+        goal=AgentGoalResponse.model_validate(goal),
         question=goal.question,
         kind=goal.kind,
     )
@@ -103,3 +110,40 @@ async def cancel_agent_run(
     run_id: uuid.UUID, session: AsyncSession = Depends(get_session)
 ) -> AgentRunResponse:
     return await _with_goal(session, await cancel_run(session, await _run_or_404(session, run_id)))
+
+
+@router.get("/agent-runs/{run_id}/verdicts", response_model=list[AgentVerdictResponse])
+async def list_agent_verdicts(
+    run_id: uuid.UUID, session: AsyncSession = Depends(get_session)
+) -> list[AgentVerdictResponse]:
+    """The independent reviewer's judgements of the run's evidence, oldest first.
+
+    Each is one review of the claims then in the argument against the completion criteria. The
+    last one is the current state; earlier ones show how the evidence grew.
+    """
+    await _run_or_404(session, run_id)
+    rows = await session.scalars(
+        select(JudgeVerdict).where(JudgeVerdict.run_id == run_id).order_by(JudgeVerdict.created_at)
+    )
+    out = []
+    for row in rows:
+        criteria = row.material.get("criteria", [])
+        out.append(
+            AgentVerdictResponse(
+                id=row.id,
+                created_at=row.created_at,
+                criteria=[
+                    {
+                        "index": v["index"],
+                        "criterion": criteria[v["index"]] if v["index"] < len(criteria) else "",
+                        "met": v["met"],
+                        "rationale": v["rationale"],
+                        "supporting_statement_ids": v["supporting_statement_ids"],
+                    }
+                    for v in row.verdict.get("criteria", [])
+                ],
+                designs=row.verdict.get("designs", []),
+                searches=row.material.get("searches", []),
+            )
+        )
+    return out

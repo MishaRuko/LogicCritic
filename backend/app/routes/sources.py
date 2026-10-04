@@ -139,7 +139,7 @@ async def upload_source(
 async def list_workspace_sources(
     workspace_id: uuid.UUID, session: AsyncSession = Depends(get_session)
 ) -> list[Source]:
-    """Include sources imported by research agents and other browser sessions."""
+    """Every source in the workspace: upload, Amass import or an agent run."""
     await require_workspace(workspace_id, session)
     return list(
         await session.scalars(

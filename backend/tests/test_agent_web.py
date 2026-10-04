@@ -186,3 +186,63 @@ def test_html_becomes_titled_markdown_like_paragraphs_without_boilerplate() -> N
         "First point",
         "Second point",
     ]
+
+
+async def test_a_host_with_no_ipv6_route_is_reached_over_ipv4() -> None:
+    v6, v4 = "2606:4700::6810:84e5", PUBLIC
+    tried = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        tried.append(request.url.host)
+        return httpx.Response(200, headers={"content-type": "text/plain"}, text="ok")
+
+    page = await fetch_public(
+        "https://example.org/", resolver=await resolves_to(v6, v4), client=client_for(handler)
+    )
+    assert tried == [v4] and page.content == b"ok"  # IPv4 is tried first
+
+
+async def test_the_next_address_is_tried_when_one_cannot_be_connected_to() -> None:
+    first, second = PUBLIC, "93.184.216.35"
+    tried = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        tried.append(request.url.host)
+        if request.url.host == first:
+            raise httpx.ConnectError("unreachable")
+        return httpx.Response(200, headers={"content-type": "text/plain"}, text="ok")
+
+    page = await fetch_public(
+        "https://example.org/",
+        resolver=await resolves_to(first, second),
+        client=client_for(handler),
+    )
+    assert tried == [first, second] and page.content == b"ok"
+
+
+async def test_an_http_error_is_not_retried_on_another_address() -> None:
+    tried = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        tried.append(request.url.host)
+        return httpx.Response(403)
+
+    with pytest.raises(FetchError, match="403"):
+        await fetch_public(
+            "https://example.org/",
+            resolver=await resolves_to(PUBLIC, "93.184.216.35"),
+            client=client_for(handler),
+        )
+    assert tried == [PUBLIC]
+
+
+async def test_when_no_address_connects_the_failure_is_reported() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("unreachable")
+
+    with pytest.raises(FetchError, match="ConnectError"):
+        await fetch_public(
+            "https://example.org/",
+            resolver=await resolves_to(PUBLIC, "93.184.216.35"),
+            client=client_for(handler),
+        )

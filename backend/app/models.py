@@ -289,6 +289,23 @@ class AgentRun(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class JudgeVerdict(Base):
+    """What the judge was shown and what it decided, so a check is auditable and never repeated.
+
+    One row per distinct input in a run: asking again about the same evidence reuses the row.
+    """
+
+    __tablename__ = "judge_verdicts"
+    __table_args__ = (UniqueConstraint("run_id", "input_hash", name="uq_judge_verdicts_run_input"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    run_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("agent_runs.id", ondelete="CASCADE"))
+    input_hash: Mapped[str] = mapped_column(String(64))
+    material: Mapped[dict] = mapped_column(JSONB)
+    verdict: Mapped[dict] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class AgentEvent(Base):
     """One step of a run, numbered in order. The trace the replay view and evaluation read."""
 

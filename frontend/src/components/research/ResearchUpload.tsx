@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Button, cn } from '@cloudflare/kumo';
 import { ArrowUpIcon, CheckIcon, FileTextIcon, MagnifyingGlassIcon, PaperclipIcon, XIcon } from '@phosphor-icons/react';
 import type { UploadProgress } from '../../lib/research/api';
@@ -8,7 +8,7 @@ import type { AgentRunInput, Snapshot } from '../../types/api';
 
 export type ResearchComposerMode = 'material' | 'agent';
 export interface ResearchMessage { mode: ResearchComposerMode; prompt: string; files: File[]; options: Omit<AgentRunInput, 'question'> }
-export function ResearchComposer({ mode, onModeChange, busy, submit, processing = false, workspaceId, queued = 0, blocked = false }: {
+export function ResearchComposer({ mode, onModeChange, busy, submit, processing = false, workspaceId, queued = 0, blocked = false, actions }: {
   mode: ResearchComposerMode;
   onModeChange: (mode: ResearchComposerMode) => void;
   busy: boolean;
@@ -17,6 +17,7 @@ export function ResearchComposer({ mode, onModeChange, busy, submit, processing 
   workspaceId?: string;
   queued?: number;
   submit: (message: ResearchMessage) => Promise<void>;
+  actions?: ReactNode;
 }) {
   const inputId = useId();
   const [files, setFiles] = useState<File[]>([]);
@@ -67,9 +68,9 @@ export function ResearchComposer({ mode, onModeChange, busy, submit, processing 
   }
 
   return <div aria-label="Research message composer" className={cn('research-composer border bg-white transition-colors', (busy || processing) && 'research-composer-processing', dragging ? 'border-blue-300 bg-blue-50/30' : 'border-zinc-300')} onDragOver={e => { e.preventDefault(); if (!busy) setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={e => { e.preventDefault(); setDragging(false); if (!busy) choose(Array.from(e.dataTransfer.files)); }}>
-    <div role="group" aria-label="Composer mode" className="flex gap-1 border-b border-line px-3 py-2">
+    <div className="flex items-center gap-1 border-b border-line px-3 py-2"><div role="group" aria-label="Composer mode" className="flex gap-1">
       {(['material', 'agent'] as const).map(value => <button key={value} type="button" aria-label={value === 'material' ? 'Material mode' : 'Agent mode'} aria-pressed={mode === value} disabled={busy} className={cn('flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] transition-colors disabled:opacity-50', mode === value ? value === 'agent' ? 'bg-blue-50 text-blue-700' : 'bg-zinc-100 text-zinc-800' : 'text-zinc-400 hover:bg-zinc-50 hover:text-zinc-600')} onClick={() => { setError(''); onModeChange(value); }}>{value === 'material' ? <FileTextIcon size={14}/> : <MagnifyingGlassIcon size={14}/>}<span>{value === 'material' ? 'Add material' : 'Agent'}</span></button>)}
-    </div>
+    </div>{actions && <div className="ml-auto flex items-center gap-0.5">{actions}</div>}</div>
     {!!files.length && <ul aria-label="Selected documents" className="flex max-h-24 flex-wrap gap-2 overflow-y-auto px-4 pt-3">{files.map((file, index) => <li key={`${file.name}-${index}`} className="flex max-w-full items-center gap-2 rounded-sm border border-line bg-zinc-50 px-3 py-2 text-xs"><FileTextIcon size={16} className="shrink-0 text-zinc-500"/><span className="min-w-0 truncate">{file.name}</span><span className="shrink-0 text-[10px] text-zinc-400">{file.size < 1024 * 1024 ? `${Math.max(1, Math.round(file.size / 1024))} KB` : `${(file.size / 1024 / 1024).toFixed(1)} MB`}</span><button type="button" aria-label={`Remove ${file.name}`} disabled={busy} className="shrink-0 text-zinc-500" onClick={() => choose(files.filter((_, i) => i !== index))}><XIcon size={14}/></button></li>)}</ul>}
     <textarea id="research-prompt" aria-label="Research message" placeholder={dragging ? 'Drop your paper here' : mode === 'material' ? 'Paste research text, or attach a PDF…' : workspaceId ? 'Ask a follow-up or steer the research…' : 'Ask a research question, or attach a paper…'} disabled={busy} rows={2} className="block max-h-36 min-h-16 w-full resize-none border-0 bg-transparent px-4 pt-4 pb-2 text-sm leading-relaxed outline-none placeholder:text-zinc-400" value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void add(); } }}/>
     {error && <p role="alert" className="px-4 pb-2 text-xs text-fail">{error}</p>}

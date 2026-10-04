@@ -50,7 +50,7 @@ NodeKind = Literal["statement", "reasoning_step"]
 Lifecycle = Literal["proposed"]
 AssertionMode = Literal["asserted", "hypothesis", "conditional", "question", "reported"]
 StatementRole = Literal["premise", "conclusion", "assumption", "objection", "definition"]
-StatementSalience = Literal["core", "supporting"]
+StatementSalience = Literal["core", "secondary", "supporting"]
 
 
 class ProvenanceInput(BaseModel):
@@ -134,6 +134,7 @@ class StatementResponse(APIModel):
     salience: str
     lifecycle: str
     provenance: dict
+    superseded_by: uuid.UUID | None = None
     created_at: datetime
     excerpt_ids: list[uuid.UUID] = Field(default_factory=list)
 
@@ -254,7 +255,12 @@ class ExtractedStatement(BaseModel):
     assertion_mode: AssertionMode
     role: StatementRole | None = None
     salience: StatementSalience = Field(
-        description="core for a paper-level result, conclusion, limitation, or essential design fact; supporting for evidence used only to support another claim."
+        description="core for the paper's minimum central contribution; secondary for consequential but noncentral results, limitations, or implications; supporting for direct evidence or design premises."
+    )
+    supports_ref: str | None = Field(
+        description="For a supporting statement: the client_ref of the core or secondary "
+        "statement in this result that it is direct evidence or a design premise for. A "
+        "supporting statement that supports nothing is not worth extracting. Null otherwise."
     )
     excerpt_ids: list[uuid.UUID] = Field(
         min_length=1,
@@ -409,7 +415,41 @@ class AgentRunCreate(BaseModel):
     max_web_searches: int | None = Field(default=None, ge=0, le=25)
 
 
+class AgentGoalResponse(APIModel):
+    id: uuid.UUID
+    question: str
+    kind: str
+    completion_criteria: list[str]
+    falsifiers: list[str]
+    status: str
+
+
+class AgentCriterionVerdict(BaseModel):
+    index: int
+    criterion: str
+    met: bool
+    rationale: str
+    supporting_statement_ids: list[str]
+
+
+class AgentDesignVerdict(BaseModel):
+    statement_id: str
+    design_shown: bool
+    rationale: str
+
+
+class AgentVerdictResponse(BaseModel):
+    """One independent review of the run's evidence against its completion criteria."""
+
+    id: uuid.UUID
+    created_at: datetime
+    criteria: list[AgentCriterionVerdict]
+    designs: list[AgentDesignVerdict]
+    searches: list[str]
+
+
 class AgentRunResponse(APIModel):
+    goal: AgentGoalResponse | None = None
     id: uuid.UUID
     workspace_id: uuid.UUID
     goal_id: uuid.UUID
