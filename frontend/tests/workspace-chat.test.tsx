@@ -149,12 +149,12 @@ describe('chat and graph integration', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     try {
       render(<QueryClientProvider client={client}><ResearchWorkspace/></QueryClientProvider>);
-      await screen.findByRole('button', { name: 'Material', exact: true });
+      await screen.findByRole('button', { name: 'Material' });
       expect(screen.queryByRole('tab', { name: 'Material' })).not.toBeInTheDocument();
-      fireEvent.click(screen.getByRole('button', { name: 'Material', exact: true }));
+      fireEvent.click(screen.getByRole('button', { name: 'Material' }));
       expect(new URLSearchParams(window.location.search).get('view')).toBe('material');
       fireEvent.click(screen.getByRole('tab', { name: 'Verification' }));
-      const check = screen.getAllByRole('button', { name: 'Verify research', exact: true }).find(button => !button.hasAttribute('aria-current'))!;
+      const check = screen.getAllByRole('button', { name: 'Verify research' }).find(button => !button.hasAttribute('aria-current'))!;
       fireEvent.click(check);
       await waitFor(() => expect(verify).toHaveBeenCalledOnce());
       await waitFor(() => expect(screen.getByRole('region', { name: 'Live graph verification' })).toHaveTextContent('checking 1 graph objects'));

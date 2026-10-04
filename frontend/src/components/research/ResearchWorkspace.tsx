@@ -92,7 +92,7 @@ export function ResearchWorkspace() {
       const result = await api.verifyLive(workspace, async event => {
         setVerificationTrace(previous => previous?.workspaceId === workspace ? { ...previous, events: [...previous.events, event] } : previous);
         // Give each real rule event time to be read and its graph transition to be seen.
-        if (event.type === 'rule_started' && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) await new Promise(resolve => window.setTimeout(resolve, 500));
+        if (event.type === 'rule_started' && !window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) await new Promise(resolve => window.setTimeout(resolve, 500));
       }, controller.signal);
       setVerification(v => ({ ...v, [workspace]: result }));
       setVerificationTrace(previous => previous?.workspaceId === workspace ? { ...previous, status: 'complete' } : previous);
