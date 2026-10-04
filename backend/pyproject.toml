@@ -5,10 +5,12 @@ description = "Backend API for the research argument graph"
 requires-python = ">=3.13"
 dependencies = [
   "alembic>=1.14,<2",
+  "anthropic>=1.11,<2",
   "asyncpg>=0.30,<1",
   "fastapi>=0.115,<1",
   "httpx>=0.28,<1",
   "pydantic-settings>=2.7,<3",
+  "pypdf>=5,<7",
   "python-multipart>=0.0.20,<1",
   "redis>=5.2,<6",
   "sqlalchemy[asyncio]>=2.0,<3",
@@ -29,8 +31,8 @@ testpaths = ["tests"]
 requires = ["setuptools>=75"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-packages = ["app", "app.routes"]
+[tool.setuptools.packages.find]
+include = ["app*"]
 
 [tool.ruff]
 line-length = 100

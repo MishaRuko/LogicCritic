@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,8 +20,8 @@ from app.schemas import (
     AnnotationCreateOperation,
     GraphPatchRequest,
     GraphPatchResponse,
-    RelationCreateOperation,
     ReasoningStepCreateOperation,
+    RelationCreateOperation,
     StatementCreateOperation,
 )
 
@@ -43,17 +43,17 @@ def graph_patch_response_from_event(event: GraphEvent) -> GraphPatchResponse:
 def validate_reasoning_ids(conclusion_id: uuid.UUID, premise_ids: list[uuid.UUID]) -> None:
     if not premise_ids:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=422,
             detail="A reasoning step requires at least one premise",
         )
     if len(set(premise_ids)) != len(premise_ids):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=422,
             detail="A reasoning step cannot repeat a premise",
         )
     if conclusion_id in premise_ids:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=422,
             detail="A reasoning step cannot use its conclusion as a premise",
         )
 
@@ -70,26 +70,28 @@ def validate_annotation_value(type_: str, value: dict) -> None:
     }
     if type_ not in required:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Unknown annotation type: {type_}. Use a documented type or the custom: namespace.",
+            status_code=422,
+            detail=(
+                f"Unknown annotation type: {type_}. Use a documented type or the custom: namespace."
+            ),
         )
     missing = [field for field in required[type_] if field not in value]
     if missing:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=422,
             detail=f"Annotation {type_} is missing fields: {', '.join(missing)}",
         )
     if type_ == "claim_strength" and value["value"] not in {"causal", "associative", "descriptive"}:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid claim_strength value")
+        raise HTTPException(status_code=422, detail="Invalid claim_strength value")
     if type_ == "claim_key" and value["polarity"] not in {"supports", "refutes"}:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid claim_key polarity")
+        raise HTTPException(status_code=422, detail="Invalid claim_key polarity")
     bool_fields = {
         "causal_support": "supported",
         "scope_transition": "justified",
         "required_premise": "satisfied",
     }
     if type_ in bool_fields and not isinstance(value[bool_fields[type_]], bool):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Annotation {type_} requires a boolean")
+        raise HTTPException(status_code=422, detail=f"Annotation {type_} requires a boolean")
 
 
 class GraphPatchExecutor:
@@ -169,11 +171,13 @@ class GraphPatchExecutor:
             if isinstance(operation, (StatementCreateOperation, ReasoningStepCreateOperation)):
                 if operation.client_ref in self.created_kinds:
                     raise HTTPException(
-                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        status_code=422,
                         detail=f"Duplicate client_ref: {operation.client_ref}",
                     )
                 self.created_kinds[operation.client_ref] = (
-                    "statement" if isinstance(operation, StatementCreateOperation) else "reasoning_step"
+                    "statement"
+                    if isinstance(operation, StatementCreateOperation)
+                    else "reasoning_step"
                 )
 
     async def _resolve_node_id(self, value: str | uuid.UUID, expected_kind: str) -> uuid.UUID:
@@ -181,7 +185,7 @@ class GraphPatchExecutor:
             node_id = self.id_map[value]
             if self.created_kinds[value] != expected_kind:
                 raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    status_code=422,
                     detail=f"Client reference {value} is not a {expected_kind}",
                 )
             return node_id
@@ -190,7 +194,7 @@ class GraphPatchExecutor:
             node_id = uuid.UUID(str(value))
         except ValueError as error:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=422,
                 detail=f"Unknown client reference or invalid UUID: {value}",
             ) from error
 
@@ -198,7 +202,7 @@ class GraphPatchExecutor:
         node = await self.session.get(model, node_id)
         if node is None or node.workspace_id != self.workspace_id:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=422,
                 detail=f"{expected_kind} does not exist in this workspace: {node_id}",
             )
         return node_id
@@ -210,22 +214,28 @@ class GraphPatchExecutor:
         if operation.excerpt_ids:
             if len(set(operation.excerpt_ids)) != len(operation.excerpt_ids):
                 raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    status_code=422,
                     detail="A statement cannot cite the same excerpt more than once",
                 )
             excerpts = list(
                 await self.session.scalars(
                     select(Excerpt)
                     .join(Source, Excerpt.source_id == Source.id)
-                    .where(Excerpt.id.in_(operation.excerpt_ids), Source.workspace_id == self.workspace_id)
+                    .where(
+                        Excerpt.id.in_(operation.excerpt_ids),
+                        Source.workspace_id == self.workspace_id,
+                    )
                 )
             )
             found_ids = {item.id for item in excerpts}
             missing_ids = set(operation.excerpt_ids) - found_ids
             if missing_ids:
                 raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=f"Excerpt IDs do not exist in this workspace: {sorted(map(str, missing_ids))}",
+                    status_code=422,
+                    detail=(
+                        "Excerpt IDs do not exist in this workspace: "
+                        f"{sorted(map(str, missing_ids))}"
+                    ),
                 )
 
         statement = Statement(
@@ -233,6 +243,7 @@ class GraphPatchExecutor:
             text=operation.text,
             assertion_mode=operation.assertion_mode,
             role=operation.role,
+            salience=operation.salience,
             lifecycle=operation.lifecycle,
             provenance=provenance_dict(operation.provenance),
         )
@@ -241,16 +252,21 @@ class GraphPatchExecutor:
         self.id_map[operation.client_ref] = statement.id
         self.affected_node_ids.append(statement.id)
         self.session.add_all(
-            [StatementExcerpt(statement_id=statement.id, excerpt_id=excerpt_id) for excerpt_id in operation.excerpt_ids]
+            [
+                StatementExcerpt(statement_id=statement.id, excerpt_id=excerpt_id)
+                for excerpt_id in operation.excerpt_ids
+            ]
         )
 
     async def _create_reasoning_step(self, operation: ReasoningStepCreateOperation) -> None:
         conclusion_id = await self._resolve_node_id(operation.conclusion_id, "statement")
-        premise_ids = [await self._resolve_node_id(item, "statement") for item in operation.premise_ids]
+        premise_ids = [
+            await self._resolve_node_id(item, "statement") for item in operation.premise_ids
+        ]
         validate_reasoning_ids(conclusion_id, premise_ids)
         if await self._would_create_reasoning_cycle(conclusion_id, premise_ids):
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=422,
                 detail="A reasoning step cannot introduce a cyclic dependency",
             )
 
@@ -267,7 +283,9 @@ class GraphPatchExecutor:
         self.affected_node_ids.extend([step.id, conclusion_id, *premise_ids])
         self.session.add_all(
             [
-                ReasoningPremise(reasoning_step_id=step.id, statement_id=premise_id, position=position)
+                ReasoningPremise(
+                    reasoning_step_id=step.id, statement_id=premise_id, position=position
+                )
                 for position, premise_id in enumerate(premise_ids)
             ]
         )
@@ -299,11 +317,15 @@ class GraphPatchExecutor:
         return False
 
     async def _create_relation(self, operation: RelationCreateOperation) -> None:
-        source_id = await self._resolve_node_id(operation.source_node_id, operation.source_node_kind)
-        target_id = await self._resolve_node_id(operation.target_node_id, operation.target_node_kind)
+        source_id = await self._resolve_node_id(
+            operation.source_node_id, operation.source_node_kind
+        )
+        target_id = await self._resolve_node_id(
+            operation.target_node_id, operation.target_node_kind
+        )
         if source_id == target_id and operation.source_node_kind == operation.target_node_kind:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=422,
                 detail="A relation cannot target the same node",
             )
         edge = GraphEdge(

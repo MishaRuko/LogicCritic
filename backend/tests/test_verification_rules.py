@@ -36,7 +36,9 @@ def annotation(subject_type: str, subject_id: uuid.UUID, type_: str, value: dict
 def test_causality_rule_requires_explicit_causal_support() -> None:
     claim = statement()
     annotations = {
-        ("statement", claim.id): [annotation("statement", claim.id, "claim_strength", {"value": "causal"})]
+        ("statement", claim.id): [
+            annotation("statement", claim.id, "claim_strength", {"value": "causal"})
+        ]
     }
 
     findings = _causality_findings([claim], annotations)
@@ -78,9 +80,10 @@ def test_scope_and_missing_premise_annotations_create_reasoning_findings() -> No
     }
 
     assert [item.rule_code for item in _scope_leap_findings([step], annotations)] == ["scope_leap"]
-    assert [item.rule_code for item in _missing_premise_findings([step], {step.id: [uuid.uuid4()]}, annotations)] == [
-        "missing_premise"
-    ]
+    assert [
+        item.rule_code
+        for item in _missing_premise_findings([step], {step.id: [uuid.uuid4()]}, annotations)
+    ] == ["missing_premise"]
 
 
 def test_reported_limitation_requires_explicit_limitation_language() -> None:

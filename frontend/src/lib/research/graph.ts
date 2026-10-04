@@ -6,24 +6,38 @@ export interface ResearchEdge { id: string; source: string; target: string; rela
 export interface ResearchGraph { nodes: ResearchNode[]; edges: ResearchEdge[] }
 export const humanize = (value: string) => value.replace(/_/g, ' ');
 export function allObligations(state: Snapshot): Obligation[] { return [...new Map(state.contexts.flatMap(c => c.obligations).map(o => [o.id, o])).values()]; }
-export function projectWorkspace(state: Snapshot): ResearchGraph {
+export function projectWorkspace(state: Snapshot, detailed = false): ResearchGraph {
   const nodes: ResearchNode[] = []; const edges: ResearchEdge[] = [];
   const obligations = allObligations(state).filter(o => o.status === 'open');
   const excerpts = new Map(state.sources.flatMap(s => s.excerpts).map(e => [e.id, e]));
-  for (const e of excerpts.values()) {
+  const visibleStatements = new Set(detailed ? state.graph.statements.map(s => s.id) : state.graph.statements.filter(s => s.salience === 'core').map(s => s.id));
+  const visibleSteps = new Set<string>();
+  if (!detailed) {
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const step of state.graph.reasoning_steps) {
+        if (visibleStatements.has(step.conclusion_id) && !visibleSteps.has(step.id)) {
+          visibleSteps.add(step.id); changed = true;
+          for (const premise of step.premise_ids) if (!visibleStatements.has(premise)) { visibleStatements.add(premise); changed = true; }
+        }
+      }
+    }
+  } else for (const step of state.graph.reasoning_steps) visibleSteps.add(step.id);
+  if (detailed) for (const e of excerpts.values()) {
     nodes.push({ id: e.id, kind: 'excerpt', label: e.text, detail: state.sources.find(s => s.id === e.source_id)?.original_filename ?? 'Source excerpt', state: state.validity[e.source_id]?.status === 'invalidated' ? 'fail' : 'idle', proposed: false, sourceIds: [e.source_id] });
   }
   const sourceIds = (ids: string[]) => [...new Set(ids.flatMap(id => { const e = excerpts.get(id); return e ? [e.source_id] : []; }))];
-  for (const s of state.graph.statements) {
+  for (const s of state.graph.statements.filter(item => visibleStatements.has(item.id))) {
     // Review acceptance is a lifecycle decision, never a scientific truth score.
     const status: ResearchState = s.lifecycle === 'rejected' ? 'unknown' : obligations.some(o => o.blocks_statement_id === s.id) ? 'fail' : s.lifecycle === 'proposed' ? 'warn' : 'idle';
-    nodes.push({ id: s.id, kind: s.role === 'conclusion' ? 'conclusion' : 'statement', label: s.text, detail: `${s.lifecycle} · ${humanize(s.assertion_mode)}${s.role ? ` · ${s.role}` : ''} · ${s.provenance.model ?? s.provenance.actor_id}`, state: status, proposed: s.lifecycle === 'proposed', sourceIds: sourceIds(s.excerpt_ids) });
-    for (const id of s.excerpt_ids) {
+    nodes.push({ id: s.id, kind: s.role === 'conclusion' ? 'conclusion' : 'statement', label: s.text, detail: `${s.lifecycle} · ${s.salience} · ${humanize(s.assertion_mode)}${s.role ? ` · ${s.role}` : ''} · ${s.provenance.model ?? s.provenance.actor_id}`, state: status, proposed: s.lifecycle === 'proposed', sourceIds: sourceIds(s.excerpt_ids) });
+    if (detailed) for (const id of s.excerpt_ids) {
       if (!excerpts.has(id) && !nodes.some(n => n.id === id)) nodes.push({ id, kind: 'excerpt', label: 'Linked excerpt', detail: 'Attach the source in Material to load its exact text', state: 'unknown', proposed: false, sourceIds: [] });
       edges.push({ id: `grounds:${id}:${s.id}`, source: id, target: s.id, relation: 'grounds' });
     }
   }
-  for (const r of state.graph.reasoning_steps) {
+  for (const r of state.graph.reasoning_steps.filter(item => visibleSteps.has(item.id))) {
     nodes.push({ id: r.id, kind: 'step', label: r.explanation, detail: `${r.lifecycle} · ${r.premise_ids.length} required premises · ${r.provenance?.model ?? r.provenance?.actor_id ?? ""}`, state: r.lifecycle === 'proposed' ? 'warn' : r.lifecycle === 'rejected' ? 'unknown' : 'idle', proposed: r.lifecycle === 'proposed', sourceIds: sourceIds(state.graph.statements.filter(s => r.premise_ids.includes(s.id)).flatMap(s => s.excerpt_ids)) });
     for (const p of r.premise_ids) edges.push({ id: `premise:${p}:${r.id}`, source: p, target: r.id, relation: 'premise_of', proposed: r.lifecycle === 'proposed' });
     edges.push({ id: `conclusion:${r.id}`, source: r.id, target: r.conclusion_id, relation: 'concludes', proposed: r.lifecycle === 'proposed' });

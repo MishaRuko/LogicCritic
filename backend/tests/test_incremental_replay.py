@@ -77,7 +77,9 @@ async def test_later_contradictory_source_opens_conflict_without_replacing_initi
             assert first_run.issues_opened == 0
 
             update_excerpt = await create_source(
-                session, workspace.id, "A blinded replication found no difference in maze completion time."
+                session,
+                workspace.id,
+                "A blinded replication found no difference in maze completion time.",
             )
             patch = await GraphPatchExecutor(session, workspace.id).apply(
                 GraphPatchRequest(

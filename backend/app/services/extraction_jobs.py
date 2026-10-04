@@ -1,7 +1,6 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-from fastapi import HTTPException, status
 from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,7 +9,7 @@ from app.config import get_settings
 from app.database import session_factory
 from app.models import Excerpt, ExtractionJob, Source
 from app.schemas import SourceExtractionRequest
-from app.services.extraction import extract_source_to_patch
+from app.services.extraction import extract_source_to_patch, is_extractable_excerpt
 
 
 async def create_extraction_job(
@@ -52,14 +51,17 @@ async def create_extraction_job(
 
 
 async def claim_next_extraction_job() -> uuid.UUID | None:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     async with session_factory() as session:
         async with session.begin():
             job = await session.scalar(
                 select(ExtractionJob)
                 .where(
                     ExtractionJob.status == "queued",
-                    or_(ExtractionJob.next_attempt_at.is_(None), ExtractionJob.next_attempt_at <= now),
+                    or_(
+                        ExtractionJob.next_attempt_at.is_(None),
+                        ExtractionJob.next_attempt_at <= now,
+                    ),
                 )
                 .order_by(ExtractionJob.created_at)
                 .with_for_update(skip_locked=True)
@@ -93,7 +95,19 @@ async def process_extraction_job(job_id: uuid.UUID) -> None:
                     select(Excerpt).where(Excerpt.source_id == source.id).order_by(Excerpt.sequence)
                 )
             )
-            chunks = chunk_excerpt_ids(excerpts, settings.max_extraction_context_chars)
+            chunks = chunk_excerpt_ids(
+                [
+                    excerpt
+                    for excerpt in excerpts
+                    if is_extractable_excerpt(
+                        excerpt,
+                        fulltext_available=bool(
+                            (source.metadata_ or {}).get("fulltext_imported")
+                        ),
+                    )
+                ],
+                settings.max_extraction_context_chars,
+            )
             if not chunks:
                 raise ValueError("Source has no extractable excerpts")
 
@@ -120,13 +134,15 @@ async def process_extraction_job(job_id: uuid.UUID) -> None:
                     patch_ids.append(str(patch.patch_id))
                 job.completed_chunks = index + 1
                 job.output_patch_ids = patch_ids.copy()
-                job.heartbeat_at = datetime.now(timezone.utc)
+                job.heartbeat_at = datetime.now(UTC)
                 await session.commit()
 
             if not patch_ids:
-                raise ValueError("Claude extraction produced no graph operations for any source chunk")
+                raise ValueError(
+                    "Claude extraction produced no graph operations for any source chunk"
+                )
             job.status = "succeeded"
-            job.completed_at = datetime.now(timezone.utc)
+            job.completed_at = datetime.now(UTC)
             job.heartbeat_at = job.completed_at
             await session.commit()
         except Exception as error:
@@ -140,17 +156,17 @@ async def _finish_failed_job(session: AsyncSession, job: ExtractionJob, error: s
     job.error = error[:4000]
     if job.attempts >= get_settings().extraction_max_attempts:
         job.status = "failed"
-        job.completed_at = datetime.now(timezone.utc)
+        job.completed_at = datetime.now(UTC)
     else:
         job.status = "queued"
-        job.next_attempt_at = datetime.now(timezone.utc) + timedelta(
+        job.next_attempt_at = datetime.now(UTC) + timedelta(
             seconds=get_settings().extraction_retry_base_seconds * 2 ** (job.attempts - 1)
         )
     await session.commit()
 
 
 async def recover_stale_extraction_jobs() -> int:
-    cutoff = datetime.now(timezone.utc) - timedelta(seconds=get_settings().extraction_stale_after_seconds)
+    cutoff = datetime.now(UTC) - timedelta(seconds=get_settings().extraction_stale_after_seconds)
     async with session_factory() as session:
         stale_jobs = list(
             await session.scalars(
@@ -165,7 +181,7 @@ async def recover_stale_extraction_jobs() -> int:
         for job in stale_jobs:
             job.status = "queued"
             job.error = "Worker lease expired; job returned to the queue"
-            job.next_attempt_at = datetime.now(timezone.utc)
+            job.next_attempt_at = datetime.now(UTC)
         if stale_jobs:
             await session.commit()
         return len(stale_jobs)
@@ -175,7 +191,7 @@ async def cancel_extraction_job(session: AsyncSession, job: ExtractionJob) -> Ex
     if job.status in {"succeeded", "failed", "cancelled"}:
         return job
     job.status = "cancelled"
-    job.completed_at = datetime.now(timezone.utc)
+    job.completed_at = datetime.now(UTC)
     await session.commit()
     await session.refresh(job)
     return job

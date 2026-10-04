@@ -33,8 +33,6 @@ def parse_structured_text(text: str) -> list[ParsedExcerpt]:
         if current_section is not None:
             locator["section"] = current_section
 
-        excerpts.append(
-            ParsedExcerpt(text=stripped, sequence=len(excerpts), locator=locator)
-        )
+        excerpts.append(ParsedExcerpt(text=stripped, sequence=len(excerpts), locator=locator))
 
     return excerpts

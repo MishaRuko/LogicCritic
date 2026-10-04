@@ -12,7 +12,9 @@ from app.benchmarks.scifact_smoke import wait_for_job
 def fetch_article(pmc_id: str) -> tuple[str, str]:
     numeric_id = pmc_id.removeprefix("PMC")
     url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id={numeric_id}"
-    response = httpx.get(url, headers={"User-Agent": "LogicCritic full-text smoke test"}, timeout=60)
+    response = httpx.get(
+        url, headers={"User-Agent": "LogicCritic full-text smoke test"}, timeout=60
+    )
     response.raise_for_status()
     article = ElementTree.fromstring(response.content)
     title = "".join(article.find(".//article-title").itertext()).strip()
@@ -23,7 +25,9 @@ def fetch_article(pmc_id: str) -> tuple[str, str]:
 def run(pmc_id: str, api_url: str, timeout_seconds: int) -> dict:
     title, content = fetch_article(pmc_id)
     with httpx.Client(base_url=api_url, timeout=60) as client:
-        workspace_response = client.post("/workspaces", json={"title": f"PMC full-text smoke: {pmc_id}"})
+        workspace_response = client.post(
+            "/workspaces", json={"title": f"PMC full-text smoke: {pmc_id}"}
+        )
         workspace_response.raise_for_status()
         workspace = workspace_response.json()
         upload = client.post(
@@ -67,7 +71,9 @@ def run(pmc_id: str, api_url: str, timeout_seconds: int) -> dict:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run an open PMC full text through the live extractor")
+    parser = argparse.ArgumentParser(
+        description="Run an open PMC full text through the live extractor"
+    )
     parser.add_argument("--pmc-id", default="PMC3805509")
     parser.add_argument("--api-url", default="http://localhost:8000/api")
     parser.add_argument("--timeout-seconds", type=int, default=600)

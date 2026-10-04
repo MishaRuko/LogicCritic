@@ -31,8 +31,13 @@ services:
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       UPLOAD_DIR: ${UPLOAD_DIR:-/data/uploads}
       CLAUDE_API_KEY: ${CLAUDE_API_KEY:-}
-      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-sonnet-4-5-20250929}
+      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-sonnet-5}
       AMASS_API_KEY: ${AMASS_API_KEY:-}
+      AGENT_MODEL: ${AGENT_MODEL:-claude-sonnet-5-5}
+      AGENT_JUDGE_MODEL: ${AGENT_JUDGE_MODEL:-claude-sonnet-5}
+      AGENT_EFFORT: ${AGENT_EFFORT:-medium}
+      AGENT_MAX_TURNS: ${AGENT_MAX_TURNS:-30}
+      AGENT_MAX_WEB_SEARCHES: ${AGENT_MAX_WEB_SEARCHES:-10}
       JWT_SECRET: ${JWT_SECRET:-change-me-before-deploying}
     depends_on:
       postgres:
@@ -59,11 +64,20 @@ services:
       POSTGRES_URL: ${POSTGRES_URL:-postgresql://${POSTGRES_USER:-logiccritic}:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-logiccritic}}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       CLAUDE_API_KEY: ${CLAUDE_API_KEY:-}
-      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-sonnet-4-5-20250929}
+      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-sonnet-5}
+      AMASS_API_KEY: ${AMASS_API_KEY:-}
+      UPLOAD_DIR: ${UPLOAD_DIR:-/data/uploads}
+      AGENT_MODEL: ${AGENT_MODEL:-claude-sonnet-5-5}
+      AGENT_JUDGE_MODEL: ${AGENT_JUDGE_MODEL:-claude-sonnet-5}
+      AGENT_EFFORT: ${AGENT_EFFORT:-medium}
+      AGENT_MAX_TURNS: ${AGENT_MAX_TURNS:-30}
+      AGENT_MAX_WEB_SEARCHES: ${AGENT_MAX_WEB_SEARCHES:-10}
       JWT_SECRET: ${JWT_SECRET:-change-me-before-deploying}
     depends_on:
       api:
         condition: service_healthy
+    volumes:
+      - uploads:/data/uploads
     restart: unless-stopped
 
   postgres:

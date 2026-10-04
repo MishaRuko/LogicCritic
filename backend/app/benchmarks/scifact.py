@@ -26,7 +26,9 @@ def read_jsonl(path: Path) -> list[dict]:
         return [json.loads(line) for line in handle if line.strip()]
 
 
-def build_dev_manifest(corpus: list[dict], claims: list[dict], limit: int | None = None) -> list[SciFactCase]:
+def build_dev_manifest(
+    corpus: list[dict], claims: list[dict], limit: int | None = None
+) -> list[SciFactCase]:
     documents = {item["doc_id"]: item for item in corpus}
     cases: list[SciFactCase] = []
     for claim in claims:
@@ -73,7 +75,9 @@ def download_and_build_manifest(output_dir: Path, limit: int | None = None) -> P
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Download SciFact and build a development-set evaluation manifest")
+    parser = argparse.ArgumentParser(
+        description="Download SciFact and build a development-set evaluation manifest"
+    )
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--limit", type=int, default=None)
     args = parser.parse_args()

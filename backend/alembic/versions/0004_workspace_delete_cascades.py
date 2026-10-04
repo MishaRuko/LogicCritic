@@ -15,17 +15,67 @@ depends_on = None
 
 def upgrade() -> None:
     op.drop_constraint("reasoning_steps_conclusion_id_fkey", "reasoning_steps", type_="foreignkey")
-    op.create_foreign_key("reasoning_steps_conclusion_id_fkey", "reasoning_steps", "statements", ["conclusion_id"], ["id"], ondelete="CASCADE")
-    op.drop_constraint("reasoning_premises_statement_id_fkey", "reasoning_premises", type_="foreignkey")
-    op.create_foreign_key("reasoning_premises_statement_id_fkey", "reasoning_premises", "statements", ["statement_id"], ["id"], ondelete="CASCADE")
-    op.drop_constraint("statement_excerpts_excerpt_id_fkey", "statement_excerpts", type_="foreignkey")
-    op.create_foreign_key("statement_excerpts_excerpt_id_fkey", "statement_excerpts", "excerpts", ["excerpt_id"], ["id"], ondelete="CASCADE")
+    op.create_foreign_key(
+        "reasoning_steps_conclusion_id_fkey",
+        "reasoning_steps",
+        "statements",
+        ["conclusion_id"],
+        ["id"],
+        ondelete="CASCADE",
+    )
+    op.drop_constraint(
+        "reasoning_premises_statement_id_fkey", "reasoning_premises", type_="foreignkey"
+    )
+    op.create_foreign_key(
+        "reasoning_premises_statement_id_fkey",
+        "reasoning_premises",
+        "statements",
+        ["statement_id"],
+        ["id"],
+        ondelete="CASCADE",
+    )
+    op.drop_constraint(
+        "statement_excerpts_excerpt_id_fkey", "statement_excerpts", type_="foreignkey"
+    )
+    op.create_foreign_key(
+        "statement_excerpts_excerpt_id_fkey",
+        "statement_excerpts",
+        "excerpts",
+        ["excerpt_id"],
+        ["id"],
+        ondelete="CASCADE",
+    )
 
 
 def downgrade() -> None:
-    op.drop_constraint("statement_excerpts_excerpt_id_fkey", "statement_excerpts", type_="foreignkey")
-    op.create_foreign_key("statement_excerpts_excerpt_id_fkey", "statement_excerpts", "excerpts", ["excerpt_id"], ["id"], ondelete="RESTRICT")
-    op.drop_constraint("reasoning_premises_statement_id_fkey", "reasoning_premises", type_="foreignkey")
-    op.create_foreign_key("reasoning_premises_statement_id_fkey", "reasoning_premises", "statements", ["statement_id"], ["id"], ondelete="RESTRICT")
+    op.drop_constraint(
+        "statement_excerpts_excerpt_id_fkey", "statement_excerpts", type_="foreignkey"
+    )
+    op.create_foreign_key(
+        "statement_excerpts_excerpt_id_fkey",
+        "statement_excerpts",
+        "excerpts",
+        ["excerpt_id"],
+        ["id"],
+        ondelete="RESTRICT",
+    )
+    op.drop_constraint(
+        "reasoning_premises_statement_id_fkey", "reasoning_premises", type_="foreignkey"
+    )
+    op.create_foreign_key(
+        "reasoning_premises_statement_id_fkey",
+        "reasoning_premises",
+        "statements",
+        ["statement_id"],
+        ["id"],
+        ondelete="RESTRICT",
+    )
     op.drop_constraint("reasoning_steps_conclusion_id_fkey", "reasoning_steps", type_="foreignkey")
-    op.create_foreign_key("reasoning_steps_conclusion_id_fkey", "reasoning_steps", "statements", ["conclusion_id"], ["id"], ondelete="RESTRICT")
+    op.create_foreign_key(
+        "reasoning_steps_conclusion_id_fkey",
+        "reasoning_steps",
+        "statements",
+        ["conclusion_id"],
+        ["id"],
+        ondelete="RESTRICT",
+    )

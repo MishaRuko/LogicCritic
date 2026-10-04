@@ -6,8 +6,9 @@ Create Date: 2026-10-03
 """
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision = "0001_initial_schema"
 down_revision = None
@@ -30,7 +31,12 @@ def upgrade() -> None:
     op.create_table(
         "sources",
         sa.Column("id", uuid_type, primary_key=True),
-        sa.Column("workspace_id", uuid_type, sa.ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "workspace_id",
+            uuid_type,
+            sa.ForeignKey("workspaces.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
         sa.Column("kind", sa.String(32), nullable=False),
         sa.Column("title", sa.String(512)),
         sa.Column("origin", sa.String(32), nullable=False),
@@ -47,7 +53,9 @@ def upgrade() -> None:
     op.create_table(
         "excerpts",
         sa.Column("id", uuid_type, primary_key=True),
-        sa.Column("source_id", uuid_type, sa.ForeignKey("sources.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "source_id", uuid_type, sa.ForeignKey("sources.id", ondelete="CASCADE"), nullable=False
+        ),
         sa.Column("text", sa.Text(), nullable=False),
         sa.Column("locator", json_type, nullable=False),
         sa.Column("sequence", sa.Integer(), nullable=False),
@@ -57,7 +65,12 @@ def upgrade() -> None:
     op.create_table(
         "statements",
         sa.Column("id", uuid_type, primary_key=True),
-        sa.Column("workspace_id", uuid_type, sa.ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "workspace_id",
+            uuid_type,
+            sa.ForeignKey("workspaces.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
         sa.Column("text", sa.Text(), nullable=False),
         sa.Column("assertion_mode", sa.String(32), nullable=False),
         sa.Column("role", sa.String(32)),
@@ -66,33 +79,72 @@ def upgrade() -> None:
         sa.Column("superseded_by", uuid_type),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=now, nullable=False),
     )
-    op.create_index("ix_statements_workspace_lifecycle", "statements", ["workspace_id", "lifecycle"])
+    op.create_index(
+        "ix_statements_workspace_lifecycle", "statements", ["workspace_id", "lifecycle"]
+    )
     op.create_table(
         "reasoning_steps",
         sa.Column("id", uuid_type, primary_key=True),
-        sa.Column("workspace_id", uuid_type, sa.ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("conclusion_id", uuid_type, sa.ForeignKey("statements.id", ondelete="RESTRICT"), nullable=False),
+        sa.Column(
+            "workspace_id",
+            uuid_type,
+            sa.ForeignKey("workspaces.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "conclusion_id",
+            uuid_type,
+            sa.ForeignKey("statements.id", ondelete="RESTRICT"),
+            nullable=False,
+        ),
         sa.Column("explanation", sa.Text(), nullable=False),
         sa.Column("lifecycle", sa.String(32), nullable=False, server_default="proposed"),
         sa.Column("provenance", json_type, nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=now, nullable=False),
     )
-    op.create_index("ix_reasoning_steps_workspace_lifecycle", "reasoning_steps", ["workspace_id", "lifecycle"])
+    op.create_index(
+        "ix_reasoning_steps_workspace_lifecycle", "reasoning_steps", ["workspace_id", "lifecycle"]
+    )
     op.create_table(
         "reasoning_premises",
-        sa.Column("reasoning_step_id", uuid_type, sa.ForeignKey("reasoning_steps.id", ondelete="CASCADE"), primary_key=True),
-        sa.Column("statement_id", uuid_type, sa.ForeignKey("statements.id", ondelete="RESTRICT"), primary_key=True),
+        sa.Column(
+            "reasoning_step_id",
+            uuid_type,
+            sa.ForeignKey("reasoning_steps.id", ondelete="CASCADE"),
+            primary_key=True,
+        ),
+        sa.Column(
+            "statement_id",
+            uuid_type,
+            sa.ForeignKey("statements.id", ondelete="RESTRICT"),
+            primary_key=True,
+        ),
         sa.Column("position", sa.Integer(), primary_key=True),
     )
     op.create_table(
         "statement_excerpts",
-        sa.Column("statement_id", uuid_type, sa.ForeignKey("statements.id", ondelete="CASCADE"), primary_key=True),
-        sa.Column("excerpt_id", uuid_type, sa.ForeignKey("excerpts.id", ondelete="RESTRICT"), primary_key=True),
+        sa.Column(
+            "statement_id",
+            uuid_type,
+            sa.ForeignKey("statements.id", ondelete="CASCADE"),
+            primary_key=True,
+        ),
+        sa.Column(
+            "excerpt_id",
+            uuid_type,
+            sa.ForeignKey("excerpts.id", ondelete="RESTRICT"),
+            primary_key=True,
+        ),
     )
     op.create_table(
         "graph_edges",
         sa.Column("id", uuid_type, primary_key=True),
-        sa.Column("workspace_id", uuid_type, sa.ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "workspace_id",
+            uuid_type,
+            sa.ForeignKey("workspaces.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
         sa.Column("source_node_kind", sa.String(32), nullable=False),
         sa.Column("source_node_id", uuid_type, nullable=False),
         sa.Column("relation", sa.String(32), nullable=False),
@@ -101,11 +153,18 @@ def upgrade() -> None:
         sa.Column("metadata", json_type, nullable=False, server_default=sa.text("'{}'::jsonb")),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=now, nullable=False),
     )
-    op.create_index("ix_graph_edges_workspace_source", "graph_edges", ["workspace_id", "source_node_id"])
+    op.create_index(
+        "ix_graph_edges_workspace_source", "graph_edges", ["workspace_id", "source_node_id"]
+    )
     op.create_table(
         "annotations",
         sa.Column("id", uuid_type, primary_key=True),
-        sa.Column("workspace_id", uuid_type, sa.ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "workspace_id",
+            uuid_type,
+            sa.ForeignKey("workspaces.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
         sa.Column("subject_type", sa.String(32), nullable=False),
         sa.Column("subject_id", uuid_type, nullable=False),
         sa.Column("type", sa.String(128), nullable=False),
@@ -119,7 +178,12 @@ def upgrade() -> None:
     op.create_table(
         "graph_events",
         sa.Column("id", uuid_type, primary_key=True),
-        sa.Column("workspace_id", uuid_type, sa.ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "workspace_id",
+            uuid_type,
+            sa.ForeignKey("workspaces.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
         sa.Column("event_type", sa.String(64), nullable=False),
         sa.Column("payload", json_type, nullable=False),
         sa.Column("provenance", json_type, nullable=False),
@@ -130,7 +194,12 @@ def upgrade() -> None:
     op.create_table(
         "proof_obligations",
         sa.Column("id", uuid_type, primary_key=True),
-        sa.Column("workspace_id", uuid_type, sa.ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "workspace_id",
+            uuid_type,
+            sa.ForeignKey("workspaces.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
         sa.Column("kind", sa.String(64), nullable=False),
         sa.Column("description", sa.Text(), nullable=False),
         sa.Column("required_condition", sa.Text(), nullable=False),
@@ -139,11 +208,18 @@ def upgrade() -> None:
         sa.Column("status", sa.String(32), nullable=False, server_default="open"),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=now, nullable=False),
     )
-    op.create_index("ix_obligations_workspace_status", "proof_obligations", ["workspace_id", "status"])
+    op.create_index(
+        "ix_obligations_workspace_status", "proof_obligations", ["workspace_id", "status"]
+    )
     op.create_table(
         "issues",
         sa.Column("id", uuid_type, primary_key=True),
-        sa.Column("workspace_id", uuid_type, sa.ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "workspace_id",
+            uuid_type,
+            sa.ForeignKey("workspaces.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
         sa.Column("rule_code", sa.String(128), nullable=False),
         sa.Column("node_type", sa.String(32), nullable=False),
         sa.Column("node_id", uuid_type, nullable=False),
@@ -166,8 +242,17 @@ def downgrade() -> None:
     ]:
         op.drop_index(index)
     for table in [
-        "issues", "proof_obligations", "graph_events", "annotations", "graph_edges",
-        "statement_excerpts", "reasoning_premises", "reasoning_steps", "statements",
-        "excerpts", "sources", "workspaces",
+        "issues",
+        "proof_obligations",
+        "graph_events",
+        "annotations",
+        "graph_edges",
+        "statement_excerpts",
+        "reasoning_premises",
+        "reasoning_steps",
+        "statements",
+        "excerpts",
+        "sources",
+        "workspaces",
     ]:
         op.drop_table(table)

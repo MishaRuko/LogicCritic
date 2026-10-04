@@ -1,4 +1,4 @@
-import type { Context, Graph, Job, PatchOperation, Snapshot, SourceWithExcerpts, Validity, Verification, Workspace } from '../../types/api';
+import type { AgentEvent, AgentRun, AgentRunInput, Context, Graph, Job, PatchOperation, Snapshot, Source, SourceWithExcerpts, Validity, Verification, Workspace } from '../../types/api';
 export const userProvenance = { actor_type: 'user', actor_id: 'workspace-reviewer' } as const;
 export class ApiError extends Error {
   constructor(message: string, public status: number, public detail: unknown) { super(message); }
@@ -12,7 +12,7 @@ function describe(detail: unknown): string {
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try { response = await fetch(`/api${path}`, { ...init, cache: 'no-store' }); }
-  catch { throw new Error('Cannot reach the API. Check that the backend is running, then retry.'); }
+  catch (error) { if (init?.signal?.aborted) throw error; throw new Error('Cannot reach the API. Check that the backend is running, then retry.'); }
   if (response.status === 204) return undefined as T;
   const body = await response.text();
   let data: unknown;
@@ -38,16 +38,83 @@ export const deleteWorkspace = (id: string) => request<void>(`/workspaces/${id}`
 export const fetchGraph = (id: string) => request<Graph>(`/workspaces/${id}/graph`);
 export const fetchContext = (workspace: string, statement: string) => request<Context>(`/workspaces/${workspace}/statements/${statement}/context`);
 export const health = () => request<{ status: string; database: string; redis: string }>('/health/ready');
-export async function uploadSource(workspace: string, file: File): Promise<SourceWithExcerpts> {
+export const listAgentRuns = (workspace: string) => request<AgentRun[]>(`/workspaces/${workspace}/agent-runs`);
+export const startAgentRun = (workspace: string, input: AgentRunInput) => post<AgentRun>(`/workspaces/${workspace}/agent-runs`, { ...input }, true);
+export const cancelAgentRun = (id: string) => request<AgentRun>(`/agent-runs/${id}`, { method: 'DELETE' });
+export const listAgentEvents = (id: string, after = 0, signal?: AbortSignal) => request<AgentEvent[]>(`/agent-runs/${id}/events?after=${after}&limit=500`, { signal });
+export const listSources = (workspace: string) => request<Source[]>(`/workspaces/${workspace}/sources`);
+export async function fetchValidity(source: string): Promise<Validity | undefined> {
+  try { return await request<Validity>(`/sources/${source}/validity`); }
+  catch (error) { if (error instanceof ApiError && error.status === 404) return undefined; throw error; }
+}
+export interface UploadProgress {
+  stage: 'uploading' | 'processing' | 'queued' | 'saved' | 'failed';
+  percent: number;
+  filename: string;
+  current: number;
+  total: number;
+  jobIds?: string[];
+}
+function uploadWithProgress(path: string, form: FormData, onProgress: (percent: number) => void): Promise<SourceWithExcerpts> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `/api${path}`);
+    xhr.timeout = 240_000;
+    xhr.upload.onprogress = event => { if (event.lengthComputable) onProgress(Math.round(event.loaded / event.total * 100)); };
+    xhr.upload.onload = () => onProgress(100);
+    xhr.onerror = () => reject(new Error('The upload was interrupted. Check your connection and try again.'));
+    xhr.onabort = () => reject(new Error('Upload cancelled.'));
+    xhr.ontimeout = () => reject(new Error('The upload took too long. Try a smaller document or retry.'));
+    xhr.onload = () => {
+      let data: unknown;
+      try { data = JSON.parse(xhr.responseText); } catch { data = xhr.responseText; }
+      if (xhr.status >= 200 && xhr.status < 300) resolve(data as SourceWithExcerpts);
+      else {
+        const detail = data && typeof data === 'object' && 'detail' in data ? data.detail : data;
+        reject(new ApiError(describe(detail), xhr.status, detail));
+      }
+    };
+    xhr.send(form);
+  });
+}
+export async function uploadSource(workspace: string, file: File, onProgress?: (percent: number) => void): Promise<SourceWithExcerpts> {
   const form = new FormData(); form.append('file', file);
   try {
-    const source = await request<SourceWithExcerpts>(`/workspaces/${workspace}/sources`, { method: 'POST', body: form });
+    const path = `/workspaces/${workspace}/sources`;
+    const source = onProgress ? await uploadWithProgress(path, form, onProgress) : await request<SourceWithExcerpts>(path, { method: 'POST', body: form });
     remember(workspace, 'sourceIds', source.id); return source;
   } catch (e) {
     if (e instanceof ApiError && e.status === 409 && e.detail && typeof e.detail === 'object' && 'source_id' in e.detail) {
       const source = await attachSource(workspace, String(e.detail.source_id)); return source;
     }
     throw e;
+  }
+}
+export async function uploadResearch(workspace: string, files: File[], automatic: boolean, onProgress: (progress: UploadProgress) => void) {
+  const sources: SourceWithExcerpts[] = [];
+  const jobIds: string[] = [];
+  let progress: UploadProgress = { stage: 'uploading', percent: 0, filename: files[0].name, current: 1, total: files.length };
+  try {
+    for (const [index, file] of files.entries()) {
+      progress = { stage: 'uploading', percent: Math.round(index / files.length * 100), filename: file.name, current: index + 1, total: files.length };
+      onProgress(progress);
+      sources.push(await uploadSource(workspace, file, percent => {
+        progress = { ...progress, stage: percent === 100 ? 'processing' : 'uploading', percent: Math.round((index + percent / 100) / files.length * 100) };
+        onProgress(progress);
+      }));
+    }
+    if (automatic) {
+      for (const source of sources) {
+        progress = { ...progress, stage: 'processing', percent: 100, filename: source.original_filename };
+        onProgress(progress);
+        const job = await extract(source);
+        jobIds.push(job.id);
+      }
+    }
+    onProgress({ ...progress, stage: automatic ? 'queued' : 'saved', percent: 100, jobIds });
+  } catch (error) {
+    onProgress({ ...progress, stage: 'failed' });
+    throw error;
   }
 }
 export async function attachSource(workspace: string, id: string): Promise<SourceWithExcerpts> {
@@ -88,14 +155,16 @@ function remember(workspace: string, kind: 'sourceIds' | 'jobIds', id: string) {
   const registry = readRegistry(workspace); registry[kind] = [...new Set([...registry[kind], id])]; writeRegistry(workspace, registry);
 }
 export async function fetchSnapshot(id: string): Promise<Snapshot> {
-  const [workspace, graph] = await Promise.all([request<Workspace>(`/workspaces/${id}`), fetchGraph(id)]);
+  const [workspace, graph, sourceList] = await Promise.all([request<Workspace>(`/workspaces/${id}`), fetchGraph(id), listSources(id)]);
   const registry = readRegistry(id);
-  const [contexts, sources, jobs] = await Promise.all([
+  const [contexts, sources, jobs, decisions] = await Promise.all([
     Promise.all(graph.statements.map(s => fetchContext(id, s.id))),
-    Promise.all(registry.sourceIds.map(source => attachSource(id, source))),
+    Promise.all(sourceList.map(source => attachSource(id, source.id))),
     Promise.all(registry.jobIds.map(job => request<Job>(`/extraction-jobs/${job}`))),
+    Promise.all(sourceList.map(source => fetchValidity(source.id))),
   ]);
-  return { workspace, graph, contexts, sources, jobs, validity: registry.validity };
+  const validity = Object.fromEntries(decisions.filter((decision): decision is Validity => !!decision).map(decision => [decision.source_id, decision]));
+  return { workspace, graph, contexts, sources, jobs, validity };
 }
 export function downloadSnapshot(state: Snapshot) {
   const url = URL.createObjectURL(new Blob([JSON.stringify({ format: 'logiccritic-snapshot-v1', exported_at: new Date().toISOString(), ...state }, null, 2)], { type: 'application/json' }));

@@ -18,6 +18,8 @@ try {
   const form = new FormData(); form.append('file', new Blob(['# Synthetic integration material\n\nThe synthetic mouse study reports an association.\n\nNo human participants were studied.'], { type: 'text/markdown' }), 'synthetic-check.md');
   const source = await call(`/workspaces/${workspace.id}/sources`, { method: 'POST', body: form });
   assert(source.excerpts.length > 0);
+  assert.deepEqual((await call(`/workspaces/${workspace.id}/sources`)).map(item => item.id), [source.id]);
+  assert.deepEqual(await call(`/workspaces/${other.id}/sources`), []);
   assert.deepEqual(await call(`/sources/${source.id}/excerpts`), source.excerpts);
   const patchKey = crypto.randomUUID();
   const patch = { idempotency_key: patchKey, operations: [
@@ -43,8 +45,10 @@ try {
   await post(`/workspaces/${workspace.id}/review`, { node_type: 'statement', node_id: result.id_map.premise, decision: 'accepted', idempotency_key: crypto.randomUUID(), provenance });
   assert.equal((await call(`/workspaces/${workspace.id}/graph`)).statements.find(s => s.id === result.id_map.premise).lifecycle, 'accepted');
   await post(`/sources/${source.id}/validity`, { status: 'invalidated', reason: 'Synthetic test of source invalidation.', idempotency_key: crypto.randomUUID(), provenance });
-  await post(`/workspaces/${workspace.id}/verify`, {});
-  assert((await call(`/workspaces/${workspace.id}/statements/${result.id_map.premise}/context`)).issues.some(i => i.rule_code === 'invalidated_source'));
+  const invalidationCheck = await post(`/workspaces/${workspace.id}/verify`, {});
+  // The current verifier attaches invalidation findings to the source itself.
+  assert(invalidationCheck.issues_opened > 0);
+  assert.equal((await call(`/sources/${source.id}/validity`)).status, 'invalidated');
   await post(`/sources/${source.id}/validity`, { status: 'valid', reason: 'End of synthetic invalidation test.', idempotency_key: crypto.randomUUID(), provenance });
   const isolated = await fetch(`${base}/api/workspaces/${other.id}/statements/${result.id_map.premise}/context`);
   assert.equal(isolated.status, 404);

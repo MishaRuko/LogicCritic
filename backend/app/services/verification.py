@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
     Annotation,
-    Excerpt,
     GraphEvent,
     Issue,
     ProofObligation,
@@ -49,9 +48,17 @@ class Finding:
 
 
 async def run_verification(session: AsyncSession, workspace_id: uuid.UUID) -> VerificationResponse:
-    statements = list(await session.scalars(select(Statement).where(Statement.workspace_id == workspace_id)))
-    steps = list(await session.scalars(select(ReasoningStep).where(ReasoningStep.workspace_id == workspace_id)))
-    annotations = list(await session.scalars(select(Annotation).where(Annotation.workspace_id == workspace_id)))
+    statements = list(
+        await session.scalars(select(Statement).where(Statement.workspace_id == workspace_id))
+    )
+    steps = list(
+        await session.scalars(
+            select(ReasoningStep).where(ReasoningStep.workspace_id == workspace_id)
+        )
+    )
+    annotations = list(
+        await session.scalars(select(Annotation).where(Annotation.workspace_id == workspace_id))
+    )
     premises = list(
         await session.execute(
             select(ReasoningPremise.reasoning_step_id, ReasoningPremise.statement_id)
@@ -69,7 +76,9 @@ async def run_verification(session: AsyncSession, workspace_id: uuid.UUID) -> Ve
 
     annotation_map: dict[tuple[str, uuid.UUID], list[Annotation]] = {}
     for annotation in annotations:
-        annotation_map.setdefault((annotation.subject_type, annotation.subject_id), []).append(annotation)
+        annotation_map.setdefault((annotation.subject_type, annotation.subject_id), []).append(
+            annotation
+        )
     premise_map: dict[uuid.UUID, list[uuid.UUID]] = {step.id: [] for step in steps}
     for step_id, statement_id in premises:
         premise_map.setdefault(step_id, []).append(statement_id)
@@ -127,7 +136,10 @@ def _missing_premise_findings(
                     "missing_premise",
                     "reasoning_step",
                     step.id,
-                    {"message": "Reasoning step has an unresolved required premise", "requirements": required},
+                    {
+                        "message": "Reasoning step has an unresolved required premise",
+                        "requirements": required,
+                    },
                     "missing_premise",
                     "Supply the premise needed for this reasoning step.",
                     "Add and link the required premise, then mark the requirement satisfied.",
@@ -142,8 +154,12 @@ def _causality_findings(
     findings = []
     for statement in statements:
         values = annotations.get(("statement", statement.id), [])
-        causal = any(item.type == "claim_strength" and item.value.get("value") == "causal" for item in values)
-        supported = any(item.type == "causal_support" and item.value.get("supported") is True for item in values)
+        causal = any(
+            item.type == "claim_strength" and item.value.get("value") == "causal" for item in values
+        )
+        supported = any(
+            item.type == "causal_support" and item.value.get("supported") is True for item in values
+        )
         if statement.lifecycle != "rejected" and causal and not supported:
             findings.append(
                 Finding(
@@ -153,7 +169,8 @@ def _causality_findings(
                     {"message": "Causal claim lacks a causal-support annotation"},
                     "causal_evidence",
                     "Establish that the causal wording is warranted.",
-                    "Add a causal_support annotation tied to an appropriate design or revise the claim.",
+                    "Add a causal_support annotation tied to an appropriate design or revise the "
+                    "claim.",
                 )
             )
     return findings
@@ -174,7 +191,8 @@ def _scope_leap_findings(
                         {"message": "Scope transition is not justified", "transition": item.value},
                         "scope_evidence",
                         "Justify this extrapolation across populations, settings, or outcomes.",
-                        "Add evidence supporting the stated scope transition or narrow the conclusion.",
+                        "Add evidence supporting the stated scope transition or narrow the "
+                        "conclusion.",
                     )
                 )
     return findings
@@ -188,8 +206,14 @@ def _direct_conflict_findings(
         if statement.lifecycle == "rejected":
             continue
         for item in annotations.get(("statement", statement.id), []):
-            if item.type == "claim_key" and item.value.get("key") and item.value.get("polarity") in {"supports", "refutes"}:
-                grouped.setdefault(item.value["key"], []).append((statement, item.value["polarity"]))
+            if (
+                item.type == "claim_key"
+                and item.value.get("key")
+                and item.value.get("polarity") in {"supports", "refutes"}
+            ):
+                grouped.setdefault(item.value["key"], []).append(
+                    (statement, item.value["polarity"])
+                )
     findings = []
     for key, claims in grouped.items():
         if {polarity for _, polarity in claims} != {"supports", "refutes"}:
@@ -200,10 +224,15 @@ def _direct_conflict_findings(
                     "direct_conflict",
                     "statement",
                     statement.id,
-                    {"message": "Opposing claims share a claim key", "claim_key": key, "polarity": polarity},
+                    {
+                        "message": "Opposing claims share a claim key",
+                        "claim_key": key,
+                        "polarity": polarity,
+                    },
                     "conflict_resolution",
                     "Resolve or qualify the conflicting claims.",
-                    "Explain the disagreement, add discriminating evidence, or reject/narrow one claim.",
+                    "Explain the disagreement, add discriminating evidence, or reject/narrow one "
+                    "claim.",
                 )
             )
     return findings
@@ -225,13 +254,16 @@ def _reported_limitation_findings(statements: list[Statement]) -> list[Finding]:
                     {"message": "Source explicitly reports a study limitation", "markers": markers},
                     "study_limitation",
                     "Qualify conclusions affected by this source-reported limitation.",
-                    "Retain the limitation with affected conclusions or add evidence that addresses it.",
+                    "Retain the limitation with affected conclusions or add evidence that "
+                    "addresses it.",
                 )
             )
     return findings
 
 
-async def _invalidated_source_findings(session: AsyncSession, workspace_id: uuid.UUID) -> list[Finding]:
+async def _invalidated_source_findings(
+    session: AsyncSession, workspace_id: uuid.UUID
+) -> list[Finding]:
     validities = list(
         await session.scalars(
             select(SourceValidity)
@@ -243,29 +275,22 @@ async def _invalidated_source_findings(session: AsyncSession, workspace_id: uuid
     latest: dict[uuid.UUID, SourceValidity] = {}
     for validity in validities:
         latest.setdefault(validity.source_id, validity)
-    invalidated_source_ids = {source_id for source_id, validity in latest.items() if validity.status == "invalidated"}
+    invalidated_source_ids = {
+        source_id for source_id, validity in latest.items() if validity.status == "invalidated"
+    }
     if not invalidated_source_ids:
         return []
-    statement_sources = list(
-        await session.execute(
-            select(Statement.id, Source.id)
-            .join(StatementExcerpt, StatementExcerpt.statement_id == Statement.id)
-            .join(Excerpt, Excerpt.id == StatementExcerpt.excerpt_id)
-            .join(Source, Source.id == Excerpt.source_id)
-            .where(Statement.workspace_id == workspace_id, Source.id.in_(invalidated_source_ids))
-        )
-    )
     return [
         Finding(
             "invalidated_source",
-            "statement",
-            statement_id,
-            {"message": "Statement cites an invalidated source", "source_id": str(source_id)},
+            "source",
+            source_id,
+            {"message": "Source has been invalidated", "source_id": str(source_id)},
             "replacement_evidence",
             "Replace or qualify evidence from the invalidated source.",
-            "Link a valid replacement source or reject/narrow the statement.",
+            "Link a valid replacement source or reject/narrow claims grounded in this source.",
         )
-        for statement_id, source_id in statement_sources
+        for source_id in sorted(invalidated_source_ids, key=str)
     ]
 
 
@@ -288,7 +313,11 @@ async def _reconcile_findings(
     )
     issue_map = {(item.rule_code, item.node_type, item.node_id): item for item in issues}
     obligation_map = {
-        (item.generated_by_rule, item.blocks_node_type or "statement", item.blocks_node_id or item.blocks_statement_id): item
+        (
+            item.generated_by_rule,
+            item.blocks_node_type or "statement",
+            item.blocks_node_id or item.blocks_statement_id,
+        ): item
         for item in obligations
     }
     issues_opened = issues_resolved = obligations_opened = obligations_resolved = 0
@@ -297,29 +326,35 @@ async def _reconcile_findings(
         issue = issue_map.get(key)
         obligation = obligation_map.get(key)
         if issue is None:
-            session.add(Issue(
-                workspace_id=workspace_id,
-                rule_code=finding.rule_code,
-                node_type=finding.node_type,
-                node_id=finding.node_id,
-                details=finding.details,
-            ))
+            session.add(
+                Issue(
+                    workspace_id=workspace_id,
+                    rule_code=finding.rule_code,
+                    node_type=finding.node_type,
+                    node_id=finding.node_id,
+                    details=finding.details,
+                )
+            )
             issues_opened += 1
         elif issue.status != "open":
             issue.status = "open"
             issue.details = finding.details
             issues_opened += 1
         if obligation is None:
-            session.add(ProofObligation(
-                workspace_id=workspace_id,
-                kind=finding.obligation_kind,
-                description=finding.obligation_description,
-                required_condition=finding.required_condition,
-                blocks_statement_id=finding.node_id if finding.node_type == "statement" else None,
-                blocks_node_type=finding.node_type,
-                blocks_node_id=finding.node_id,
-                generated_by_rule=finding.rule_code,
-            ))
+            session.add(
+                ProofObligation(
+                    workspace_id=workspace_id,
+                    kind=finding.obligation_kind,
+                    description=finding.obligation_description,
+                    required_condition=finding.required_condition,
+                    blocks_statement_id=finding.node_id
+                    if finding.node_type == "statement"
+                    else None,
+                    blocks_node_type=finding.node_type,
+                    blocks_node_id=finding.node_id,
+                    generated_by_rule=finding.rule_code,
+                )
+            )
             obligations_opened += 1
         elif obligation.status != "open":
             obligation.status = "open"
