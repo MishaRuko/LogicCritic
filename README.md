@@ -11,7 +11,7 @@ there, it says so.
 We built it for Track 2 (Originator) of the hackathon: agents that do science and know when they
 are wrong.
 
-Watch the walkthrough: [VIDEO LINK GOES HERE](#)
+Watch the [walkthrough](https://www.youtube.com/watch?v=vCM08BDn8cE)
 
 Try it: [trial.misharuko.com](https://trial.misharuko.com)
 
@@ -57,12 +57,12 @@ We ran the same model (Claude Sonnet 5.5) with and without the guard on the same
 in a fresh workspace with only the source text. Every answer was scored on its own against the
 source, claim by claim, so a longer answer gets no credit for being longer.
 
-| | Without guard | With guard |
-|---|---:|---:|
-| Errors per answer, 30 questions on full-text papers | 1.27 | 0.60 |
-| False statements about the source, same questions | 0.60 | 0.17 |
-| Correct verdict, 60 SciFact claims with expert labels | 90% | 90% |
-| Unsupported claims per answer, same SciFact claims | 0.35 | 0.07 |
+|                                                       | Without guard | With guard |
+| ----------------------------------------------------- | ------------: | ---------: |
+| Errors per answer, 30 questions on full-text papers   |          1.27 |       0.60 |
+| False statements about the source, same questions     |          0.60 |       0.17 |
+| Correct verdict, 60 SciFact claims with expert labels |           90% |        90% |
+| Unsupported claims per answer, same SciFact claims    |          0.35 |       0.07 |
 
 So the guard roughly halves the errors without getting the verdicts wrong more often. It costs
 about three to four times as much per answer. Our first attempt at this evaluation said the
