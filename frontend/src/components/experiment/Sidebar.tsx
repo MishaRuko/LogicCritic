@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactElement, type ReactNode } from 'react';
 import { Tooltip } from '@cloudflare/kumo';
-import { CaretRightIcon, FlaskIcon, InfoIcon, PlusIcon, SidebarSimpleIcon, TrashIcon } from '@phosphor-icons/react';
+import { CaretRightIcon, FlaskIcon, HouseIcon, InfoIcon, PlusIcon, SidebarSimpleIcon, TrashIcon, TreeStructureIcon } from '@phosphor-icons/react';
 import { verifyRun } from '../../lib/experiment/conformance';
 import { samples, time, type Sample } from '../../lib/experiment/demo';
 import type { Analysis } from '../../lib/experiment/store';
@@ -73,6 +73,8 @@ export function Sidebar({ collapsed, onCollapsedChange, analyses, sampleAnalyses
     </div>
 
     <div className="sidebar-bottom">
+      {item('home', false, () => location.assign('/'), <HouseIcon size={15}/>, 'Home')}
+      {item('argument', false, () => location.assign('/research'), <TreeStructureIcon size={15}/>, 'Argument check')}
       {item('how', howActive, onHowItWorks, <InfoIcon size={15}/>, 'How it works')}
     </div>
   </aside>;
