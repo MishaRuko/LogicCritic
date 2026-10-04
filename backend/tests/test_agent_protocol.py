@@ -393,7 +393,7 @@ def statement_from(request) -> str:
     raise AssertionError("no statement id in the tool results")
 
 
-def concluding_run(world, *, with_protocol=True):
+def concluding_run(world, *, with_protocol=True, steps=3):
     """A scripted agent that records a protocol and a conclusion, then finalizes."""
     conclusion = {
         "text": "The answer.",
@@ -412,7 +412,7 @@ def concluding_run(world, *, with_protocol=True):
             tool(
                 "record_protocol",
                 title="Heat-shock transformation",
-                steps=steps_for(world),
+                steps=steps_for(world, count=steps),
                 basis="Follows the first paper.",
             ),
         )
@@ -518,3 +518,141 @@ async def test_a_protocol_that_cannot_be_prepared_is_explained_and_does_not_fail
     assert "extraction" in event.payload["reason"]
     async with session_factory() as session:
         assert (await session.get(AgentRun, world.run_id)).status == "succeeded"
+
+
+# -- only the right protocol reaches the experiment tools -----------------------------------------
+
+
+async def later_run(world) -> uuid.UUID:
+    """A second run in the same workspace, as a follow-up question creates."""
+    from app.models import AgentRun, ResearchGoal
+
+    async with session_factory() as session:
+        run = await session.get(AgentRun, world.run_id)
+        goal = ResearchGoal(
+            workspace_id=run.workspace_id,
+            question="And now?",
+            completion_criteria=[],
+            falsifiers=[],
+        )
+        session.add(goal)
+        await session.flush()
+        follow_up = AgentRun(
+            workspace_id=run.workspace_id,
+            goal_id=goal.id,
+            idempotency_key=str(uuid.uuid4()),
+            mode="guarded",
+            model=run.model,
+            status="running",
+            budgets=run.budgets,
+            usage=run.usage,
+        )
+        session.add(follow_up)
+        await session.commit()
+        return follow_up.id
+
+
+async def experiments_of(api, world) -> dict:
+    return (await api.get(f"/api/workspaces/{world.workspace_id}/experiments")).json()
+
+
+async def test_the_suggestion_is_the_latest_runs_protocol(api) -> None:
+    world = await make_world(sources=METHODS)
+    await execute_run(world.run_id, client=concluding_run(world))
+    first = (await experiments_of(api, world))["suggested"]
+    assert first["run_id"] == str(world.run_id) and first["current"] is True
+
+    second_id = await later_run(world)
+    await execute_run(second_id, client=concluding_run(world, steps=2))
+    second = (await experiments_of(api, world))["suggested"]
+    assert second["run_id"] == str(second_id) and second["source_id"] != first["source_id"]
+    assert second["current"] is True and second["protocol_id"] != first["protocol_id"]
+
+
+async def test_an_earlier_runs_protocol_is_not_offered_after_a_later_run_without_one(api) -> None:
+    world = await make_world(sources=METHODS)
+    await execute_run(world.run_id, client=concluding_run(world))
+    assert (await experiments_of(api, world))["suggested"] is not None
+
+    await execute_run(await later_run(world), client=concluding_run(world, with_protocol=False))
+    assert (await experiments_of(api, world))["suggested"] is None
+    started = await api.post(
+        f"/api/workspaces/{world.workspace_id}/experiment-runs", data={"mode": "demo"}
+    )
+    assert started.status_code == 422  # nothing chosen and nothing current: no silent fallback
+
+
+async def test_a_later_run_with_the_same_protocol_text_is_still_credited_with_it(api) -> None:
+    world = await make_world(sources=METHODS)
+    await execute_run(world.run_id, client=concluding_run(world))
+    second_id = await later_run(world)
+    await execute_run(second_id, client=concluding_run(world))  # identical steps
+    suggested = (await experiments_of(api, world))["suggested"]
+    assert suggested is not None and suggested["run_id"] == str(second_id)
+
+
+async def test_the_video_model_is_shown_the_agents_protocol_and_nothing_else(
+    api, tmp_path, monkeypatch
+) -> None:
+    import cv2
+    import numpy as np
+
+    from app.models import ExperimentRun
+    from app.services import experiments
+    from app.services.experiments import process_experiment_run
+
+    seen: list[str] = []
+
+    class RecordingLLM:
+        model = "test-vision"
+        usage = {"requests": 0, "input_tokens": 0, "output_tokens": 0}
+
+        def generate(self, *, system, content, output):
+            seen.append(system)
+            seen.extend(item["text"] for item in content if item["type"] == "text")
+            return output.model_validate(
+                {
+                    "observations": [
+                        {
+                            "step_id": "s1",
+                            "status": "performed",
+                            "confidence": 0.9,
+                            "values": [],
+                            "notes": "Visible in the frames.",
+                        }
+                    ],
+                    "unexpected_events": [],
+                }
+            )
+
+    monkeypatch.setattr(get_settings(), "claude_api_key", "test-key")
+    monkeypatch.setattr(get_settings(), "vision_strategy", "windows")
+    monkeypatch.setattr(experiments, "make_llm", RecordingLLM)
+    video = tmp_path / "recording.avi"
+    writer = cv2.VideoWriter(str(video), cv2.VideoWriter_fourcc(*"MJPG"), 5, (64, 64))
+    for _ in range(10):
+        writer.write(np.full((64, 64, 3), 127, dtype=np.uint8))
+    writer.release()
+
+    world = await make_world(sources=METHODS)
+    await execute_run(world.run_id, client=concluding_run(world))
+    started = await api.post(
+        f"/api/workspaces/{world.workspace_id}/experiment-runs",
+        data={"mode": "video"},
+        files={"file": ("recording.avi", video.read_bytes(), "video/x-msvideo")},
+    )
+    assert started.status_code == 202, started.text  # nothing chosen: the agent's protocol is used
+    await process_experiment_run(uuid.UUID(started.json()["id"]))
+
+    async with session_factory() as session:
+        run = await session.get(ExperimentRun, uuid.UUID(started.json()["id"]))
+        stored = await session.get(ExperimentProtocol, run.protocol_id)
+    assert run.status == "succeeded", run.error
+    shown = "\n".join(seen)
+    for step in steps_for(world):
+        assert step["action"] in shown  # the model was told to look for the agent's steps
+    assert [s["description"] for s in stored.protocol["steps"]] == [
+        s["action"] for s in steps_for(world)
+    ]
+    for stray in ("A second paper", "retracted paper", "Set the pipette to 50 uL"):
+        assert stray not in shown  # no other protocol, paper or fixture leaks in

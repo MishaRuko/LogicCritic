@@ -36,7 +36,9 @@ export interface ExperimentObservation { id: string; step_id: string | null; sta
 export interface ExperimentDeviation { id: string; kind: string; step_id: string | null; check_id: string | null; message: string; needs_review: boolean; expected: string | number | null; observed: string | number | null; span: { start_s: number; end_s: number } | null }
 export interface VideoAgentEvent { kind: 'overview' | 'inspect' | 'retry' | 'done'; start?: number; end?: number; count?: number; frames?: number; message?: string }
 export interface ExperimentRun { id: string; protocol_id: string; mode: 'demo' | 'replay' | 'video'; status: string; filename: string; result: { coverage?: 'excerpt' | 'complete_recording'; processed_seconds?: number; source_id?: string; observations?: ExperimentObservation[]; deviations?: ExperimentDeviation[]; analysis_stage?: 'method' | 'frames' | 'inspection' | 'verification' | 'done'; duration?: number; overview?: { t: number; data: string }[]; agent_events?: VideoAgentEvent[]; agent_method?: import('../lib/experiment/types').MethodContract; agent_observations?: import('../lib/experiment/types').Observation[]; agent_results?: Record<string, import('../lib/experiment/types').VerificationResult>; summary?: { observations: number; deviations: number; needs_review: number; failed_windows: number } }; error: string | null; created_at: string; completed_at: string | null }
-export interface Experiments { verified: boolean; verification?: Verification | null; protocols: ExperimentProtocol[]; runs: ExperimentRun[] }
+/** The protocol the latest finished agent run handed over (null if that run handed over none). */
+export interface SuggestedProtocol { run_id: string; source_id: string; protocol_id: string | null; current: boolean }
+export interface Experiments { verified: boolean; verification?: Verification | null; protocols: ExperimentProtocol[]; runs: ExperimentRun[]; suggested?: SuggestedProtocol | null }
 
 // -- Research agent ---------------------------------------------------------------------------
 // Endpoints: POST /workspaces/{id}/agent-runs, GET /agent-runs/{id}, GET /agent-runs/{id}/events?after=,

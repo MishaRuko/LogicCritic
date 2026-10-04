@@ -5,6 +5,7 @@ Every tool returns a plain dict for the model to read. A failure is returned as
 correct itself instead of the run dying.
 """
 
+import hashlib
 import json
 import logging
 import re
@@ -578,6 +579,9 @@ class Toolbox:
                 mime_type="text/markdown",
                 filename="protocol.md",
                 content=text.encode(),
+                # Each run's protocol is its own source, even when the text is identical to an
+                # earlier run's, so a run is never credited with (or denied) another run's.
+                content_hash=hashlib.sha256(f"{run.id}\n{text}".encode()).hexdigest(),
                 excerpts=parse_structured_text(text),
                 metadata={
                     "parser": "agent_protocol_v1",
