@@ -16,3 +16,26 @@ describe('Experiment API handlers (ported from the Trial Worker)', () => {
     expect((await turn(post({ messages: [] }), { CLAUDE_API_KEY: 'x' })).status).toBe(400);
   });
 });
+
+describe('Published records (share links, file-backed)', () => {
+  it('publishes hash-consistent records and serves them by short id', async () => {
+    const { mkdtemp } = await import('node:fs/promises');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const { createRecord } = await import('../../src/lib/experiment/record');
+    const { cachedAnalysis, samples } = await import('../../src/lib/experiment/demo');
+    const { publish, fetchPublished } = await import('../../src/lib/experiment/server');
+    const env = { EXPERIMENT_RECORDS_DIR: await mkdtemp(join(tmpdir(), 'records-')) };
+    const a = samples.map(cachedAnalysis).find(Boolean)!;
+    const record = await createRecord(a.run, a.method);
+    const created = await publish(post(record), env);
+    expect(created.status).toBe(201);
+    const id = record.recordHash.slice(0, 16);
+    expect(await created.json()).toEqual({ id, path: `/experiment/r/${id}` });
+    expect(await (await fetchPublished(id, env)).json()).toEqual(record);
+    expect((await publish(post(record), env)).status).toBe(201); // republishing is idempotent
+    expect((await publish(post({ ...record, method: { ...record.method, title: 'Tampered' } }), env)).status).toBe(400);
+    expect((await fetchPublished('0123456789abcdef', env)).status).toBe(404);
+    expect((await fetchPublished('../etc/passwd', env)).status).toBe(404);
+  });
+});

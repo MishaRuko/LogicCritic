@@ -1,7 +1,11 @@
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 import { MODEL } from './agent';
 import { agentTurn, extractMethod } from './claude';
+import { validateRecord } from './record';
+import type { ExperimentRecord } from './types';
 
 /**
  * Server-side handlers for the experiment check, ported from Trial's Cloudflare Worker (lab-experiment-check e9bb2f1).
@@ -56,4 +60,34 @@ export function turn(request: Request, env: Env): Promise<Response> {
     const input = turnRequest.parse(await jsonBody(request));
     return response(await agentTurn(client, input.messages as Anthropic.Beta.Messages.BetaMessageParam[]));
   });
+}
+
+// ---------- Published records (share links) ----------
+// Trial stored these in Cloudflare KV. Here they are JSON files in a directory: EXPERIMENT_RECORDS_DIR (a Docker volume
+// in compose), else frontend/.experiment-records. Fine for a single server; a database would replace it for scale.
+const MAX_RECORD = 2_000_000;
+/** Short, content-addressed id for a published record. */
+const recordId = (record: Pick<ExperimentRecord, 'recordHash'>) => record.recordHash.slice(0, 16);
+const recordsDir = (env: Env) => env.EXPERIMENT_RECORDS_DIR || join(process.cwd(), '.experiment-records');
+export const recordPath = (id: string) => `/experiment/r/${id}`;
+
+/** Stores a record only if its hashes match its contents, so a link always resolves to exactly what was generated. */
+export async function publish(request: Request, env: Env): Promise<Response> {
+  if (Number(request.headers.get('content-length')) > MAX_RECORD) return response({ error: 'Record is too large to publish.' }, 413);
+  let record: ExperimentRecord;
+  try { record = JSON.parse(await request.text()); } catch { return response({ error: 'Invalid record.' }, 400); }
+  if (!record || typeof record.recordHash !== 'string' || !/^[0-9a-f]{64}$/.test(record.recordHash) || !await validateRecord(record).catch(() => false)) return response({ error: 'Record hashes do not match its contents.' }, 400);
+  const dir = recordsDir(env), id = recordId(record), file = join(dir, `${id}.json`), temp = `${file}.${process.pid}.tmp`;
+  await mkdir(dir, { recursive: true });
+  await writeFile(temp, JSON.stringify(record));
+  await rename(temp, file); // atomic replace; content-addressed, so republishing is idempotent
+  return response({ id, path: recordPath(id) }, 201);
+}
+
+export async function fetchPublished(id: string, env: Env): Promise<Response> {
+  if (!/^[0-9a-f]{16}$/.test(id)) return response({ error: 'Record not found.' }, 404);
+  try {
+    const stored = await readFile(join(recordsDir(env), `${id}.json`), 'utf8');
+    return new Response(stored, { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=31536000, immutable' } });
+  } catch { return response({ error: 'Record not found.' }, 404); }
 }

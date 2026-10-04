@@ -19,6 +19,7 @@ import { HowItWorks } from './HowItWorks';
 import { NewAnalysis } from './NewAnalysis';
 import { RecordView, downloadJSON } from './RecordView';
 import { Sidebar } from './Sidebar';
+import { SharedRecord } from './SharedRecord';
 
 type Page = { kind: 'new'; sample?: Sample; method?: File } | { kind: 'analysis'; id: string } | { kind: 'how' };
 type Tab = 'execution' | 'method' | 'record';
@@ -27,6 +28,11 @@ const sampleAnalyses = samples.map(cachedAnalysis).filter((a): a is Analysis => 
 /** Trial's app (lab-experiment-check e9bb2f1), mounted at /experiment. */
 export function ExperimentApp() {
   return <MotionConfig reducedMotion="user"><Toasty toastManager={toasts}><div className="experiment-root"><App/></div></Toasty></MotionConfig>;
+}
+
+/** A published record at /experiment/r/<id>, with the same styles and providers. */
+export function SharedRecordPage({ id }: { id: string }) {
+  return <MotionConfig reducedMotion="user"><Toasty toastManager={toasts}><div className="experiment-root"><SharedRecord id={id}/></div></Toasty></MotionConfig>;
 }
 
 function App() {

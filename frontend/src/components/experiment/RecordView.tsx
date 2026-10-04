@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react';
-import { ClipboardText, Collapsible, DropdownMenu } from '@cloudflare/kumo';
-import { BracketsCurlyIcon, CaretDownIcon, DownloadSimpleIcon, FilePdfIcon } from '@phosphor-icons/react';
+import { Button, ClipboardText, Collapsible, DropdownMenu } from '@cloudflare/kumo';
+import { ArrowSquareOutIcon, BracketsCurlyIcon, CaretDownIcon, CheckIcon, CopyIcon, DownloadSimpleIcon, FilePdfIcon, LinkSimpleIcon } from '@phosphor-icons/react';
 import QRCode from 'qrcode';
 import { readable, time } from '../../lib/experiment/demo';
+import { publishRecord } from '../../lib/experiment/record';
 import { StatusIcon } from './Status';
 import type { ExperimentRecord, VerificationResult } from '../../lib/experiment/types';
 
 export function downloadJSON(value: unknown, filename: string) { const blob = new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
 const text = (v: unknown) => typeof v === 'string' ? v : v && typeof v === 'object' ? Object.values(v).map(x => readable(String(x))).join(', ') : String(v);
 const label = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+const published = new Map<string, string>();
+
 /** Prints the record alone; the document title becomes the suggested PDF filename. */
 function downloadPDF(record: ExperimentRecord) {
   const title = document.title;
@@ -28,10 +31,36 @@ export function DownloadMenu({ record }: { record: ExperimentRecord }) {
   </DropdownMenu>;
 }
 
+function LinkBar({ link, error, onRetry }: { link?: string; error?: string; onRetry: () => void }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => { if (!link) return; void navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 1500); };
+  if (error) return <div className="record-link failed"><LinkSimpleIcon size={14}/><span>Couldn’t create a link: {error}</span><Button variant="ghost" size="sm" onClick={onRetry}>Retry</Button></div>;
+  return <div className="record-link">
+    <LinkSimpleIcon size={14}/>
+    {link ? <a href={link} target="_blank" rel="noreferrer">{link.replace(/^https?:\/\//, '')}</a> : <span className="muted">Creating link…</span>}
+    <Button variant="ghost" size="sm" icon={copied ? CheckIcon : CopyIcon} disabled={!link} onClick={copy}>{copied ? 'Copied' : 'Copy link'}</Button>
+    <Button variant="ghost" size="sm" shape="square" icon={ArrowSquareOutIcon} aria-label="Open digital record" disabled={!link} onClick={() => link && window.open(link, '_blank', 'noreferrer')}/>
+  </div>;
+}
+
+/** Publishes the record once per session (content-addressed, so repeats are harmless) and returns its link. */
+function useRecordLink(record: ExperimentRecord, enabled: boolean) {
+  const [link, setLink] = useState(() => published.get(record.recordHash));
+  const [error, setError] = useState<string>();
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    if (!enabled || published.has(record.recordHash)) { setLink(published.get(record.recordHash)); return; }
+    let cancelled = false; setError(undefined); setLink(undefined);
+    publishRecord(record).then(url => { published.set(record.recordHash, url); if (!cancelled) setLink(url); }, e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); });
+    return () => { cancelled = true; };
+  }, [record, enabled, attempt]);
+  return { link, error, retry: () => setAttempt(n => n + 1) };
+}
+
 export function RecordView({ record, onStep, shareUrl }: { record: ExperimentRecord; onStep?: (id: string) => void; shareUrl?: string }) {
   const { method, run } = record;
-  // Share links (Trial's Cloudflare record store) are not part of LogicCritic yet; the QR code carries the record hash.
-  const link = shareUrl;
+  const { link: publishedLink, error, retry } = useRecordLink(record, !shareUrl);
+  const link = shareUrl ?? publishedLink;
   const [qr, setQr] = useState('');
   const payload = link ?? `lens://record/${record.recordHash}`;
   useEffect(() => { QRCode.toString(payload, { type: 'svg', margin: 0, errorCorrectionLevel: 'M', color: { dark: '#09090b', light: '#0000' } }).then(setQr); }, [payload]);
@@ -44,7 +73,7 @@ export function RecordView({ record, onStep, shareUrl }: { record: ExperimentRec
   const Step = onStep ? 'button' : 'div';
 
   return <div className="record-page">
-    {!shareUrl && <div className="record-toolbar"><DownloadMenu record={record}/></div>}
+    {!shareUrl && <div className="record-toolbar"><LinkBar link={link} error={error} onRetry={retry}/><DownloadMenu record={record}/></div>}
     <article className="record">
       <header className="record-masthead"><span>Trial · Experiment record</span><span className="mono">No. {record.recordHash.slice(0, 8)}</span></header>
       <h1 className="record-title">{method.title}</h1>

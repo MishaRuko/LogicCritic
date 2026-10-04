@@ -60,6 +60,7 @@ The experiment check was brought in from [lab-experiment-check](https://github.c
 
 - **Code:** `frontend/src/lib/experiment` (agent loop and rules), `frontend/src/components/experiment` (screens) and `frontend/src/app/experiment-api` (server routes holding the key).
 - **Accuracy:** it is a careful step checker, not yet a reliable error detector. See [EVALUATION.md](frontend/src/lib/experiment/EVALUATION.md) for results and known errors.
+- **Share links:** **Generate record** publishes a hashed record at `/experiment/r/<id>`, where anyone with the link can view it read-only. Trial stored these in Cloudflare KV; here they are JSON files in the `experiment_records` Docker volume (`frontend/.experiment-records/` under `next dev`), which is fine for a single server.
 - **Samples:** the clips are from [LabSuperVision](https://huggingface.co/datasets/cong-lab/lsv), CC BY-NC 4.0, for non-commercial use.
 
 ```sh

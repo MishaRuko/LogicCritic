@@ -18,13 +18,13 @@ export async function validateRecord(record: ExperimentRecord): Promise<boolean>
 }
 /** Publishes a record to the Worker and returns its shareable URL. Content-addressed, so republishing is idempotent. */
 export async function publishRecord(record: ExperimentRecord): Promise<string> {
-  const response = await fetch('/api/records', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(record) });
+  const response = await fetch('/experiment-api/records', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(record) });
   const body = await response.json().catch(() => ({})) as { path?: string; error?: string };
   if (!response.ok || !body.path) throw new Error(body.error ?? 'Could not publish the record.');
   return new URL(body.path, location.origin).href;
 }
 export async function fetchRecord(id: string): Promise<ExperimentRecord> {
-  const response = await fetch(`/api/records/${encodeURIComponent(id)}`);
+  const response = await fetch(`/experiment-api/records/${encodeURIComponent(id)}`);
   if (response.status === 404) throw new Error('This record link does not exist.');
   if (!response.ok) throw new Error('The record could not be loaded.');
   return response.json();
