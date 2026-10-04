@@ -19,6 +19,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agent import assurance
 from app.config import get_settings
 from app.models import (
     AgentEvent,
@@ -749,6 +750,7 @@ async def _packet(
         "obligations": [o.as_dict() for o in result.obligations],
         "completion_criteria": list(enumerate(goal.completion_criteria)),
         "can_finalize_as": result.allowed_certainties(),
+        "assurance": assurance.from_check(result.obligations).as_dict(),
         "notes": notes,
         "you_may": [
             "read or fetch more evidence and record it",

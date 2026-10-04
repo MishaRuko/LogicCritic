@@ -574,6 +574,19 @@ populations/models without recording an extrapolation.
 8. Agent finalizes only when the graph state supports its stated level of certainty.
 ```
 
+### Implemented: the live research agent
+
+The protocol above is built and running (`backend/app/agent/`). A Claude agent with Amass, web search and page fetching tools works a question, claim or hypothesis, and records what it does as the same statements and reasoning steps as any source.
+
+- **The agent proposes; the graph disposes.** `check_conclusion` returns obligations; `finalize_conclusion` is enforced on the server, so a conclusion cannot be stated at more certainty than the graph supports. Retracted sources, ungrounded claims and reasoning that rests on a withdrawn claim are hard blockers.
+- **Independent review.** Models that review work are separate from the one that produces it. One `Judge` serves the premise critic, cross-source link audits, and the agent's completion criteria and causal designs. It reads the text each claim cites, treats the agent's own labels as hints, and fails closed. Rules, not models, decide whether an obligation exists.
+- **A standard set in advance.** Completion criteria are given or proposed before research starts, and written to be neutral about the answer.
+- **Beliefs are revisable and recorded.** The agent holds a working position from its first reading and withdraws or supersedes claims when evidence changes (`revise_claim`); the trace marks each position change with its reason.
+- **Calibrated uncertainty without numbers.** The verifier's state is summarised as a named level on an ordered scale (`unexplored` to `settled`) with the reasons holding it back. It has no numeric form on purpose: nothing here supports a probability.
+- **Auditable.** Every step is an ordered event (`agent_events`), every reviewer verdict is stored with the evidence it saw (`judge_verdicts`), and cost is tracked per run including reviewer calls.
+
+See `API_INTEGRATION.md` for the interface.
+
 ### Agent planning
 
 The agent is free to propose target claims and intended support relations. The verifier enforces requirements after a relation is declared.

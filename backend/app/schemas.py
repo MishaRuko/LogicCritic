@@ -134,6 +134,7 @@ class StatementResponse(APIModel):
     salience: str
     lifecycle: str
     provenance: dict
+    superseded_by: uuid.UUID | None = None
     created_at: datetime
     excerpt_ids: list[uuid.UUID] = Field(default_factory=list)
 
@@ -414,7 +415,41 @@ class AgentRunCreate(BaseModel):
     max_web_searches: int | None = Field(default=None, ge=0, le=25)
 
 
+class AgentGoalResponse(APIModel):
+    id: uuid.UUID
+    question: str
+    kind: str
+    completion_criteria: list[str]
+    falsifiers: list[str]
+    status: str
+
+
+class AgentCriterionVerdict(BaseModel):
+    index: int
+    criterion: str
+    met: bool
+    rationale: str
+    supporting_statement_ids: list[str]
+
+
+class AgentDesignVerdict(BaseModel):
+    statement_id: str
+    design_shown: bool
+    rationale: str
+
+
+class AgentVerdictResponse(BaseModel):
+    """One independent review of the run's evidence against its completion criteria."""
+
+    id: uuid.UUID
+    created_at: datetime
+    criteria: list[AgentCriterionVerdict]
+    designs: list[AgentDesignVerdict]
+    searches: list[str]
+
+
 class AgentRunResponse(APIModel):
+    goal: AgentGoalResponse | None = None
     id: uuid.UUID
     workspace_id: uuid.UUID
     goal_id: uuid.UUID

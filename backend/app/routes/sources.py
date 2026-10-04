@@ -135,6 +135,19 @@ async def upload_source(
     return source_with_excerpts(source, excerpts)
 
 
+@router.get("/workspaces/{workspace_id}/sources", response_model=list[SourceResponse])
+async def list_workspace_sources(
+    workspace_id: uuid.UUID, session: AsyncSession = Depends(get_session)
+) -> list[Source]:
+    """Every source in the workspace, however it got there: upload, Amass import or an agent run."""
+    await require_workspace(workspace_id, session)
+    return list(
+        await session.scalars(
+            select(Source).where(Source.workspace_id == workspace_id).order_by(Source.created_at)
+        )
+    )
+
+
 @router.get("/sources/{source_id}", response_model=SourceResponse)
 async def get_source(source_id: uuid.UUID, session: AsyncSession = Depends(get_session)) -> Source:
     source = await session.get(Source, source_id)

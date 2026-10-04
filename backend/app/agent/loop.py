@@ -13,7 +13,7 @@ from typing import Any
 import anthropic
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.agent import prompts
+from app.agent import assurance, prompts
 from app.agent.runs import EventLog
 from app.agent.tool_models import GUARD_TOOLS, RECORDING_TOOLS, RESEARCH_TOOLS
 from app.agent.toolbox import Toolbox, tool_result_text
@@ -105,6 +105,8 @@ async def execute_run(
     toolbox = Toolbox(sessions, run_id, amass, judge)
     state = _State(run_id, sessions, log_, toolbox, mode, model, budgets, judge)
     try:
+        if state.assurance is not None:
+            await log_.add("assurance", state.assurance)
         if judge is not None:
             await _settle_criteria(state, goal, judge)
         await _drive(state, client, goal)
@@ -131,6 +133,8 @@ class _State:
             "web_searches": 0,
         }
         self.finished = False
+        # Only a guarded run has a verifier to say how settled the answer is.
+        self.assurance = assurance.unexplored().as_dict() if mode == "guarded" else None
 
     async def tick(self, response: Any) -> dict[str, int]:
         """Add this turn's usage to the run's totals, and return the turn's own numbers."""
@@ -152,7 +156,12 @@ class _State:
     async def _save(self, heartbeat: bool = False, **fields: Any) -> AgentRun:
         async with self.sessions() as session:
             run = await session.get(AgentRun, self.run_id)
-            run.usage = {**run.usage, **self.usage, **self._cost()}
+            run.usage = {
+                **run.usage,
+                **self.usage,
+                **self._cost(),
+                "assurance": self.assurance,
+            }
             if heartbeat:
                 run.heartbeat_at = datetime.now(UTC)
             for name, value in fields.items():
@@ -171,6 +180,17 @@ class _State:
         extra = estimate_cost(self.judge.model, spent)
         total = None if cost is None or extra is None else round(cost + extra, 4)
         return {"cost_usd": total, "judge": dict(self.judge.usage), "judge_cost_usd": extra}
+
+    async def set_assurance(self, new: dict) -> None:
+        """Record a change in how settled the answer is, as an event and on the run."""
+        if self.assurance is None or (new["level"], new["holding_back"]) == (
+            self.assurance["level"],
+            self.assurance["holding_back"],
+        ):
+            return
+        self.assurance = new
+        await self.events.add("assurance", new)
+        await self._save()
 
     async def beat(self) -> None:
         await self._save(heartbeat=True)
@@ -345,9 +365,22 @@ async def _run_tools(state: _State, response: Any) -> tuple[list[dict], bool]:
         change = None if is_error else _graph_change(block.name, dict(block.input), result)
         if change:
             await state.events.add("graph_change", change)
+        if not is_error:
+            await _update_assurance(state, block.name, dict(block.input), result)
         if block.name in TERMINAL_TOOLS and result.get("accepted"):
             concluded = True
     return results, concluded
+
+
+async def _update_assurance(state: _State, tool: str, args: dict, result: dict) -> None:
+    level = (state.assurance or {}).get("level")
+    if tool == "record_claim" and args.get("role") == "conclusion" and level == "unexplored":
+        await state.set_assurance(assurance.exploring().as_dict())
+    elif tool == "check_conclusion" and "assurance" in result:
+        await state.set_assurance(result["assurance"])
+    elif tool == "finalize_conclusion" and result.get("accepted"):
+        if result.get("certainty") == "established":
+            await state.set_assurance(assurance.Assurance("settled", []).as_dict())
 
 
 def _graph_change(tool: str, args: dict, result: dict) -> dict | None:

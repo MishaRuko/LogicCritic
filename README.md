@@ -18,6 +18,16 @@ For Claude extraction, argument checks and synthesis, add `CLAUDE_API_KEY` to `.
 
 Attatch text or Markdown files (`.txt`, `.md`, `.markdown`) or text-based PDFs, up to 10 MB each. Scanned PDFs need OCR, which isn't supported yet. Click a node to inspect its source and reasoning, then accept or reject it. Use **Checks** to run verification and **Export** to save a snapshot.
 
+## Research agent
+
+Ask an open question, test a claim or probe a hypothesis, and a research agent investigates it live: it searches the literature (Amass) and the web, reads what it relies on, and builds the argument in the same graph as your uploaded papers. A verifier checks its work as it goes and refuses to let it claim more certainty than the evidence supports. An independent reviewer model decides whether the evidence meets the completion criteria, so the agent cannot mark its own homework.
+
+- **Start a run** with `POST /workspaces/{id}/agent-runs` (needs `CLAUDE_API_KEY`; add `AMASS_API_KEY` for paper search). Each run has a budget and reports its cost. Completion criteria are optional: the agent proposes its own before researching.
+- **Follow it** through the trace (`GET /agent-runs/{id}/events`): its searches, reasoning, every change it makes to the graph, and each time it changes its mind.
+- **See how settled the answer is** with the uncertainty bar. It is a named level, from *no position yet* up to *established*, not a percentage, and it says in words what is holding it back. It drops when a flaw is found and rises as the agent resolves it.
+
+The API, trace format and rendering guide for building the interface are in [API_INTEGRATION.md](API_INTEGRATION.md#research-agent).
+
 Stop the app with `make down`. Your data stays in Docker volumes.
 
 ## Development
