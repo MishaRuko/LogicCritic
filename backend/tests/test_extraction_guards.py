@@ -8,18 +8,20 @@ from app.schemas import ExtractedReasoningStep, ExtractedStatement, ExtractionOu
 from app.services.claude_errors import ensure_complete
 from app.services.extraction import (
     drop_duplicate_statements,
+    drop_orphan_supporting,
     drop_unresolvable_steps,
     extraction_schema,
     is_extractable_excerpt,
 )
 
 
-def statement(ref: str) -> ExtractedStatement:
+def statement(ref: str, salience: str = "core", supports: str | None = None) -> ExtractedStatement:
     return ExtractedStatement(
         client_ref=ref,
         text=f"Statement {ref}.",
         assertion_mode="asserted",
-        salience="core",
+        salience=salience,
+        supports_ref=supports,
         excerpt_ids=[uuid.uuid4()],
     )
 
@@ -114,3 +116,41 @@ def test_a_cut_off_answer_is_refused_rather_than_used() -> None:
 @pytest.mark.parametrize("reason", ["tool_use", "end_turn", None])
 def test_complete_answers_pass(reason: str | None) -> None:
     ensure_complete({"stop_reason": reason}, "extraction")
+
+
+def refs(output: ExtractionOutput) -> list[str]:
+    return [item.client_ref for item in output.statements]
+
+
+def test_supporting_claims_survive_only_if_they_support_something_kept() -> None:
+    output = ExtractionOutput(
+        statements=[
+            statement("result"),
+            statement("detail", "secondary"),
+            statement("design", "supporting", supports="result"),
+            statement("figure", "supporting", supports="detail"),
+            statement("background", "supporting"),  # supports nothing
+            statement("dangling", "supporting", supports="gone"),  # supports a non-claim
+            statement("chain", "supporting", supports="design"),  # supports only a supporting one
+        ]
+    )
+    assert refs(drop_orphan_supporting(output)) == ["result", "detail", "design", "figure"]
+
+
+def test_a_supporting_premise_of_a_step_is_kept_even_without_supports_ref() -> None:
+    output = ExtractionOutput(
+        statements=[statement("a", "supporting"), statement("b"), statement("c", "supporting")],
+        reasoning_steps=[step("r1", ["a"], "b"), step("r2", ["c"], "a")],
+    )
+    # c only feeds a supporting claim, so it is not anchored; a feeds a kept conclusion
+    assert refs(drop_orphan_supporting(output)) == ["a", "b"]
+
+
+def test_dropped_background_takes_dependent_steps_with_it() -> None:
+    output = ExtractionOutput(
+        statements=[statement("x"), statement("bg", "supporting")],
+        reasoning_steps=[step("r1", ["bg"], "x")],
+    )
+    kept = drop_unresolvable_steps(drop_orphan_supporting(output))
+    assert refs(kept) == ["x", "bg"]  # a premise of a kept conclusion is not background
+    assert [s.client_ref for s in kept.reasoning_steps] == ["r1"]

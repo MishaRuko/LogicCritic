@@ -256,6 +256,11 @@ class ExtractedStatement(BaseModel):
     salience: StatementSalience = Field(
         description="core for the paper's minimum central contribution; secondary for consequential but noncentral results, limitations, or implications; supporting for direct evidence or design premises."
     )
+    supports_ref: str | None = Field(
+        description="For a supporting statement: the client_ref of the core or secondary "
+        "statement in this result that it is direct evidence or a design premise for. A "
+        "supporting statement that supports nothing is not worth extracting. Null otherwise."
+    )
     excerpt_ids: list[uuid.UUID] = Field(
         min_length=1,
         description="IDs of the supplied source excerpts that contain this statement.",

@@ -20,7 +20,7 @@ from app.services.claude_errors import describe_claude_failure, ensure_complete
 from app.services.claude_tools import strict_input_schema, strict_tool
 from app.services.graph_patches import GraphPatchExecutor, graph_patch_response_from_event
 
-PROMPT_VERSION = "source_extraction_v7"
+PROMPT_VERSION = "source_extraction_v8"
 NON_CLAIM_SECTIONS = {"retraction notice"}
 
 EXTRACTION_SYSTEM_PROMPT = (
@@ -78,6 +78,29 @@ def drop_unresolvable_steps(output: ExtractionOutput) -> ExtractionOutput:
     return output.model_copy(update={"reasoning_steps": kept})
 
 
+def drop_orphan_supporting(output: ExtractionOutput) -> ExtractionOutput:
+    """Keep a supporting statement only if something kept relies on it.
+
+    Supporting means "evidence or a premise for another claim". One that names no such claim, or
+    names one that is not kept, is background by definition, so no list of topics is needed.
+    """
+    anchors = {s.client_ref for s in output.statements if s.salience != "supporting"}
+    used_as_premise = {
+        ref
+        for step in output.reasoning_steps
+        if step.conclusion_ref in anchors
+        for ref in step.premise_refs
+    }
+    kept = [
+        s
+        for s in output.statements
+        if s.salience != "supporting"
+        or s.supports_ref in anchors
+        or s.client_ref in used_as_premise
+    ]
+    return output.model_copy(update={"statements": kept})
+
+
 def drop_duplicate_statements(
     output: ExtractionOutput, existing_texts: list[str]
 ) -> ExtractionOutput:
@@ -95,8 +118,7 @@ def drop_duplicate_statements(
     steps = [
         step
         for step in output.reasoning_steps
-        if step.conclusion_ref in kept_refs
-        and all(ref in kept_refs for ref in step.premise_refs)
+        if step.conclusion_ref in kept_refs and all(ref in kept_refs for ref in step.premise_refs)
     ]
     return output.model_copy(update={"statements": kept, "reasoning_steps": steps})
 
@@ -204,7 +226,7 @@ async def extract_source_to_patch(
         output = drop_duplicate_statements(
             ExtractionOutput.model_validate(tool_use["input"]), existing_claims
         )
-        output = drop_unresolvable_steps(output)
+        output = drop_unresolvable_steps(drop_orphan_supporting(output))
     except (KeyError, StopIteration, TypeError, ValueError) as error:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
