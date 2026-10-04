@@ -14,6 +14,38 @@ const props = { state, loading: false, error: null, busy: false, perform, onVeri
 afterEach(() => vi.restoreAllMocks());
 
 describe('research to experiment handoff', () => {
+  const paper = { ...source, id: 'paper', title: 'A paper', origin: 'amass', created_at: '2026-10-05T10:00:00Z' };
+  const agentSource = (id: string, created_at: string) => ({
+    ...source, id, title: `Protocol: ${id}`, origin: 'agent', created_at, metadata: { parser: 'agent_protocol_v1' },
+  });
+  const withSources = (...sources: object[]) => ({ ...state, sources } as unknown as Snapshot);
+
+  it('defaults to the protocol the research agent handed over, not the first source', async () => {
+    const start = vi.spyOn(api, 'startExperiment').mockResolvedValue({ id: 'run' } as never);
+    render(<ResearchExperiments {...props} state={withSources(paper, agentSource('handed-over', '2026-10-05T11:00:00Z'))} data={{ ...data, protocols: [] }}/>);
+    expect(screen.getByLabelText('Research source')).toHaveValue('handed-over');
+    fireEvent.click(screen.getByRole('button', { name: 'Run sample experiment' }));
+    await waitFor(() => expect(start).toHaveBeenCalledWith('workspace', undefined, 'demo', undefined, 'handed-over', false));
+  });
+
+  it('uses the most recent protocol when the agent handed over more than one', () => {
+    render(<ResearchExperiments {...props} state={withSources(agentSource('older', '2026-10-05T11:00:00Z'), agentSource('newer', '2026-10-05T12:00:00Z'), paper)} data={{ ...data, protocols: [] }}/>);
+    expect(screen.getByLabelText('Research source')).toHaveValue('newer');
+  });
+
+  it('lets a person choose a different source than the agent protocol', async () => {
+    const start = vi.spyOn(api, 'startExperiment').mockResolvedValue({ id: 'run' } as never);
+    render(<ResearchExperiments {...props} state={withSources(paper, agentSource('handed-over', '2026-10-05T11:00:00Z'))} data={{ ...data, protocols: [] }}/>);
+    fireEvent.change(screen.getByLabelText('Research source'), { target: { value: 'paper' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Run sample experiment' }));
+    await waitFor(() => expect(start).toHaveBeenCalledWith('workspace', undefined, 'demo', undefined, 'paper', false));
+  });
+
+  it('keeps the first source as the default when no agent protocol exists', () => {
+    render(<ResearchExperiments {...props} state={withSources(paper, { ...source, id: 'second', created_at: '2026-10-05T11:00:00Z' })} data={{ ...data, protocols: [] }}/>);
+    expect(screen.getByLabelText('Research source')).toHaveValue('paper');
+  });
+
   it('runs without an approval checkbox or manual extraction', async () => {
     const start = vi.spyOn(api, 'startExperiment').mockResolvedValue({ id: 'run' } as never);
     render(<ResearchExperiments {...props} data={{ ...data, protocols: [] }}/>);

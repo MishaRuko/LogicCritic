@@ -379,3 +379,142 @@ def test_the_protocol_tool_asks_for_the_instrument_and_for_single_values() -> No
     description = ProtocolStepInput.model_fields["action"].description
     assert "instrument that sets each volume or temperature" in description
     assert "do not write ranges" in description
+
+
+# -- the protocol is ready for the experiment tools when the run ends -----------------------------
+
+
+def statement_from(request) -> str:
+    import json
+
+    for block in request["messages"][-1]["content"]:
+        if block["type"] == "tool_result" and "statement_id" in block["content"]:
+            return json.loads(block["content"])["statement_id"]
+    raise AssertionError("no statement id in the tool results")
+
+
+def concluding_run(world, *, with_protocol=True):
+    """A scripted agent that records a protocol and a conclusion, then finalizes."""
+    conclusion = {
+        "text": "The answer.",
+        "excerpt_ids": [world.excerpt("other")],
+        "assertion_mode": "reported",
+        "role": "conclusion",
+        "claim_strength": None,
+        "causal_support": None,
+        "scope": None,
+        "criteria_satisfied": [],
+    }
+    calls = [tool("record_claim", **conclusion)]
+    if with_protocol:
+        calls.insert(
+            0,
+            tool(
+                "record_protocol",
+                title="Heat-shock transformation",
+                steps=steps_for(world),
+                basis="Follows the first paper.",
+            ),
+        )
+
+    def finalize(request):
+        return reply(
+            tool(
+                "finalize_conclusion",
+                statement_id=statement_from(request),
+                certainty="hypothesis",
+                protocol="recorded" if with_protocol else "none",
+            ),
+            stop="tool_use",
+        )
+
+    return FakeClaude(reply(*calls, stop="tool_use"), finalize, reply(stop="end_turn"))
+
+
+async def events_named(world, kind) -> list[AgentEvent]:
+    async with session_factory() as session:
+        return list(
+            await session.scalars(
+                select(AgentEvent).where(AgentEvent.run_id == world.run_id, AgentEvent.type == kind)
+            )
+        )
+
+
+async def test_the_handed_over_protocol_is_prepared_for_the_experiment_tools(api) -> None:
+    world = await make_world(sources=METHODS)
+    await execute_run(world.run_id, client=concluding_run(world))
+    ready = await events_named(world, "experiment_ready")
+    assert len(ready) == 1 and ready[0].payload["steps"] == 3
+    async with session_factory() as session:
+        prepared = list(
+            await session.scalars(
+                select(ExperimentProtocol).where(
+                    ExperimentProtocol.workspace_id == world.workspace_id
+                )
+            )
+        )
+    assert [str(p.id) for p in prepared] == [ready[0].payload["protocol_id"]]
+    assert prepared[0].extraction_method == "numbered_instructions"
+    shown = (await api.get(f"/api/agent-runs/{world.run_id}")).json()["protocol"]
+    assert shown["experiment_protocol_id"] == str(prepared[0].id)
+
+
+async def test_an_experiment_started_with_nothing_chosen_uses_the_agents_protocol(api) -> None:
+    world = await make_world(sources=METHODS)
+    await execute_run(world.run_id, client=concluding_run(world))
+    prepared = (await events_named(world, "experiment_ready"))[0].payload["protocol_id"]
+    started = await api.post(
+        f"/api/workspaces/{world.workspace_id}/experiment-runs", data={"mode": "demo"}
+    )
+    assert started.status_code == 202 and started.json()["protocol_id"] == prepared
+
+
+async def test_a_stale_protocol_is_not_used_by_default(api) -> None:
+    world = await make_world(sources=METHODS)
+    await execute_run(world.run_id, client=concluding_run(world))
+    async with session_factory() as session:  # the research changes after the protocol was prepared
+        session.add(
+            Source(
+                workspace_id=world.workspace_id,
+                kind="document",
+                origin="upload",
+                title="Late paper",
+                mime_type="text/plain",
+                original_filename="late.txt",
+                storage_key=f"test/{uuid.uuid4()}",
+                content_hash=uuid.uuid4().hex,
+                external_ids={},
+                metadata_={},
+            )
+        )
+        await session.commit()
+    base = f"/api/workspaces/{world.workspace_id}"
+    await api.post(f"{base}/verify")
+    started = await api.post(f"{base}/experiment-runs", data={"mode": "demo"})
+    assert started.status_code == 422  # nothing current to use: choose a source
+
+
+async def test_no_protocol_means_nothing_is_prepared() -> None:
+    world = await make_world(sources=METHODS)
+    await execute_run(world.run_id, client=concluding_run(world, with_protocol=False))
+    assert await events_named(world, "experiment_ready") == []
+    assert await events_named(world, "experiment_not_ready") == []
+
+
+async def test_a_protocol_that_cannot_be_prepared_is_explained_and_does_not_fail_the_run(
+    monkeypatch,
+) -> None:
+    from fastapi import HTTPException
+
+    from app.models import AgentRun
+
+    async def refuse(*args, **kwargs):
+        raise HTTPException(409, "Wait for extraction to finish first.")
+
+    monkeypatch.setattr("app.routes.experiments.prepare_protocol", refuse)
+    world = await make_world(sources=METHODS)
+    await execute_run(world.run_id, client=concluding_run(world))
+    (event,) = await events_named(world, "experiment_not_ready")
+    assert "extraction" in event.payload["reason"]
+    async with session_factory() as session:
+        assert (await session.get(AgentRun, world.run_id)).status == "succeeded"

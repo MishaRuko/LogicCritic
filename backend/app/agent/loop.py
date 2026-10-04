@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import anthropic
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -22,12 +23,13 @@ from app.agent.tool_models import GRAPH_TOOLS, GUARD_TOOLS, RECORDING_TOOLS, RES
 from app.agent.toolbox import Toolbox, tool_result_text
 from app.config import get_settings
 from app.database import session_factory
-from app.models import AgentEvent, AgentRun, ResearchGoal, Statement
+from app.models import AgentEvent, AgentRun, ResearchGoal, Source, Statement
 from app.services.amass import AmassNotConfigured, get_amass_client
 from app.services.claude_call import ClaudeCallFailed
 from app.services.claude_errors import describe_claude_failure
 from app.services.claude_tools import strict_tool
 from app.services.judge import DEFAULT_CRITERIA, Judge
+from app.services.verification import run_verification
 
 log = logging.getLogger(__name__)
 
@@ -542,7 +544,55 @@ async def _complete(state: _State, text: str) -> None:
             report += "\n\nLimitations:\n" + "\n".join(f"- {item}" for item in limitations)
     elif run.certainty == "abstained" and run.final_report:
         report = run.final_report
+    if run.certainty != "abstained":
+        await _prepare_experiment(state)
     await state.finish("succeeded", report=report)
+
+
+async def _prepare_experiment(state: _State) -> None:
+    """Make the protocol the agent handed over ready for the experiment tools.
+
+    Only the recording is left for a person to supply. This never fails the run: if the
+    protocol cannot be prepared, the trace says why.
+    """
+    from app.routes.experiments import ExtractRequest, prepare_protocol
+
+    async with state.sessions() as session:
+        run = await session.get(AgentRun, state.run_id)
+        source = await session.scalar(
+            select(Source)
+            .where(
+                Source.workspace_id == run.workspace_id,
+                Source.origin == "agent",
+                Source.metadata_["parser"].astext == "agent_protocol_v1",
+                Source.metadata_["run_id"].astext == str(run.id),
+            )
+            .order_by(Source.created_at.desc())
+            .limit(1)
+        )
+        if source is None:
+            return
+        try:
+            # The experiment tools only follow research that was verified in its current
+            # state, and recording the protocol changed it. The verifier is deterministic.
+            await run_verification(session, run.workspace_id)
+            await session.commit()
+            prepared = await prepare_protocol(
+                run.workspace_id, ExtractRequest(source_id=source.id), session
+            )
+        except HTTPException as error:
+            await state.events.add(
+                "experiment_not_ready", {"source_id": str(source.id), "reason": str(error.detail)}
+            )
+            return
+        await state.events.add(
+            "experiment_ready",
+            {
+                "source_id": str(source.id),
+                "protocol_id": str(prepared.id),
+                "steps": len(prepared.protocol.get("steps", [])),
+            },
+        )
 
 
 PUBLIC_CAVEATS = {
