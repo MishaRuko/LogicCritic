@@ -318,3 +318,67 @@ class AgentEvent(Base):
     type: Mapped[str] = mapped_column(String(32))
     payload: Mapped[dict] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class EvaluationRun(Base):
+    """A persisted, paired baseline-versus-guarded experiment."""
+
+    __tablename__ = "evaluation_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(255))
+    status: Mapped[str] = mapped_column(String(32), default="queued")
+    config: Mapped[dict] = mapped_column(JSONB, default=dict)
+    report: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class EvaluationCase(Base):
+    __tablename__ = "evaluation_cases"
+    __table_args__ = (Index("ix_evaluation_cases_run", "evaluation_run_id", "position"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    evaluation_run_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("evaluation_runs.id", ondelete="CASCADE")
+    )
+    position: Mapped[int] = mapped_column(Integer)
+    packet: Mapped[dict] = mapped_column(JSONB)
+    packet_hash: Mapped[str] = mapped_column(String(64))
+    rubric: Mapped[dict] = mapped_column(JSONB, default=dict)
+    blind_labels: Mapped[dict] = mapped_column(JSONB, default=dict)
+    status: Mapped[str] = mapped_column(String(32), default="queued")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class EvaluationOutput(Base):
+    __tablename__ = "evaluation_outputs"
+    __table_args__ = (UniqueConstraint("evaluation_case_id", "arm", name="uq_evaluation_outputs_case_arm"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    evaluation_case_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("evaluation_cases.id", ondelete="CASCADE")
+    )
+    arm: Mapped[str] = mapped_column(String(16))
+    workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id", ondelete="RESTRICT"))
+    agent_run_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("agent_runs.id", ondelete="RESTRICT"))
+    answer: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(32))
+    usage: Mapped[dict] = mapped_column(JSONB, default=dict)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class EvaluationJudgment(Base):
+    __tablename__ = "evaluation_judgments"
+    __table_args__ = (UniqueConstraint("evaluation_case_id", name="uq_evaluation_judgments_case"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    evaluation_case_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("evaluation_cases.id", ondelete="CASCADE")
+    )
+    model: Mapped[str] = mapped_column(String(255))
+    material: Mapped[dict] = mapped_column(JSONB)
+    verdict: Mapped[dict] = mapped_column(JSONB)
+    usage: Mapped[dict] = mapped_column(JSONB, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

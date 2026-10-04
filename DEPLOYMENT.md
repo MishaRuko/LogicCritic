@@ -45,3 +45,34 @@ sudo systemctl reload nginx
 Back up the Compose project's PostgreSQL and uploads volumes together. A database-only backup does
 not contain uploaded source files. Test restoration before relying on the deployment for durable
 research data.
+
+## Blind agent evaluation
+
+The backend can run a small stored, blind comparison of the same Sonnet model with and without
+LogicCritic's guardrails. It is intentionally not exposed through the public UI. Each source packet
+is copied into two isolated workspaces, so the guarded graph cannot leak into the baseline run.
+
+Create a JSON source packet containing full text you are permitted to use:
+
+```json
+{
+  "id": "paper-set-01",
+  "sources": [{"title": "Paper title", "text": "# Full paper text\n..."}]
+}
+```
+
+Generate a few adversarial cases with Opus, review only for obvious malformed input, then persist
+the immutable manifest before spending on agent runs:
+
+```bash
+docker compose exec api python -m app.evaluations.cli generate --packet /data/packet.json --output /data/cases.jsonl --count 3
+docker compose exec api python -m app.evaluations.cli create --name "full-text pilot" --manifest /data/cases.jsonl
+docker compose exec api python -m app.evaluations.cli run <evaluation-id>
+docker compose exec api python -m app.evaluations.cli report <evaluation-id>
+```
+
+The run persists source packets, case rubrics, arm-to-blind-label mappings, all agent outputs and
+usage, anonymous judge material/verdicts, and the generated Markdown report. Opus sees answers as
+only `A` and `B`; the revealed arm mapping is kept in the database/report. This is a useful blinded
+hackathon signal, not independent scientific validation: the stronger model both creates cases and
+judges them.

@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     agent_max_web_searches: int = 10
     agent_turn_max_tokens: int = 16000
     agent_user_agent: str = "LogicCritic-ResearchAgent/1.0 (evidence gathering for research review)"
+    eval_generator_model: str = "claude-sonnet-5-5"
+    eval_judge_model: str = "claude-opus-5-5"
+    eval_max_turns: int = 12
+    eval_max_web_searches: int = 0
     amass_base_url: str = "https://api.amass.tech/api/v1"
     amass_timeout_seconds: float = 30.0
     amass_requests_per_minute: int = 60

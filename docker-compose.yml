@@ -41,6 +41,10 @@ services:
       AGENT_MAX_WEB_SEARCHES: ${AGENT_MAX_WEB_SEARCHES:-10}
       AGENT_TURN_MAX_TOKENS: ${AGENT_TURN_MAX_TOKENS:-16000}
       AGENT_USER_AGENT: ${AGENT_USER_AGENT:-LogicCritic-ResearchAgent/1.0}
+      EVAL_GENERATOR_MODEL: ${EVAL_GENERATOR_MODEL:-claude-sonnet-5-5}
+      EVAL_JUDGE_MODEL: ${EVAL_JUDGE_MODEL:-claude-opus-5-5}
+      EVAL_MAX_TURNS: ${EVAL_MAX_TURNS:-12}
+      EVAL_MAX_WEB_SEARCHES: ${EVAL_MAX_WEB_SEARCHES:-0}
       JWT_SECRET: ${JWT_SECRET:-change-me-before-deploying}
     depends_on:
       postgres:
@@ -77,6 +81,10 @@ services:
       AGENT_MAX_WEB_SEARCHES: ${AGENT_MAX_WEB_SEARCHES:-10}
       AGENT_TURN_MAX_TOKENS: ${AGENT_TURN_MAX_TOKENS:-16000}
       AGENT_USER_AGENT: ${AGENT_USER_AGENT:-LogicCritic-ResearchAgent/1.0}
+      EVAL_GENERATOR_MODEL: ${EVAL_GENERATOR_MODEL:-claude-sonnet-5-5}
+      EVAL_JUDGE_MODEL: ${EVAL_JUDGE_MODEL:-claude-opus-5-5}
+      EVAL_MAX_TURNS: ${EVAL_MAX_TURNS:-12}
+      EVAL_MAX_WEB_SEARCHES: ${EVAL_MAX_WEB_SEARCHES:-0}
       JWT_SECRET: ${JWT_SECRET:-change-me-before-deploying}
     depends_on:
       api:
