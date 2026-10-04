@@ -29,6 +29,8 @@ export type Observation = {
   summary?: string; checkResults?: CheckResult[];
   /** The recording continuously shows the window where this step had to happen, and it is not performed there. */
   omitted?: boolean;
+  /** Steps the agent saw performed at the same time (background waits, two hands, interleaving). */
+  concurrentWith?: string[];
 };
 export type VerificationResult =
   | { status: 'verified'; confidence: number; evidence: Evidence[] }

@@ -1,7 +1,36 @@
 import type { Observation, Status, VerificationResult } from './types';
 /** Half-open source windows. Gaps are never silently assigned to a method step. */
-export function observationAt(observations: Observation[], seconds: number): Observation | undefined {
-  return observations.find(o => seconds >= o.timestampStart && seconds < o.timestampEnd);
+export function observationsAt(observations: Observation[], seconds: number): Observation[] {
+  return observations.filter(o => seconds >= o.timestampStart && seconds < o.timestampEnd).sort((a, b) => b.timestampStart - a.timestampStart);
+}
+/** With concurrent steps, keep the preferred step while it is still running; otherwise the most recently started one. */
+export function observationAt(observations: Observation[], seconds: number, prefer?: string): Observation | undefined {
+  const active = observationsAt(observations, seconds);
+  return active.find(o => o.stepId === prefer) ?? active[0];
+}
+
+/** Steps performed alongside this one: the agent's explicit report, else windows that overlap by more than a boundary. */
+export function parallelTo(observations: Observation[], o: Observation): Observation[] {
+  const explicit = observations.some(x => x.concurrentWith);
+  return observations.filter(x => x.id !== o.id && (explicit
+    ? o.concurrentWith?.includes(x.stepId) || x.concurrentWith?.includes(o.stepId)
+    : Math.min(o.timestampEnd, x.timestampEnd) - Math.max(o.timestampStart, x.timestampStart) > .5));
+}
+
+export type ParallelBand = { start: number; end: number; count: number };
+/** Stretches of the recording where two or more steps run at once, with how many. */
+export function parallelBands(observations: Observation[]): ParallelBand[] {
+  const cuts = [...new Set(observations.flatMap(o => [o.timestampStart, o.timestampEnd]))].sort((a, b) => a - b);
+  const bands: ParallelBand[] = [];
+  for (let i = 0; i < cuts.length - 1; i++) {
+    const [start, end] = [cuts[i], cuts[i + 1]];
+    const active = observations.filter(o => o.timestampStart < end && o.timestampEnd > start);
+    const linked = active.filter(o => parallelTo(active, o).length > 0);
+    if (linked.length < 2) continue;
+    const last = bands.at(-1);
+    if (last && last.count === linked.length && last.end === start) last.end = end; else bands.push({ start, end, count: linked.length });
+  }
+  return bands;
 }
 
 export type CoverageStatus = Status | 'pending';

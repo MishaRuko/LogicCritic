@@ -88,8 +88,17 @@ AGENT_SYSTEM = (
     "defining action. If that action never happens between the neighbouring "
     "steps, the step is not found, even if the neighbours sit right next to "
     "each other.\n"
-    "   Steps can also interleave (gathering reagents while cleaning them); "
-    "their windows may overlap.\n"
+    "   Steps can also happen at the same time, and their windows then "
+    "overlap. Look for this actively:\n"
+    "   - background steps: a wait, incubation, centrifuge or heating run "
+    "continues while the person moves on. Its window runs from putting the "
+    "item in place to taking it out, spanning the steps done meanwhile;\n"
+    "   - two hands or two people doing different steps at once;\n"
+    "   - interleaving (gathering reagents while cleaning them).\n"
+    "   Give each step its own true start and end; never trim a window just "
+    "to avoid an overlap. List the ids of steps performed at the same time in "
+    "concurrent_with (both must be found, with overlapping windows); otherwise "
+    "leave it empty.\n"
     "   To judge a motion (rocking, tapping, flicking, swirling, pipetting up "
     "and down, inverting), request 6 to 8 frames over 2 to 4 seconds; single "
     "frames cannot show movement.\n"
@@ -167,6 +176,7 @@ AGENT_TOOLS = [
                             "evidence",
                             "uncertainties",
                             "confidence",
+                            "concurrent_with",
                         ],
                         "properties": {
                             "step_id": {"type": "string"},
@@ -268,6 +278,13 @@ AGENT_TOOLS = [
                             },
                             "uncertainties": {"type": "array", "items": {"type": "string"}},
                             "confidence": {"type": "number"},
+                            "concurrent_with": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "Ids of other steps performed at the "
+                                "same time as this one, with overlapping windows. "
+                                "Empty if none.",
+                            },
                         },
                     },
                 }
