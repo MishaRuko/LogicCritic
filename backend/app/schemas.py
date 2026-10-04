@@ -50,7 +50,7 @@ NodeKind = Literal["statement", "reasoning_step"]
 Lifecycle = Literal["proposed"]
 AssertionMode = Literal["asserted", "hypothesis", "conditional", "question", "reported"]
 StatementRole = Literal["premise", "conclusion", "assumption", "objection", "definition"]
-StatementSalience = Literal["core", "supporting"]
+StatementSalience = Literal["core", "secondary", "supporting"]
 
 
 class ProvenanceInput(BaseModel):
@@ -254,7 +254,7 @@ class ExtractedStatement(BaseModel):
     assertion_mode: AssertionMode
     role: StatementRole | None = None
     salience: StatementSalience = Field(
-        description="core for a paper-level result, conclusion, limitation, or essential design fact; supporting for evidence used only to support another claim."
+        description="core for the paper's minimum central contribution; secondary for consequential but noncentral results, limitations, or implications; supporting for direct evidence or design premises."
     )
     excerpt_ids: list[uuid.UUID] = Field(
         min_length=1,

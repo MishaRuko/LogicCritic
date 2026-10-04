@@ -31,7 +31,7 @@ export function projectWorkspace(state: Snapshot, detailed = false): ResearchGra
   for (const s of state.graph.statements.filter(item => visibleStatements.has(item.id))) {
     // Review acceptance is a lifecycle decision, never a scientific truth score.
     const status: ResearchState = s.lifecycle === 'rejected' ? 'unknown' : obligations.some(o => o.blocks_statement_id === s.id) ? 'fail' : s.lifecycle === 'proposed' ? 'warn' : 'idle';
-    nodes.push({ id: s.id, kind: s.role === 'conclusion' ? 'conclusion' : 'statement', label: s.text, detail: `${s.lifecycle} · ${humanize(s.assertion_mode)}${s.role ? ` · ${s.role}` : ''} · ${s.provenance.model ?? s.provenance.actor_id}`, state: status, proposed: s.lifecycle === 'proposed', sourceIds: sourceIds(s.excerpt_ids) });
+    nodes.push({ id: s.id, kind: s.role === 'conclusion' ? 'conclusion' : 'statement', label: s.text, detail: `${s.lifecycle} · ${s.salience} · ${humanize(s.assertion_mode)}${s.role ? ` · ${s.role}` : ''} · ${s.provenance.model ?? s.provenance.actor_id}`, state: status, proposed: s.lifecycle === 'proposed', sourceIds: sourceIds(s.excerpt_ids) });
     if (detailed) for (const id of s.excerpt_ids) {
       if (!excerpts.has(id) && !nodes.some(n => n.id === id)) nodes.push({ id, kind: 'excerpt', label: 'Linked excerpt', detail: 'Attach the source in Material to load its exact text', state: 'unknown', proposed: false, sourceIds: [] });
       edges.push({ id: `grounds:${id}:${s.id}`, source: id, target: s.id, relation: 'grounds' });

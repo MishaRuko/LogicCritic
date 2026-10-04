@@ -46,4 +46,11 @@ describe('backend graph projection', () => {
     expect(graph.nodes.map(n => n.id)).toEqual(expect.arrayContaining(['premise', 'step', 'conclusion']));
     expect(graph.nodes.some(n => n.kind === 'excerpt')).toBe(false);
   });
+  it('keeps secondary claims in the detailed evidence view', () => {
+    const secondary = { id: 'secondary', text: 'Subgroup result', assertion_mode: 'reported', role: 'conclusion', salience: 'secondary', lifecycle: 'proposed', excerpt_ids: [], provenance: { actor_type: 'extractor', actor_id: 'anthropic' } };
+    const withSecondary = { ...state, graph: { ...state.graph, statements: [...state.graph.statements, secondary] } } as unknown as Snapshot;
+
+    expect(projectWorkspace(withSecondary).nodes.some(node => node.id === 'secondary')).toBe(false);
+    expect(projectWorkspace(withSecondary, true).nodes.find(node => node.id === 'secondary')?.detail).toContain('secondary');
+  });
 });

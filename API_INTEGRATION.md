@@ -10,7 +10,11 @@ All API routes are served under `/api`. The backend is the source of truth; all 
 4. Poll `GET /extraction-jobs/{jobId}` until `status` is `succeeded`, `failed`, or `cancelled`.
 5. `GET /workspaces/{workspaceId}/graph` returns statements, reasoning steps, and relations for graph rendering.
 
-Statements include `excerpt_ids` and `salience` (`core` or `supporting`); retrieve excerpt text with `GET /sources/{sourceId}/excerpts`. Reasoning steps contain `premise_ids` and `conclusion_id`. Extraction has no numeric claim cap: it retains every consequential claim, while marking details used only as evidence as `supporting`. AMASS titles remain document context rather than graph claims. Retraction-notice excerpts remain available as source evidence but are excluded from scientific claim extraction because source validity represents the retraction itself.
+Statements include `excerpt_ids` and `salience` (`core`, `secondary`, or `supporting`); retrieve excerpt text with `GET /sources/{sourceId}/excerpts`. `core` is the minimum set expressing the paper's central contribution, `secondary` covers consequential but noncentral findings and implications, and `supporting` is direct evidence or design used as a premise. Reasoning steps contain `premise_ids` and `conclusion_id`. Extraction has no numeric claim cap: it retains every consequential claim but excludes standalone background and routine procedure. AMASS titles remain document context rather than graph claims. Retraction-notice excerpts remain available as source evidence but are excluded from scientific claim extraction because source validity represents the retraction itself.
+
+For chunked sources, later chunks receive the claims already extracted from that same source and must not repeat or paraphrase them. The backend also rejects exact normalized duplicates within a source. Claims from different sources are never deduplicated this way because their independent provenance matters for synthesis.
+
+When an AMASS record includes full text, its abstract is used for the document overview but is not independently extracted into graph claims; the full text remains the claim-bearing source. Abstract-only records continue to extract from the abstract.
 
 ## Review And Verification
 
@@ -22,7 +26,7 @@ Statements include `excerpt_ids` and `salience` (`core` or `supporting`); retrie
 
 `POST /workspaces/{workspaceId}/synthesize` with `{ "idempotency_key": "..." }` considers statements from different uploaded sources. It creates only proposed statement-to-statement relations:
 
-Synthesis considers all `core` statements in the workspace; it does not truncate the candidate list. Keep `supporting` statements available in source/evidence views rather than presenting them as paper-level synthesis candidates.
+Synthesis considers all `core` statements in the workspace; it does not truncate the candidate list. Keep `secondary` and `supporting` statements available in source/evidence views rather than presenting them as paper-level synthesis candidates.
 
 - `supports`: independently compatible evidence for substantially the same proposition.
 - `rebuts`: directly incompatible propositions.

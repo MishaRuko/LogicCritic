@@ -96,7 +96,16 @@ async def process_extraction_job(job_id: uuid.UUID) -> None:
                 )
             )
             chunks = chunk_excerpt_ids(
-                [excerpt for excerpt in excerpts if is_extractable_excerpt(excerpt)],
+                [
+                    excerpt
+                    for excerpt in excerpts
+                    if is_extractable_excerpt(
+                        excerpt,
+                        fulltext_available=bool(
+                            (source.metadata_ or {}).get("fulltext_imported")
+                        ),
+                    )
+                ],
                 settings.max_extraction_context_chars,
             )
             if not chunks:

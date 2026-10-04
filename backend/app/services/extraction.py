@@ -1,3 +1,4 @@
+import re
 import uuid
 
 import httpx
@@ -6,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.models import Excerpt, GraphEvent, Source
+from app.models import Excerpt, GraphEvent, Source, Statement, StatementExcerpt
 from app.schemas import (
     ExtractionOutput,
     GraphPatchRequest,
@@ -19,7 +20,7 @@ from app.services.claude_errors import describe_claude_failure, ensure_complete
 from app.services.claude_tools import strict_input_schema, strict_tool
 from app.services.graph_patches import GraphPatchExecutor, graph_patch_response_from_event
 
-PROMPT_VERSION = "source_extraction_v4"
+PROMPT_VERSION = "source_extraction_v7"
 NON_CLAIM_SECTIONS = {"retraction notice"}
 
 EXTRACTION_SYSTEM_PROMPT = (
@@ -39,8 +40,14 @@ EXTRACTION_SYSTEM_PROMPT = (
     "limitations, directly tested mechanisms, and final conclusions. Exclude routine procedures, "
     "registry or administrative details, citation/background boilerplate, repeated wording, and "
     "retraction-process metadata. Prefer one precise claim over several sentence-level restatements. "
-    "Classify paper-level results, conclusions, substantive limitations, and essential design facts "
-    "as core. Classify details useful only as premises for another extracted claim as supporting. "
+    "Use core only for the minimum set of claims needed to state the paper's central contribution: "
+    "primary results, final conclusions, and limitations that materially constrain those conclusions. "
+    "Do not mark a claim core merely because it is technically important or appears in Discussion. "
+    "Classify consequential but noncentral findings, subgroup or safety results, scope qualifications, "
+    "implications, and future-research conclusions as secondary. Classify essential design facts, "
+    "measurements, and details used directly as evidence or premises as supporting. Exclude standalone "
+    "background, prior-work summaries, routine methods, administrative facts, and procedural detail "
+    "rather than preserving them as statements. "
     "Do not impose a numeric claim limit: include every consequential claim, but not sentence-level "
     "coverage. Use the supplied document overview to judge paper-level importance. Do not return an "
     "empty result when consequential claims are present. Use unique client_ref values. Call the "
@@ -69,6 +76,33 @@ def drop_unresolvable_steps(output: ExtractionOutput) -> ExtractionOutput:
         if step.conclusion_ref in known and all(ref in known for ref in step.premise_refs)
     ]
     return output.model_copy(update={"reasoning_steps": kept})
+
+
+def drop_duplicate_statements(
+    output: ExtractionOutput, existing_texts: list[str]
+) -> ExtractionOutput:
+    """Drop repeated claims within one source and any local steps that depended on them."""
+    seen = {_normalized_claim(text) for text in existing_texts}
+    kept = []
+    kept_refs = set()
+    for statement in output.statements:
+        normalized = _normalized_claim(statement.text)
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        kept.append(statement)
+        kept_refs.add(statement.client_ref)
+    steps = [
+        step
+        for step in output.reasoning_steps
+        if step.conclusion_ref in kept_refs
+        and all(ref in kept_refs for ref in step.premise_refs)
+    ]
+    return output.model_copy(update={"statements": kept, "reasoning_steps": steps})
+
+
+def _normalized_claim(text: str) -> str:
+    return re.sub(r"\s+", " ", text).strip().casefold()
 
 
 async def extract_source_to_patch(
@@ -105,12 +139,16 @@ async def extract_source_to_patch(
     excerpts = [
         excerpt
         for excerpt in await session.scalars(query.order_by(Excerpt.sequence))
-        if is_extractable_excerpt(excerpt)
+        if is_extractable_excerpt(
+            excerpt, fulltext_available=bool((source.metadata_ or {}).get("fulltext_imported"))
+        )
     ]
     context = _excerpt_context(excerpts, settings.max_extraction_context_chars)
     if not context:
         raise HTTPException(status_code=422, detail="Source has no extractable excerpts")
 
+    existing_claims = await _existing_source_statement_texts(session, source.id)
+    prior_context = "\n".join(f"- {text}" for text in existing_claims)
     payload = {
         "model": model,
         "max_tokens": EXTRACTION_MAX_TOKENS,
@@ -118,7 +156,13 @@ async def extract_source_to_patch(
         "messages": [
             {
                 "role": "user",
-                "content": f"Document overview (for importance only):\n\n{await _document_overview(session, source.id)}\n\nSource excerpts to extract:\n\n{context}",
+                "content": (
+                    f"Document overview (for importance only):\n\n"
+                    f"{await _document_overview(session, source.id)}\n\n"
+                    "Claims already extracted from earlier chunks of this source "
+                    "(do not repeat or paraphrase them):\n\n"
+                    f"{prior_context or '(none)'}\n\nSource excerpts to extract:\n\n{context}"
+                ),
             },
         ],
         "tools": [
@@ -157,7 +201,10 @@ async def extract_source_to_patch(
             for item in response.json()["content"]
             if item["type"] == "tool_use" and item["name"] == "submit_extraction"
         )
-        output = drop_unresolvable_steps(ExtractionOutput.model_validate(tool_use["input"]))
+        output = drop_duplicate_statements(
+            ExtractionOutput.model_validate(tool_use["input"]), existing_claims
+        )
+        output = drop_unresolvable_steps(output)
     except (KeyError, StopIteration, TypeError, ValueError) as error:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -228,11 +275,15 @@ def _excerpt_context(excerpts: list[Excerpt], limit: int) -> str:
     return "\n".join(chunks)
 
 
-def is_extractable_excerpt(excerpt: Excerpt) -> bool:
+def is_extractable_excerpt(excerpt: Excerpt, *, fulltext_available: bool = False) -> bool:
     """Retain document metadata as context without turning it into graph claims."""
     section = str(excerpt.locator.get("section", "")).strip().casefold()
     path = str(excerpt.locator.get("jsonPath", "")).strip().casefold()
-    return section not in NON_CLAIM_SECTIONS and path != "title"
+    return (
+        section not in NON_CLAIM_SECTIONS
+        and path != "title"
+        and not (fulltext_available and path == "abstract")
+    )
 
 
 async def _document_overview(session: AsyncSession, source_id: uuid.UUID, limit: int = 6000) -> str:
@@ -257,3 +308,17 @@ async def _document_overview(session: AsyncSession, source_id: uuid.UUID, limit:
         preferred = [item.text for item in excerpts[:3]]
     overview = "\n\n".join(preferred)
     return overview[:limit]
+
+
+async def _existing_source_statement_texts(
+    session: AsyncSession, source_id: uuid.UUID
+) -> list[str]:
+    return list(
+        await session.scalars(
+            select(Statement.text)
+            .join(StatementExcerpt, StatementExcerpt.statement_id == Statement.id)
+            .join(Excerpt, Excerpt.id == StatementExcerpt.excerpt_id)
+            .where(Excerpt.source_id == source_id)
+            .distinct()
+        )
+    )

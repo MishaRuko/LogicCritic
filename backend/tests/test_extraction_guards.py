@@ -7,6 +7,7 @@ from fastapi import HTTPException
 from app.schemas import ExtractedReasoningStep, ExtractedStatement, ExtractionOutput
 from app.services.claude_errors import ensure_complete
 from app.services.extraction import (
+    drop_duplicate_statements,
     drop_unresolvable_steps,
     extraction_schema,
     is_extractable_excerpt,
@@ -42,7 +43,11 @@ def test_reference_fields_say_they_are_not_excerpt_ids() -> None:
         in defs["ExtractedReasoningStep"]["properties"]["premise_refs"]["description"]
     )
     assert "excerpts" in defs["ExtractedStatement"]["properties"]["excerpt_ids"]["description"]
-    assert set(defs["ExtractedStatement"]["properties"]["salience"]["enum"]) == {"core", "supporting"}
+    assert set(defs["ExtractedStatement"]["properties"]["salience"]["enum"]) == {
+        "core",
+        "secondary",
+        "supporting",
+    }
 
 
 def test_extraction_has_no_fixed_claim_count_cap() -> None:
@@ -53,12 +58,28 @@ def test_extraction_has_no_fixed_claim_count_cap() -> None:
 
 def test_retraction_notice_is_retained_but_not_extracted() -> None:
     title = SimpleNamespace(locator={"jsonPath": "title"})
+    abstract = SimpleNamespace(locator={"jsonPath": "abstract"})
     notice = SimpleNamespace(locator={"jsonPath": "abstract", "section": "Retraction Notice"})
     conclusion = SimpleNamespace(locator={"section": "Conclusion"})
 
     assert is_extractable_excerpt(title) is False
+    assert is_extractable_excerpt(abstract) is True
+    assert is_extractable_excerpt(abstract, fulltext_available=True) is False
     assert is_extractable_excerpt(notice) is False
     assert is_extractable_excerpt(conclusion) is True
+
+
+def test_duplicate_source_claims_and_dependent_steps_are_dropped() -> None:
+    output = ExtractionOutput(
+        statements=[statement("duplicate"), statement("new")],
+        reasoning_steps=[step("r1", ["duplicate"], "new")],
+    )
+    output.statements[0].text = "  Already   extracted. "
+
+    deduplicated = drop_duplicate_statements(output, ["already extracted."])
+
+    assert [item.client_ref for item in deduplicated.statements] == ["new"]
+    assert deduplicated.reasoning_steps == []
 
 
 def test_steps_citing_statements_that_exist_are_kept() -> None:
