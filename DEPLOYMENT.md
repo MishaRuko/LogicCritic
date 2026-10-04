@@ -13,8 +13,6 @@ APP_BASE_URL=https://zebi.misharuko.com
 APP_BIND=127.0.0.1
 APP_PORT=8088
 CADDYFILE=./infra/Caddyfile.production
-BASIC_AUTH_USER=misha
-BASIC_AUTH_HASH='$2a$...'
 POSTGRES_PASSWORD=...
 POSTGRES_URL=postgresql://logiccritic:...@postgres:5432/logiccritic
 JWT_SECRET=...
@@ -22,14 +20,8 @@ CLAUDE_API_KEY=...
 AMASS_API_KEY=...
 ```
 
-Generate the password hash with:
-
-```bash
-docker run --rm caddy:2.10-alpine caddy hash-password --plaintext 'your-password'
-```
-
-The single quotes around `BASIC_AUTH_HASH` prevent Compose from interpreting the hash's dollar
-signs. Use a unique database password and JWT secret. Never commit `.env`.
+Use a unique database password and JWT secret. Never commit `.env`. This configuration is public;
+add authentication or another access control before running it as a long-lived deployment.
 
 ## Start
 
@@ -41,7 +33,7 @@ Apply `infra/nginx-zebi.conf` to the host Nginx configuration only after the loo
 healthy. Validate Nginx before reloading it.
 
 ```bash
-curl --user "$BASIC_AUTH_USER:$BASIC_AUTH_PASSWORD" http://127.0.0.1:8088/api/health/ready
+curl http://127.0.0.1:8088/api/health/ready
 sudo cp infra/nginx-zebi.conf /etc/nginx/sites-available/zebi.misharuko.com
 sudo ln -s /etc/nginx/sites-available/zebi.misharuko.com /etc/nginx/sites-enabled/zebi.misharuko.com
 sudo nginx -t

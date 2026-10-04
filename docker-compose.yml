@@ -9,9 +9,6 @@ services:
         condition: service_started
     ports:
       - "${APP_BIND:-0.0.0.0}:${APP_PORT:-80}:80"
-    environment:
-      BASIC_AUTH_USER: ${BASIC_AUTH_USER:-}
-      BASIC_AUTH_HASH: ${BASIC_AUTH_HASH:-}
     volumes:
       - ${CADDYFILE:-./infra/Caddyfile}:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
