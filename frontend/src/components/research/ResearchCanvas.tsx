@@ -31,6 +31,7 @@ function AboveEdge(props: EdgeProps) {
 const edgeTypes = { above: AboveEdge };
 const nodeTypes = { argument: GraphNode };
 export function ResearchCanvas({ graph, selected, onSelect }: { graph: ResearchGraph; selected?: string; onSelect: (id?: string) => void }) {
+  const container = useRef<HTMLDivElement>(null);
   const positions = useRef<Record<string, XY>>({});
   const [flow, setFlow] = useState<ReactFlowInstance<ArgumentNode> | null>(null);
   const [hovered, setHovered] = useState<string>();
@@ -57,7 +58,17 @@ export function ResearchCanvas({ graph, selected, onSelect }: { graph: ResearchG
     });
   }, [graph, nodes]);
   useEffect(() => { if (flow) void flow.fitView({ padding: .2, maxZoom: 1.1, duration: 650 }); }, [flow, !!selected, graph.nodes.length]);
-  return <div className={cn("absolute inset-0", selected && "min-[900px]:right-[350px]")} data-testid="research-canvas"><ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes} onInit={setFlow}
+  useEffect(() => {
+    if (!flow || !container.current) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const observer = new ResizeObserver(() => {
+      clearTimeout(timer);
+      timer = setTimeout(() => void flow.fitView({ padding: .2, maxZoom: 1.1, duration: 250 }), 100);
+    });
+    observer.observe(container.current);
+    return () => { observer.disconnect(); clearTimeout(timer); };
+  }, [flow]);
+  return <div ref={container} className={cn("absolute inset-0", selected && "min-[900px]:right-[350px]")} data-testid="research-canvas"><ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes} onInit={setFlow}
     onNodeClick={(_, node) => onSelect(node.id)} onEdgeClick={(_, edge) => onSelect(!['grounds', 'premise_of', 'concludes', 'blocks'].includes(graph.edges.find(e => e.id === edge.id)?.relation ?? '') ? edge.id : edge.source)} onPaneClick={() => onSelect()} onNodeMouseEnter={(_, n) => setHovered(n.id)} onNodeMouseLeave={() => setHovered(undefined)}
     onNodesChange={changes => { let moved = false; for (const change of changes) if (change.type === 'position' && change.position) { const prior = positions.current[change.id]; if (!prior || prior.x !== change.position.x || prior.y !== change.position.y) { positions.current[change.id] = change.position; moved = true; } } if (moved) setLayoutVersion(v => v + 1); }}
     onNodeDragStop={(_, n) => { positions.current[n.id] = n.position; }} fitView minZoom={.15} maxZoom={2} nodesConnectable={false}>

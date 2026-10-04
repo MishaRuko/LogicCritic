@@ -1,13 +1,26 @@
 # Integration notes
 
 
-This integration uses only implemented backend endpoints. CSV statistical challenges, OpenRouter settings, Amass retrieval, agent replay, semantic search and goal management from the original Trial app have been replaced with supported document/argument workflows.
+This integration uses implemented backend endpoints for documents, argument review, and the live research agent. CSV statistical challenges, OpenRouter settings, semantic search and goal management from the original Trial app have been replaced with supported workflows.
 
-The API has no workspace source/job listing, excerpt lookup by ID, annotation listing, source-validity read endpoint, or event-history endpoint. Therefore:
+Workspace sources and their latest validity decisions load from the backend, including sources imported by agents or other browser sessions. The API has no workspace job listing, excerpt lookup by ID, annotation listing, or general graph-event history endpoint. Therefore:
 
-- Returned source/job IDs and source-validity decisions are remembered in this browser, scoped to each workspace. Exact text and job state are always fetched from the backend. Use **Reconnect a source or extraction job** in Material with IDs from another session or the exported snapshot. A missing source appears as an unavailable linked excerpt, never an invented quote.
-- Source validity shown in the inspector is explicitly labelled as the last decision in this browser; the verifier reads authoritative backend validity.
+- Extraction job IDs are remembered in this browser, scoped to each workspace. Use **Reconnect a source or extraction job** in Material with job IDs from another session or the exported snapshot. Exact source text, excerpts, validity, and job state are fetched from the backend. A missing validity decision remains unknown.
 - Statement context exposes statement issues and obligations. Reasoning-step findings are included in verification totals but cannot be fetched in detail through the current API. The UI states this limitation rather than claiming complete visibility.
 - Annotation submissions show the returned patch ID; full server annotation history is unavailable. Verification and Claude action summaries are the actual responses from the current browser session, not a durable event ledger.
 
 Claude actions require `CLAUDE_API_KEY` and a running worker for extraction. Missing credentials or provider failures appear as real API/job errors. Manual graph editing, review, source validity and deterministic verification remain usable without a model provider.
+
+## Live research
+
+The composer defaults to **Add material**: pasted text becomes a UTF-8 Markdown source, attachments use the existing source upload, and both request automatic extraction through `uploadResearch(..., true, ...)`. Material can exceed the 2,000-character agent prompt limit (up to 10 MB), and no research-agent run is started. Uploaded sources appear as durable material cards in the conversation with a link to the source inspector. The mode switch preserves the draft and files, and remains usable when agent history is unavailable. The home page’s **Ask a research question** button selects Agent; **Add material** beside the graph selects material and focuses the composer.
+
+In **Agent** mode, the chat composer submits a question, claim, or hypothesis to `POST /workspaces/{id}/agent-runs` in guarded mode. Plain text is an agent prompt; attached documents are uploaded as sources before the prompt is queued. Attachment-only messages ask the agent to map the documents’ claims and reasoning. **Enter** sends, **Shift+Enter** inserts a new line, and IME composition does not accidentally send a message. **Research options** sets up to eight completion criteria and falsifiers, research steps (1–60), and web searches (0–25). The backend selects the model. Identical failed submissions retain their idempotency key for retry.
+
+Runs are listed from the server every three seconds and displayed as chronological user/agent exchanges beside the graph, including after reloading. Each run’s activity uses the `after` sequence cursor, polling every two seconds while active and draining every page when loading history. A final poll captures completion events. The composer remains available while research is active so follow-ups can queue. Runs continue when the user changes graph views or hides chat. Cancellation uses `DELETE /agent-runs/{id}`; the header stops active research, and each queued exchange can be cancelled separately. Status, usage, estimated cost, provider errors, final report, and certainty come from the backend.
+
+Workers process messages in order, with one running agent per workspace. A workspace lock prevents competing workers from claiming different follow-ups simultaneously. Before each run, the backend rebuilds the last eight completed exchanges and a bounded index of the workspace’s sources, claims, grounding excerpts, and reasoning. Follow-ups can reuse these IDs and extend the same graph; they must read relevant source excerpts again before relying on them. Conversation and graph context are isolated by workspace. No database migration is needed for conversation memory.
+
+Claims and reasoning are already proposed graph objects; the workspace snapshot refreshes every three seconds. `GET /workspaces/{id}/sources` discovers all workspace sources, so agent-imported papers and web pages appear in Material and the exact-excerpt inspector. Agent run responses include the goal's question and kind so history remains identifiable across browser sessions.
+
+The agent requires `CLAUDE_API_KEY` and the worker. `AMASS_API_KEY` enables literature search; web search does not require a separate key. No run starts automatically on navigation or reload.

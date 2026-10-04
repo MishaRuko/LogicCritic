@@ -22,3 +22,24 @@ export type PatchOperation =
   | { op: 'create_relation'; source_node_kind: 'statement' | 'reasoning_step'; source_node_id: string; relation: 'supports' | 'rebuts' | 'undercuts' | 'qualifies' | 'specializes' | 'revises'; target_node_kind: 'statement' | 'reasoning_step'; target_node_id: string; metadata: Record<string, unknown> }
   | { op: 'create_annotation'; subject_type: 'statement' | 'reasoning_step'; subject_id: string; type: string; value: Record<string, unknown>; provenance: Provenance; confidence?: number; status?: 'proposed' };
 export interface Snapshot { workspace: Workspace; graph: Graph; contexts: Context[]; sources: SourceWithExcerpts[]; jobs: Job[]; validity: Record<string, Validity> }
+export type AgentRunStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'budget_exhausted';
+export interface AgentRunInput {
+  question: string;
+  kind: 'question' | 'claim' | 'hypothesis';
+  mode: 'guarded' | 'baseline';
+  completion_criteria: string[];
+  falsifiers: string[];
+  max_turns?: number;
+  max_web_searches?: number;
+}
+export interface AgentRun {
+  id: string; workspace_id: string; goal_id: string; mode: string; model: string;
+  question: string; kind: AgentRunInput['kind'];
+  status: AgentRunStatus;
+  budgets: { max_turns: number; max_web_searches: number; max_total_output_tokens: number };
+  usage: { turns?: number; web_searches?: number; input_tokens?: number; output_tokens?: number; cost_usd?: number; judge?: Record<string, unknown> };
+  error: string | null; final_report: string | null; final_statement_id: string | null;
+  certainty: 'established' | 'conditional' | 'hypothesis' | 'abstained' | null;
+  created_at: string; started_at: string | null; completed_at: string | null;
+}
+export interface AgentEvent { seq: number; type: string; payload: Record<string, unknown>; created_at: string }

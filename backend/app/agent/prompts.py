@@ -35,7 +35,7 @@ conclusion, abstain.
 7. After finalizing, write a short answer: the conclusion, its certainty, every caveat, and \
 nothing the recorded evidence does not support.
 
-Rules: use only ids that tools returned. Cite only excerpts you have read. Association is \
+Rules: use only ids that tools returned or that the workspace context lists. Cite only excerpts you have read. Association is \
 not causation. Be economical: you have a limited number of turns and searches."""
 
 BASELINE_SYSTEM = """\
