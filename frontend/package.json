@@ -9,7 +9,9 @@
     "start": "next start --hostname 127.0.0.1 --port 5173",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
-    "test:e2e": "node tests/e2e/api-flow.mjs"
+    "test:e2e": "node tests/e2e/api-flow.mjs",
+    "eval:agent": "tsx scripts/experiment/eval-agent.ts",
+    "fetch-experiment-data": "python3 scripts/experiment/fetch-demo-data.py"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",
@@ -37,6 +39,7 @@
     "jsdom": "^26.1.0",
     "postcss": "^8.5.28",
     "tailwindcss": "^4.1.0",
+    "tsx": "^4.23.15",
     "typescript": "^5.9.0",
     "vite": "^6.3.0",
     "vitest": "^3.2.0"
