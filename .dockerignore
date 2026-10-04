@@ -1,0 +1,11 @@
+.git
+.env
+**/node_modules
+**/.next
+**/.venv
+**/__pycache__
+**/.pytest_cache
+vision/data
+vision/runs
+backend/build
+**/*.egg-info

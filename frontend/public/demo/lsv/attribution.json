@@ -1,0 +1,14 @@
+{
+  "dataset": "LabSuperVision / LabOS LSV",
+  "source": "https://huggingface.co/datasets/cong-lab/lsv",
+  "revision": "91eaf452d8ff2eeb1d5767d4198d1f6a965183c5",
+  "license": "CC-BY-NC-4.0",
+  "clip": "DJI_08",
+  "original_duration_seconds": 270.803867,
+  "trim_seconds": [
+    0,
+    30
+  ],
+  "analysis_source": "materials-mvp/data/fixtures/agent-runs.json",
+  "analysis_note": "Saved model observations restricted to evidence inside the first 30 seconds. No observations beyond the trim are included."
+}

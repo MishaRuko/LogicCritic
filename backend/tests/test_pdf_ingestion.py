@@ -168,3 +168,63 @@ def test_page_limit(monkeypatch: pytest.MonkeyPatch) -> None:
     with pytest.raises(PdfIngestionError) as error:
         parse_pdf(make_pdf([[SENTENCE]] * 3))
     assert error.value.code == "too_many_pages"
+
+
+def test_numbered_procedure_steps_are_not_discarded_as_headings():
+    parsed = parse_pdf(
+        make_pdf(
+            [
+                [
+                    "Procedure",
+                    "1. Spray hands with ethanol",
+                    "2. Get all reagents",
+                    "3. Place dish in cabinet",
+                ]
+            ]
+        )
+    )
+    assert texts(parsed) == [
+        "1. Spray hands with ethanol",
+        "2. Get all reagents",
+        "3. Place dish in cabinet",
+    ]
+    assert all(e.locator["section"] == "Procedure" for e in parsed.excerpts)
+
+
+def test_protocol_phases_and_steps_survive_page_breaks():
+    parsed = parse_pdf(
+        make_pdf(
+            [
+                [
+                    "Protocol",
+                    "1. Preparation of the Gel",
+                    "1. Weigh the agarose.",
+                    "2. Add buffer.",
+                ],
+                [
+                    "3. Pour the gel.",
+                    "2. Separation of DNA Fragments",
+                    "1. Load samples.",
+                    "2. Run the gel.",
+                    "3. Observing DNA fragments",
+                    "1. Photograph the gel.",
+                    "4. Representative Results",
+                    "DNA fragments appear as distinct fluorescent bands.",
+                ],
+            ]
+        )
+    )
+    methods = [e for e in parsed.excerpts if e.locator.get("methodology_section")]
+    assert [e.text for e in methods] == [
+        "1. Weigh the agarose.",
+        "2. Add buffer.",
+        "3. Pour the gel.",
+        "1. Load samples.",
+        "2. Run the gel.",
+        "1. Photograph the gel.",
+    ]
+    groups = [e.locator["protocol_group"] for e in methods]
+    assert groups[0] == groups[1] == groups[2]
+    assert groups[3] == groups[4] and groups[3] != groups[0]
+    assert groups[5] not in {groups[0], groups[3]}
+    assert not parsed.excerpts[-1].locator.get("methodology_section")

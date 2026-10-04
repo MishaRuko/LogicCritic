@@ -28,6 +28,40 @@ class Workspace(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class ExperimentProtocol(Base):
+    __tablename__ = "experiment_protocols"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"))
+    source_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("sources.id", ondelete="CASCADE"))
+    protocol: Mapped[dict] = mapped_column(JSONB)
+    step_excerpts: Mapped[dict] = mapped_column(JSONB)
+    research_fingerprint: Mapped[str] = mapped_column(String(64))
+    extraction_method: Mapped[str] = mapped_column(String(32))
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ExperimentRun(Base):
+    __tablename__ = "experiment_runs"
+    __table_args__ = (Index("ix_experiment_runs_status_created", "status", "created_at"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"))
+    protocol_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("experiment_protocols.id", ondelete="CASCADE")
+    )
+    status: Mapped[str] = mapped_column(String(32), default="queued")
+    mode: Mapped[str] = mapped_column(String(16))
+    filename: Mapped[str] = mapped_column(String(512))
+    storage_key: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    result: Mapped[dict] = mapped_column(JSONB, default=dict)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class Source(Base):
     __tablename__ = "sources"
     __table_args__ = (
@@ -353,15 +387,21 @@ class EvaluationCase(Base):
 
 class EvaluationOutput(Base):
     __tablename__ = "evaluation_outputs"
-    __table_args__ = (UniqueConstraint("evaluation_case_id", "arm", name="uq_evaluation_outputs_case_arm"),)
+    __table_args__ = (
+        UniqueConstraint("evaluation_case_id", "arm", name="uq_evaluation_outputs_case_arm"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     evaluation_case_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("evaluation_cases.id", ondelete="CASCADE")
     )
     arm: Mapped[str] = mapped_column(String(16))
-    workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id", ondelete="RESTRICT"))
-    agent_run_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("agent_runs.id", ondelete="RESTRICT"))
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="RESTRICT")
+    )
+    agent_run_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("agent_runs.id", ondelete="RESTRICT")
+    )
     answer: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(32))
     usage: Mapped[dict] = mapped_column(JSONB, default=dict)
@@ -402,4 +442,15 @@ class EvaluationScore(Base):
     material: Mapped[dict] = mapped_column(JSONB)
     score: Mapped[dict] = mapped_column(JSONB)
     usage: Mapped[dict] = mapped_column(JSONB, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ExperimentRecord(Base):
+    """A content-addressed report linked to its durable experiment run."""
+
+    __tablename__ = "experiment_records"
+
+    record_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    run_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("experiment_runs.id", ondelete="CASCADE"))
+    record: Mapped[dict] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

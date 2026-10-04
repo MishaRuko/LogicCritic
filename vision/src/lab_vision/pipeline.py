@@ -47,6 +47,7 @@ class Pipeline:
         min_confidence: float = 0.6,
         source_name: str = "unknown",
         run_id_factory: Callable[[], str] = new_id,
+        complete_recording: bool = True,
     ) -> None:
         self.protocol = protocol
         self.source = source
@@ -60,6 +61,7 @@ class Pipeline:
         self.min_confidence = min_confidence
         self.source_name = source_name
         self._run_id_factory = run_id_factory
+        self.complete_recording = complete_recording
 
     def run(self) -> RunResult:
         run_id = self._run_id_factory()
@@ -97,9 +99,10 @@ class Pipeline:
                     deviations.append(deviation)
                     self._emit(lambda s, d=deviation: s.on_deviation(d))
 
-        for deviation in verifier.finalize(last_span):
-            deviations.append(deviation)
-            self._emit(lambda s, d=deviation: s.on_deviation(d))
+        if self.complete_recording:
+            for deviation in verifier.finalize(last_span):
+                deviations.append(deviation)
+                self._emit(lambda s, d=deviation: s.on_deviation(d))
 
         summary = RunSummary(
             run_id=run_id,

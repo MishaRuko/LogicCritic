@@ -1,4 +1,5 @@
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
 from sqlalchemy import select
@@ -47,7 +48,11 @@ class Finding:
     required_condition: str
 
 
-async def run_verification(session: AsyncSession, workspace_id: uuid.UUID) -> VerificationResponse:
+async def run_verification(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    on_progress: Callable[[dict], Awaitable[None]] | None = None,
+) -> VerificationResponse:
     statements = list(
         await session.scalars(select(Statement).where(Statement.workspace_id == workspace_id))
     )
@@ -84,15 +89,42 @@ async def run_verification(session: AsyncSession, workspace_id: uuid.UUID) -> Ve
         premise_map.setdefault(step_id, []).append(statement_id)
     inferred_ids = {step.conclusion_id for step in steps if step.lifecycle != "rejected"}
 
-    findings = [
-        *_ungrounded_findings(statements, evidence_ids, inferred_ids),
-        *_missing_premise_findings(steps, premise_map, annotation_map),
-        *_causality_findings(statements, annotation_map),
-        *_scope_leap_findings(steps, annotation_map),
-        *_direct_conflict_findings(statements, annotation_map),
-        *_reported_limitation_findings(statements),
-        *await _invalidated_source_findings(session, workspace_id),
+    statement_ids = [str(item.id) for item in statements]
+    step_ids = [str(item.id) for item in steps]
+    source_ids = (
+        [str(item) for item in await session.scalars(
+            select(Source.id).where(Source.workspace_id == workspace_id)
+        )]
+        if on_progress else []
+    )
+    rules = [
+        ("ungrounded_statement", statement_ids,
+         lambda: _ungrounded_findings(statements, evidence_ids, inferred_ids)),
+        ("missing_premise", step_ids,
+         lambda: _missing_premise_findings(steps, premise_map, annotation_map)),
+        ("causality_overclaim", statement_ids,
+         lambda: _causality_findings(statements, annotation_map)),
+        ("scope_leap", step_ids, lambda: _scope_leap_findings(steps, annotation_map)),
+        ("direct_conflict", statement_ids,
+         lambda: _direct_conflict_findings(statements, annotation_map)),
+        ("invalidated_source", source_ids, None),
+        ("reported_limitation", statement_ids, lambda: _reported_limitation_findings(statements)),
     ]
+    findings = []
+    if on_progress:
+        await on_progress({"type": "started", "rules": RULE_CODES})
+    for code, node_ids, check in rules:
+        if on_progress:
+            await on_progress({"type": "rule_started", "rule_code": code, "node_ids": node_ids})
+        current = check() if check else await _invalidated_source_findings(session, workspace_id)
+        findings.extend(current)
+        if on_progress:
+            await on_progress({
+                "type": "rule_completed", "rule_code": code, "node_ids": node_ids,
+                "findings": [{"node_id": str(item.node_id), "node_type": item.node_type,
+                              "message": item.details.get("message", item.obligation_description)}
+                             for item in current],
+            })
     return await _reconcile_findings(session, workspace_id, findings)
 
 
@@ -369,11 +401,14 @@ async def _reconcile_findings(
             obligation.status = "resolved"
             obligations_resolved += 1
 
+    from app.services.research_state import research_fingerprint
+
     event = GraphEvent(
         workspace_id=workspace_id,
         event_type="verification_run",
         idempotency_key=f"verify:{uuid.uuid4()}",
         payload={
+            "research_fingerprint": await research_fingerprint(session, workspace_id),
             "rules": RULE_CODES,
             "issues_opened": issues_opened,
             "issues_resolved": issues_resolved,

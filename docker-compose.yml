@@ -24,7 +24,8 @@ services:
   api:
     restart: unless-stopped
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
     environment:
       APP_ENV: ${APP_ENV:-development}
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost}
@@ -33,6 +34,10 @@ services:
       UPLOAD_DIR: ${UPLOAD_DIR:-/data/uploads}
       CLAUDE_API_KEY: ${CLAUDE_API_KEY:-}
       CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-sonnet-5}
+      VISION_MODEL: ${VISION_MODEL:-claude-opus-5-5}
+      VISION_EFFORT: ${VISION_EFFORT:-medium}
+      VISION_FALLBACKS: ${VISION_FALLBACKS:-true}
+      VISION_STRATEGY: ${VISION_STRATEGY:-agent}
       AMASS_API_KEY: ${AMASS_API_KEY:-}
       AGENT_MODEL: ${AGENT_MODEL:-claude-sonnet-5-5}
       AGENT_JUDGE_MODEL: ${AGENT_JUDGE_MODEL:-claude-sonnet-5}
@@ -65,7 +70,8 @@ services:
 
   worker:
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
     command: python -m app.worker
     environment:
       APP_ENV: ${APP_ENV:-development}
@@ -74,6 +80,10 @@ services:
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       CLAUDE_API_KEY: ${CLAUDE_API_KEY:-}
       CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-sonnet-5}
+      VISION_MODEL: ${VISION_MODEL:-claude-opus-5-5}
+      VISION_EFFORT: ${VISION_EFFORT:-medium}
+      VISION_FALLBACKS: ${VISION_FALLBACKS:-true}
+      VISION_STRATEGY: ${VISION_STRATEGY:-agent}
       AMASS_API_KEY: ${AMASS_API_KEY:-}
       UPLOAD_DIR: ${UPLOAD_DIR:-/data/uploads}
       AGENT_MODEL: ${AGENT_MODEL:-claude-sonnet-5-5}
@@ -96,6 +106,11 @@ services:
     volumes:
       - uploads:/data/uploads
     restart: unless-stopped
+
+  replay-worker:
+    extends:
+      service: worker
+    command: python -m app.replay_worker
 
   postgres:
     image: pgvector/pgvector:pg17

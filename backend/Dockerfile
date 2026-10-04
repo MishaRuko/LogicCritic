@@ -5,11 +5,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY pyproject.toml ./
-COPY app ./app
-COPY alembic.ini ./
-COPY alembic ./alembic
-RUN pip install --no-cache-dir .
+COPY backend/pyproject.toml ./
+COPY backend/app ./app
+COPY backend/alembic.ini ./
+COPY backend/alembic ./alembic
+COPY vision /opt/lab-vision
+RUN pip install --no-cache-dir . /opt/lab-vision
 
 RUN useradd --create-home appuser && mkdir -p /data/uploads && chown -R appuser:appuser /data
 USER appuser

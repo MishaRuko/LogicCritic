@@ -5,11 +5,13 @@ import { CornersOutIcon } from '@phosphor-icons/react';
 import type { ResearchGraph, ResearchNode } from '../../lib/research/graph';
 import { researchCentre, researchGlyphSize, researchSize, stableLayout, type XY } from '../../lib/research/layout';
 import { ResearchGlyph, researchColor } from './ResearchGlyph';
-type ArgumentNode = Node<{ argument: ResearchNode; dimmed: boolean }, 'argument'>;
+import { verificationHighlights, type VerificationTrace } from '../../lib/research/verification';
+import { useReducedMotion } from 'framer-motion';
+type ArgumentNode = Node<{ argument: ResearchNode; dimmed: boolean; check?: 'checking' | 'checked' | 'attention' }, 'argument'>;
 const GraphNode = memo(function GraphNode({ data, selected }: NodeProps<ArgumentNode>) {
   const node = data.argument;
   return <div style={{ ...researchSize(node), opacity: data.dimmed ? .3 : 1 }} className="research-graph-node flex flex-col items-center pt-1 text-center" data-testid={`research-node-${node.id}`} title={node.label}>
-    <div className={cn('rounded-full', selected && 'outline outline-offset-4 outline-zinc-400')}><ResearchGlyph kind={node.kind} state={node.state} proposed={node.proposed} size={researchGlyphSize(node)}/></div>
+    <div className={cn('rounded-full transition-shadow duration-300', selected && 'outline outline-offset-4 outline-zinc-400', data.check === 'checking' && 'research-verification-active', data.check === 'checked' && 'outline outline-offset-4 outline-pass/40', data.check === 'attention' && 'outline outline-offset-4 outline-warn/70')}><ResearchGlyph kind={node.kind} state={node.state} proposed={node.proposed} size={researchGlyphSize(node)}/></div>
     <Handle type="target" position={Position.Left} id="in" style={{ top: researchCentre(node), left: researchSize(node).width / 2 - researchGlyphSize(node) / 2 }}/>
     <Handle type="source" position={Position.Right} id="out" style={{ top: researchCentre(node), left: researchSize(node).width / 2 + researchGlyphSize(node) / 2 }}/>
     <Handle type="source" position={Position.Left} id="back-out" style={{ top: researchCentre(node), left: researchSize(node).width / 2 - researchGlyphSize(node) / 2 }}/>
@@ -18,6 +20,7 @@ const GraphNode = memo(function GraphNode({ data, selected }: NodeProps<Argument
     <Handle type="target" position={Position.Top} id="above-in" style={{ top: 4, left: '50%' }}/>
     <div className={cn('mt-1.5 line-clamp-3 max-w-full bg-paper/90 px-1 text-xs leading-tight', node.kind === 'conclusion' && 'text-[15px] font-medium tracking-tight')}>{node.label}</div>
     <div className="mt-1 line-clamp-3 max-w-full px-1 text-[9px] leading-tight text-zinc-500">{node.proposed ? 'Needs review · ' : ''}{node.detail}</div>
+    {data.check && <span className={cn('mt-1 text-[9px]', data.check === 'checking' ? 'text-running' : data.check === 'attention' ? 'text-warn' : 'text-pass')}>{data.check === 'checking' ? 'Checking' : data.check === 'attention' ? 'Finding · needs review' : 'Checked'}</span>}
   </div>;
 });
 function AboveEdge(props: EdgeProps) {
@@ -30,20 +33,23 @@ function AboveEdge(props: EdgeProps) {
 }
 const edgeTypes = { above: AboveEdge };
 const nodeTypes = { argument: GraphNode };
-export function ResearchCanvas({ graph, selected, onSelect }: { graph: ResearchGraph; selected?: string; onSelect: (id?: string) => void }) {
+export function ResearchCanvas({ graph, selected, onSelect, verification }: { graph: ResearchGraph; selected?: string; onSelect: (id?: string) => void; verification?: VerificationTrace }) {
   const container = useRef<HTMLDivElement>(null);
   const positions = useRef<Record<string, XY>>({});
   const [flow, setFlow] = useState<ReactFlowInstance<ArgumentNode> | null>(null);
   const [hovered, setHovered] = useState<string>();
   const [layoutVersion, setLayoutVersion] = useState(0);
+  const reducedMotion = useReducedMotion();
+  const highlights = useMemo(() => verificationHighlights(verification), [verification]);
+  const checkingIds = useMemo(() => new Set(graph.nodes.filter(node => highlights.active.has(node.id) || node.sourceIds.some(id => highlights.active.has(id))).map(node => node.id)), [graph, highlights]);
   const nodes = useMemo(() => {
     positions.current = stableLayout(graph, positions.current);
     const focus = hovered ?? selected;
     const focusedEdge = graph.edges.find(e => e.id === focus);
     const neighbours = new Set([focus, ...(focusedEdge ? [focusedEdge.source, focusedEdge.target] : []), ...graph.nodes.filter(n => focus && n.sourceIds.includes(focus)).map(n => n.id), ...graph.edges.flatMap(e => e.source === focus ? [e.target] : e.target === focus ? [e.source] : [])]);
     return graph.nodes.map(n => ({ id: n.id, type: 'argument' as const, position: positions.current[n.id], ...researchSize(n),
-      selected: selected === n.id, data: { argument: n, dimmed: !!focus && !neighbours.has(n.id) }, ariaLabel: `${n.label}, ${n.state}` }));
-  }, [graph, selected, hovered, layoutVersion]);
+      selected: selected === n.id, data: { argument: n, dimmed: !!focus && !neighbours.has(n.id), check: checkingIds.has(n.id) ? 'checking' as const : highlights.attention.has(n.id) || n.sourceIds.some(id => highlights.attention.has(id)) ? 'attention' as const : highlights.checked.has(n.id) || n.sourceIds.some(id => highlights.checked.has(id)) ? 'checked' as const : undefined }, ariaLabel: `${n.label}, ${n.state}` }));
+  }, [graph, selected, hovered, layoutVersion, highlights, checkingIds]);
   const edges = useMemo(() => {
     let lane = 0;
     const top = Math.min(0, ...nodes.map(n => n.position.y)) - 64;
@@ -51,12 +57,20 @@ export function ResearchCanvas({ graph, selected, onSelect }: { graph: ResearchG
       const source = positions.current[e.source], target = positions.current[e.target];
       const above = e.relation === 'concerns' || (source && target && Math.abs(source.x - target.x) > 500 && e.relation !== 'blocks');
       const backwards = source && target && source.x > target.x;
+      const checking = checkingIds.has(e.source) || checkingIds.has(e.target);
       return { ...e, type: above ? 'above' : 'default', data: { routeY: above ? top - lane++ * 24 : undefined },
         sourceHandle: above ? 'above-out' : backwards ? 'back-out' : 'out', targetHandle: above ? 'above-in' : backwards ? 'back-in' : 'in', label: `${e.relation.replace(/_/g, ' ')}${e.auditVerdict === 'needs_review' ? ' · needs review' : e.auditVerdict === 'supported' ? ' · audited' : ''}`,
-        style: { stroke: e.auditVerdict === 'needs_review' ? researchColor('warn') : e.relation === 'blocks' || e.relation === 'rebuts' || e.relation === 'undercuts' ? researchColor('fail') : '#a1a1aa', strokeWidth: 1, strokeDasharray: e.proposed ? '3 3' : undefined },
+        animated: checking && !reducedMotion,
+        style: { stroke: checking ? '#60a5fa' : e.auditVerdict === 'needs_review' ? researchColor('warn') : e.relation === 'blocks' || e.relation === 'rebuts' || e.relation === 'undercuts' ? researchColor('fail') : '#a1a1aa', strokeWidth: checking ? 1.8 : 1, strokeDasharray: checking ? '5 5' : e.proposed ? '3 3' : undefined },
         labelStyle: { fill: '#85858e', fontSize: 9 }, labelBgStyle: { fill: '#fafaf9', fillOpacity: .96 }, labelBgPadding: [6, 3] as [number, number] };
     });
-  }, [graph, nodes]);
+  }, [graph, nodes, checkingIds, reducedMotion]);
+  useEffect(() => {
+    if (!flow || !checkingIds.size) return;
+    const focus = new Set(checkingIds);
+    for (const edge of graph.edges) if (checkingIds.has(edge.source) || checkingIds.has(edge.target)) { focus.add(edge.source); focus.add(edge.target); }
+    void flow.fitView({ nodes: [...focus].map(id => ({ id })), padding: .35, maxZoom: 1.1, duration: reducedMotion ? 0 : 350 });
+  }, [flow, checkingIds, graph.edges, reducedMotion]);
   useEffect(() => { if (flow) void flow.fitView({ padding: .2, maxZoom: 1.1, duration: 650 }); }, [flow, !!selected, graph.nodes.length]);
   useEffect(() => {
     if (!flow || !container.current) return;

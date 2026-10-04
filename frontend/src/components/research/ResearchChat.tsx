@@ -7,13 +7,15 @@ import { agentStatusLabel, eventDescription, eventTitle, isAgentActive, safeSour
 import type { AgentEvent, AgentRun, Snapshot } from '../../types/api';
 import type { UploadProgress } from '../../lib/research/api';
 import { ResearchComposer, ResearchProgress, type ResearchComposerMode, type ResearchMessage } from './ResearchUpload';
+import { ResearchUncertainty } from './ResearchUncertainty';
 
 export type ChatLayout = { dock: 'centre' | 'side'; open: boolean; details: boolean };
 export const isSidebarOpen = (layout: ChatLayout) => layout.dock === 'side' ? layout.open : layout.details;
 export const withSidebar = (layout: ChatLayout, open: boolean): ChatLayout => layout.dock === 'side' ? { ...layout, open } : { ...layout, details: open };
 const slide = { duration: 0.24, ease: [0.32, 0.72, 0, 1] } as const;
 
-export function ResearchChat({ mode, onModeChange, workspaceId, runs, loading, error, busy, layout, onLayout, state, progress, onSubmit, onStop, onSelect, onRetry, onCancelExtraction }: {
+export function ResearchChat({ mode, onModeChange, workspaceId, runs, loading, error, busy, layout, onLayout, state, progress, onSubmit, onStop, onSelect, onRetry, onCancelExtraction, suspended = false }: {
+  suspended?: boolean;
   mode: ResearchComposerMode; onModeChange: (mode: ResearchComposerMode) => void;
   workspaceId?: string; runs: AgentRun[]; loading: boolean; error: Error | null; busy: boolean;
   layout: ChatLayout; onLayout: Dispatch<SetStateAction<ChatLayout>>;
@@ -40,8 +42,8 @@ export function ResearchChat({ mode, onModeChange, workspaceId, runs, loading, e
   }, [workspaceId, entries.length, scrollToLatest]);
 
   const dock = workspaceId ? layout.dock : 'centre';
-  const sideOpen = !!workspaceId && isSidebarOpen(layout);
-  const centreOpen = dock === 'centre' && (!workspaceId || layout.open);
+  const sideOpen = !suspended && !!workspaceId && isSidebarOpen(layout);
+  const centreOpen = !suspended && dock === 'centre' && (!workspaceId || layout.open);
   const home = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLDivElement>(null);
   const sideSlot = useRef<HTMLDivElement>(null);
@@ -81,6 +83,7 @@ export function ResearchChat({ mode, onModeChange, workspaceId, runs, loading, e
         {workspaceId && dock === 'centre' && mode === 'agent' && latest && <div role="status" aria-label="Agent summary" className="mb-3 rounded-lg border border-line bg-white px-4 py-3"><div className="flex items-center justify-between gap-2"><p className="flex items-center gap-2 text-[11px] text-zinc-500">{isAgentActive(latest) && <span className="research-processing-dot" aria-hidden/>}Research agent · {agentStatusLabel(latest.status)}</p><div className="flex gap-1">{running && <Button size="xs" variant="ghost" disabled={busy} icon={<StopIcon size={12}/>} onClick={() => onStop(running)}>Stop</Button>}<Button size="xs" variant="ghost" onClick={() => onLayout(current => withSidebar(current, true))}>View details</Button></div></div>{!sideOpen && <p className={cn('mt-2 line-clamp-2 whitespace-pre-wrap break-words text-xs leading-5', latest.error ? 'text-fail' : 'text-zinc-500')}>{latest.final_report || latest.error || latest.question}</p>}</div>}
         {workspaceId && error && !sideOpen && <div role="alert" className="mb-3 text-[11px] text-fail">{error.message}<Button size="xs" variant="ghost" onClick={onRetry}>Retry connection</Button></div>}
         <div ref={home}><div ref={composer} className="research-upload-stack" data-chat-open="true" data-agent-mode={mode === 'agent'} data-dock={dock}>
+          <ResearchUncertainty key={workspaceId ?? 'new'} run={latest} state={state} loading={loading} unavailable={!!error}/>
           <ResearchProgress progress={progress} state={state} busy={busy} onCancel={onCancelExtraction}/>
           <ResearchComposer mode={mode} onModeChange={onModeChange} workspaceId={workspaceId} busy={busy} blocked={mode === 'agent' && (!!workspaceId && loading || !!error)} processing={!!active.length} queued={running ? queued.length : Math.max(0, queued.length - 1)} submit={async message => { await onSubmit(message); follow.current = true; scrollToLatest(); }} actions={workspaceId ? <>
             <Button size="xs" variant="ghost" shape="square" aria-label={dock === 'side' ? 'Move chat to centre' : 'Move chat to sidebar'} title={dock === 'side' ? 'Move chat to centre' : 'Move chat to sidebar'} icon={<SidebarSimpleIcon size={14} mirrored weight={dock === 'side' ? 'fill' : 'regular'}/>} onClick={() => onLayout(current => ({ dock: current.dock === 'side' ? 'centre' : 'side', open: true, details: false }))}/>
@@ -89,7 +92,7 @@ export function ResearchChat({ mode, onModeChange, workspaceId, runs, loading, e
           <p className="mt-2 text-center text-[9px] text-zinc-400">Enter to send · Shift+Enter for a new line · {mode === 'agent' ? 'Agent research uses paid model tokens' : 'Extraction uses paid model tokens'}</p>
         </div></div>
       </div></div></motion.div>
-      <AnimatePresence initial={false}>{workspaceId && !layout.open && <motion.div key="show-chat" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={slide} className="overflow-hidden">
+      <AnimatePresence initial={false}>{workspaceId && !layout.open && !suspended && <motion.div key="show-chat" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={slide} className="overflow-hidden">
         <div className="flex justify-center border-t border-line py-2"><Button size="xs" variant="ghost" icon={<CaretUpIcon size={12}/>} onClick={() => onLayout(current => ({ ...current, open: true }))}>Show chat</Button></div>
       </motion.div>}</AnimatePresence>
     </div>
