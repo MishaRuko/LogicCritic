@@ -449,6 +449,7 @@ class ExperimentRecord(Base):
     """A content-addressed report linked to its durable experiment run."""
 
     __tablename__ = "experiment_records"
+    __table_args__ = (Index("ix_experiment_records_run", "run_id", "created_at"),)
 
     record_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
     run_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("experiment_runs.id", ondelete="CASCADE"))
