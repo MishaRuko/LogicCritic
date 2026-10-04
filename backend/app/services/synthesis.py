@@ -1,10 +1,8 @@
 """Conservative, append-only cross-source claim linking."""
 
-import json
 import uuid
 from typing import Literal
 
-import httpx
 from fastapi import HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -13,8 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.models import Excerpt, GraphEdge, GraphEvent, Source, Statement, StatementExcerpt
 from app.schemas import SynthesisRequest, SynthesisResponse
-from app.services.claude_errors import describe_claude_failure, ensure_complete
-from app.services.claude_tools import strict_tool
+from app.services.claude_call import ClaudeCallFailed, get_client, structured_call
+from app.services.judge import Judge, LinkAudits
 
 
 class ProposedLink(BaseModel):
@@ -28,49 +26,26 @@ class LinkProposals(BaseModel):
     links: list[ProposedLink] = Field(default_factory=list)
 
 
-class LinkAudit(BaseModel):
-    source_statement_id: uuid.UUID
-    target_statement_id: uuid.UUID
-    relation: Literal["supports", "rebuts", "qualifies"]
-    verdict: Literal["supported", "needs_review"]
-    rationale: str = Field(min_length=1)
+PROPOSE_LINKS_SYSTEM = (
+    "Propose only high-confidence links between statements from different sources. supports "
+    "means independently compatible evidence for substantially the same proposition; rebuts "
+    "means direct incompatibility; qualifies means the second statement explicitly narrows a "
+    "scope or condition. Do not link merely related topics. Return no link when uncertain."
+)
 
 
-class LinkAudits(BaseModel):
-    audits: list[LinkAudit] = Field(default_factory=list)
-
-
-async def _tool_output(
-    model: str, system: str, name: str, schema: type[BaseModel], content: dict
-) -> BaseModel:
-    settings = get_settings()
-    try:
-        async with httpx.AsyncClient(timeout=90) as client:
-            response = await client.post(
-                "https://api.anthropic.com/v1/messages",
-                headers={"x-api-key": settings.claude_api_key, "anthropic-version": "2023-06-01"},
-                json={
-                    "model": model,
-                    "max_tokens": 8192,
-                    "system": system,
-                    "messages": [{"role": "user", "content": json.dumps(content)}],
-                    "tools": [strict_tool(name, "Return the requested structured result.", schema)],
-                    "tool_choice": {"type": "tool", "name": name},
-                },
-            )
-            response.raise_for_status()
-            ensure_complete(response.json(), "synthesis")
-        tool = next(item for item in response.json()["content"] if item["type"] == "tool_use")
-        return schema.model_validate(tool["input"])
-    except (httpx.HTTPError, KeyError, StopIteration, TypeError, ValueError) as error:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Claude synthesis request failed. {describe_claude_failure(error)}".strip(),
-        ) from error
+def _failed(error: ClaudeCallFailed) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_502_BAD_GATEWAY,
+        detail=f"Claude synthesis request failed. {error}".strip(),
+    )
 
 
 async def synthesize_workspace(
-    session: AsyncSession, workspace_id: uuid.UUID, request: SynthesisRequest
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    request: SynthesisRequest,
+    judge: Judge | None = None,
 ) -> SynthesisResponse:
     existing = await session.scalar(
         select(GraphEvent).where(
@@ -115,16 +90,21 @@ async def synthesize_workspace(
             status_code=422, detail="Workspace needs statements from at least two sources"
         )
     model = request.model or settings.claude_model
-    proposals = await _tool_output(
-        model,
-        "Propose only high-confidence links between statements from different sources. supports "
-        "means independently compatible evidence for substantially the same proposition; rebuts "
-        "means direct incompatibility; qualifies means the second statement explicitly narrows a "
-        "scope or condition. Do not link merely related topics. Return no link when uncertain.",
-        "submit_link_proposals",
-        LinkProposals,
-        {"statements": material},
-    )
+    judge = judge or Judge(get_client())
+    try:
+        proposals = await structured_call(
+            judge.client,
+            model=model,
+            system=PROPOSE_LINKS_SYSTEM,
+            content={"statements": material},
+            tool_name="submit_link_proposals",
+            description="Return the requested structured result.",
+            schema=LinkProposals,
+            task="link proposal",
+            tally=judge.usage,
+        )
+    except ClaudeCallFailed as error:
+        raise _failed(error) from error
     valid_ids = {uuid.UUID(item["statement_id"]): set(item["source_ids"]) for item in material}
     links = [
         item
@@ -149,20 +129,10 @@ async def synthesize_workspace(
         }
         for item in links
     ]
-    audits = (
-        await _tool_output(
-            model,
-            "Audit each proposed cross-source link using only the included statements and "
-            "excerpts. Mark supported only when the evidence establishes the exact relation. A "
-            "shared topic, author assertion, or unstated mechanism is insufficient; otherwise "
-            "choose needs_review.",
-            "submit_link_audits",
-            LinkAudits,
-            {"links": audit_input},
-        )
-        if links
-        else LinkAudits()
-    )
+    try:
+        audits = await judge.audit_links(audit_input, model) if links else LinkAudits()
+    except ClaudeCallFailed as error:
+        raise _failed(error) from error
     audit_map = {
         (item.source_statement_id, item.target_statement_id, item.relation): item
         for item in audits.audits

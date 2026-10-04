@@ -1,3 +1,4 @@
+import anthropic
 import httpx
 from fastapi import HTTPException, status
 
@@ -15,6 +16,10 @@ def describe_claude_failure(error: Exception) -> str:
             return f"Claude returned {response.status_code} {body['type']}: {body['message']}"
         except (ValueError, KeyError, TypeError):
             return f"Claude returned HTTP {response.status_code}."
+    if isinstance(error, anthropic.APITimeoutError):
+        return "The request to Claude timed out."
+    if isinstance(error, anthropic.APIConnectionError):
+        return f"Could not reach Claude ({type(error).__name__})."
     if isinstance(error, httpx.TimeoutException):
         return "The request to Claude timed out."
     if isinstance(error, httpx.HTTPError):

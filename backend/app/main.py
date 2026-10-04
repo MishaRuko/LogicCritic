@@ -4,6 +4,7 @@ from pathlib import Path
 from fastapi import FastAPI
 
 from app.config import get_settings
+from app.routes.agent import router as agent_router
 from app.routes.amass import router as amass_router
 from app.routes.extraction import router as extraction_router
 from app.routes.graph import router as graph_router
@@ -29,3 +30,4 @@ app.include_router(sources_router, prefix="/api")
 app.include_router(graph_router, prefix="/api")
 app.include_router(extraction_router, prefix="/api")
 app.include_router(amass_router, prefix="/api")
+app.include_router(agent_router, prefix="/api")

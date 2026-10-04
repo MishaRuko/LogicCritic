@@ -393,3 +393,42 @@ class AmassImportResponse(BaseModel):
 class AmassRefreshResponse(BaseModel):
     retracted: bool
     newly_invalidated: bool
+
+
+class AgentRunCreate(BaseModel):
+    idempotency_key: str = Field(min_length=1, max_length=255)
+    question: str = Field(
+        min_length=5, max_length=2000, description="The question, claim or hypothesis to assess."
+    )
+    kind: Literal["question", "claim", "hypothesis"] = "question"
+    completion_criteria: list[str] = Field(default_factory=list, max_length=8)
+    falsifiers: list[str] = Field(default_factory=list, max_length=8)
+    mode: Literal["guarded", "baseline"] = "guarded"
+    model: str | None = Field(default=None, max_length=255)
+    max_turns: int | None = Field(default=None, ge=1, le=60)
+    max_web_searches: int | None = Field(default=None, ge=0, le=25)
+
+
+class AgentRunResponse(APIModel):
+    id: uuid.UUID
+    workspace_id: uuid.UUID
+    goal_id: uuid.UUID
+    mode: str
+    model: str
+    status: str
+    budgets: dict
+    usage: dict
+    error: str | None
+    final_report: str | None
+    final_statement_id: uuid.UUID | None
+    certainty: str | None
+    created_at: datetime
+    started_at: datetime | None
+    completed_at: datetime | None
+
+
+class AgentEventResponse(APIModel):
+    seq: int
+    type: str
+    payload: dict
+    created_at: datetime

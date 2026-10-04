@@ -246,3 +246,58 @@ class AmassCacheEntry(Base):
     record: Mapped[dict] = mapped_column(JSONB)
     includes_fulltext: Mapped[bool] = mapped_column(Boolean, default=False)
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ResearchGoal(Base):
+    """The question an agent run investigates, and what would count as answering it."""
+
+    __tablename__ = "research_goals"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"))
+    question: Mapped[str] = mapped_column(Text)
+    kind: Mapped[str] = mapped_column(String(16), default="question", server_default="question")
+    completion_criteria: Mapped[list] = mapped_column(JSONB, default=list)
+    falsifiers: Mapped[list] = mapped_column(JSONB, default=list)
+    status: Mapped[str] = mapped_column(String(32), default="open")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AgentRun(Base):
+    __tablename__ = "agent_runs"
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "idempotency_key", name="uq_agent_runs_workspace_key"),
+        Index("ix_agent_runs_status_created", "status", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"))
+    goal_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("research_goals.id", ondelete="CASCADE"))
+    idempotency_key: Mapped[str] = mapped_column(String(255))
+    mode: Mapped[str] = mapped_column(String(16))  # "guarded" or "baseline"
+    model: Mapped[str] = mapped_column(String(255))
+    status: Mapped[str] = mapped_column(String(32), default="queued")
+    budgets: Mapped[dict] = mapped_column(JSONB, default=dict)
+    usage: Mapped[dict] = mapped_column(JSONB, default=dict)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    final_report: Mapped[str | None] = mapped_column(Text, nullable=True)
+    final_statement_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    certainty: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AgentEvent(Base):
+    """One step of a run, numbered in order. The trace the replay view and evaluation read."""
+
+    __tablename__ = "agent_events"
+    __table_args__ = (UniqueConstraint("run_id", "seq", name="uq_agent_events_run_seq"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    run_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("agent_runs.id", ondelete="CASCADE"))
+    seq: Mapped[int] = mapped_column(Integer)
+    type: Mapped[str] = mapped_column(String(32))
+    payload: Mapped[dict] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -1,0 +1,401 @@
+"""The live research loop: Claude, tools, a guardrail and a recorded trace.
+
+The loop is written by hand (not a prebuilt runner) because every step has to be recorded as it
+happens, the guardrail sits between the model and its final answer, and each run has a budget.
+"""
+
+import logging
+import time
+import uuid
+from datetime import UTC, datetime
+from typing import Any
+
+import anthropic
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from app.agent import prompts
+from app.agent.runs import EventLog
+from app.agent.tool_models import GUARD_TOOLS, RECORDING_TOOLS, RESEARCH_TOOLS
+from app.agent.toolbox import Toolbox, tool_result_text
+from app.config import get_settings
+from app.database import session_factory
+from app.models import AgentRun, ResearchGoal
+from app.services.amass import AmassNotConfigured, get_amass_client
+from app.services.claude_call import ClaudeCallFailed
+from app.services.claude_errors import describe_claude_failure
+from app.services.claude_tools import strict_tool
+from app.services.judge import DEFAULT_CRITERIA, Judge
+
+log = logging.getLogger(__name__)
+
+# USD per million tokens (input, output), from Anthropic's published list prices.
+PRICES = {
+    "claude-sonnet-5-5": (2.0, 10.0),
+    "claude-sonnet-5": (2.0, 10.0),
+    "claude-opus-5-5": (4.0, 20.0),
+    "claude-opus-5": (5.0, 25.0),
+    "claude-haiku-4-5-20251001": (1.0, 5.0),
+}
+CACHE_WRITE_FACTOR, CACHE_READ_FACTOR = 1.25, 0.1
+MAX_NUDGES = 2
+TERMINAL_TOOLS = {"finalize_conclusion", "abstain"}
+
+
+def build_tools(mode: str, max_web_searches: int) -> list[dict]:
+    specs = dict(RESEARCH_TOOLS)
+    if mode == "guarded":
+        specs |= RECORDING_TOOLS | GUARD_TOOLS
+    tools: list[dict[str, Any]] = [
+        strict_tool(name, desc, model) for name, (desc, model) in specs.items()
+    ]
+    if max_web_searches > 0:
+        tools.append(
+            {"type": "web_search_20260209", "name": "web_search", "max_uses": max_web_searches}
+        )
+    return tools
+
+
+def estimate_cost(model: str, usage: dict) -> float | None:
+    if model not in PRICES:
+        return None
+    price_in, price_out = PRICES[model]
+    return round(
+        (
+            usage["input_tokens"] * price_in
+            + usage.get("cache_write_tokens", 0) * price_in * CACHE_WRITE_FACTOR
+            + usage.get("cache_read_tokens", 0) * price_in * CACHE_READ_FACTOR
+            + usage["output_tokens"] * price_out
+        )
+        / 1_000_000,
+        4,
+    )
+
+
+async def execute_run(
+    run_id: uuid.UUID,
+    *,
+    sessions: async_sessionmaker[AsyncSession] = session_factory,
+    client: Any = None,
+    amass: Any = None,
+    judge: Judge | None = None,
+) -> None:
+    settings = get_settings()
+    async with sessions() as session:
+        run = await session.get(AgentRun, run_id)
+        if run is None or run.status != "running":
+            return
+        goal = await session.get(ResearchGoal, run.goal_id)
+        mode, model, budgets = run.mode, run.model, dict(run.budgets)
+    log_ = EventLog(sessions, run_id)
+    await log_.start()
+    await log_.add("run_started", {"mode": mode, "model": model, "budgets": budgets})
+
+    client = client or anthropic.AsyncAnthropic(api_key=settings.claude_api_key)
+    if amass is None:
+        try:
+            amass = get_amass_client()
+        except AmassNotConfigured:
+            amass = None
+    if mode != "guarded":
+        judge = None
+    elif judge is None:
+        judge = Judge(client)
+    toolbox = Toolbox(sessions, run_id, amass, judge)
+    state = _State(run_id, sessions, log_, toolbox, mode, model, budgets, judge)
+    try:
+        if judge is not None:
+            await _settle_criteria(state, goal, judge)
+        await _drive(state, client, goal)
+    except anthropic.APIError as error:
+        await state.finish(
+            "failed", error=f"Claude request failed. {describe_claude_failure(error)}"
+        )
+    except Exception as error:  # noqa: BLE001 - a run must always end in a recorded state
+        log.exception("agent run %s crashed", run_id)
+        await state.finish("failed", error=f"The run crashed: {type(error).__name__}: {error}")
+
+
+class _State:
+    def __init__(self, run_id, sessions, events, toolbox, mode, model, budgets, judge) -> None:
+        self.run_id, self.sessions, self.events, self.toolbox = run_id, sessions, events, toolbox
+        self.judge = judge
+        self.mode, self.model, self.budgets = mode, model, budgets
+        self.usage = {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cache_write_tokens": 0,
+            "cache_read_tokens": 0,
+            "turns": 0,
+            "web_searches": 0,
+        }
+        self.finished = False
+
+    async def tick(self, response: Any) -> dict[str, int]:
+        """Add this turn's usage to the run's totals, and return the turn's own numbers."""
+        u = response.usage
+        server = getattr(u, "server_tool_use", None)
+        turn = {
+            "input_tokens": getattr(u, "input_tokens", 0) or 0,
+            "output_tokens": getattr(u, "output_tokens", 0) or 0,
+            "cache_write_tokens": getattr(u, "cache_creation_input_tokens", 0) or 0,
+            "cache_read_tokens": getattr(u, "cache_read_input_tokens", 0) or 0,
+            "web_searches": getattr(server, "web_search_requests", 0) or 0,
+        }
+        self.usage["turns"] += 1
+        for name, value in turn.items():
+            self.usage[name] += value
+        await self._save(heartbeat=True)
+        return turn
+
+    async def _save(self, heartbeat: bool = False, **fields: Any) -> AgentRun:
+        async with self.sessions() as session:
+            run = await session.get(AgentRun, self.run_id)
+            run.usage = {**run.usage, **self.usage, **self._cost()}
+            if heartbeat:
+                run.heartbeat_at = datetime.now(UTC)
+            for name, value in fields.items():
+                setattr(run, name, value)
+            await session.commit()
+            return run
+
+    def _cost(self) -> dict[str, Any]:
+        """The agent's cost, plus the judge's, which is a separate model call."""
+        cost = estimate_cost(self.model, self.usage)
+        if self.judge is None or not self.judge.usage["calls"]:
+            return {"cost_usd": cost}
+        spent = {"input_tokens": 0, "output_tokens": 0} | {
+            k: v for k, v in self.judge.usage.items() if k != "calls"
+        }
+        extra = estimate_cost(self.judge.model, spent)
+        total = None if cost is None or extra is None else round(cost + extra, 4)
+        return {"cost_usd": total, "judge": dict(self.judge.usage), "judge_cost_usd": extra}
+
+    async def beat(self) -> None:
+        await self._save(heartbeat=True)
+
+    async def cancelled(self) -> bool:
+        async with self.sessions() as session:
+            run = await session.get(AgentRun, self.run_id)
+            return run.status == "cancelled"
+
+    async def finish(
+        self, status: str, *, error: str | None = None, report: str | None = None
+    ) -> None:
+        if self.finished:
+            return
+        self.finished = True
+        fields: dict[str, Any] = {"status": status, "completed_at": datetime.now(UTC)}
+        if error:
+            fields["error"] = error
+        if report is not None:
+            fields["final_report"] = report
+        run = await self._save(**fields)
+        await self.events.add(
+            "run_finished",
+            {"status": status, "error": error, "certainty": run.certainty, "usage": run.usage},
+        )
+
+
+async def _settle_criteria(state: _State, goal: ResearchGoal, judge: Judge) -> None:
+    """Hold the run to a standard of evidence: the caller's criteria, or ones proposed up front.
+
+    Proposed before any research, so they cannot be shaped to fit what the agent later finds.
+    If they cannot be proposed, generic criteria apply: the gate is never left open.
+    """
+    if goal.completion_criteria:
+        await state.events.add("criteria_given", {"criteria": list(goal.completion_criteria)})
+        return
+    try:
+        proposed = await judge.propose_criteria(goal.question, goal.kind)
+        criteria = [c.strip() for c in proposed.completion_criteria if c.strip()][:6]
+        falsifiers = [f.strip() for f in proposed.falsifiers if f.strip()][:3]
+        source = "criteria_proposed"
+    except ClaudeCallFailed:
+        criteria, falsifiers, source = list(DEFAULT_CRITERIA), [], "criteria_default"
+    criteria = criteria or list(DEFAULT_CRITERIA)
+    async with state.sessions() as session:
+        row = await session.get(ResearchGoal, goal.id)
+        row.completion_criteria = criteria
+        if not row.falsifiers:
+            row.falsifiers = falsifiers
+        await session.commit()
+        goal.completion_criteria, goal.falsifiers = row.completion_criteria, row.falsifiers
+    await state.events.add(source, {"criteria": criteria, "falsifiers": goal.falsifiers})
+    await state.beat()
+
+
+async def _drive(state: _State, client: Any, goal: ResearchGoal) -> None:
+    settings = get_settings()
+    budgets = state.budgets
+    messages: list[dict[str, Any]] = [
+        {
+            "role": "user",
+            "content": prompts.opening_message(
+                goal, state.mode, budgets["max_turns"], budgets["max_web_searches"]
+            ),
+        }
+    ]
+    tools = build_tools(state.mode, budgets["max_web_searches"])
+    system = prompts.system_prompt(state.mode)
+    nudges = 0
+    concluded = False  # a finalize or abstain was accepted; the next end_turn is the answer
+
+    for _ in range(budgets["max_turns"]):
+        if await state.cancelled():
+            return
+        if state.usage["output_tokens"] >= budgets["max_total_output_tokens"]:
+            break
+        request: dict[str, Any] = {
+            "model": state.model,
+            "max_tokens": settings.agent_turn_max_tokens,
+            "system": system,
+            "tools": tools,
+            "messages": messages,
+            "cache_control": {"type": "ephemeral"},
+            "thinking": {"type": "adaptive", "display": "summarized"},
+        }
+        if settings.agent_effort:
+            request["output_config"] = {"effort": settings.agent_effort}
+        started = time.monotonic()
+        response = await client.messages.create(**request)
+        latency = time.monotonic() - started
+        turn_usage = await state.tick(response)
+        await state.events.add(
+            "turn",
+            {
+                "turn": state.usage["turns"],
+                "stop_reason": response.stop_reason,
+                "model": getattr(response, "model", None),
+                "latency_s": round(latency, 2),
+                "usage": turn_usage,
+            },
+        )
+        await _record_blocks(state, response)
+        messages.append({"role": "assistant", "content": response.content})
+
+        reason = response.stop_reason
+        if reason == "refusal":
+            category = getattr(getattr(response, "stop_details", None), "category", None)
+            await state.finish(
+                "failed", error=f"Claude declined to continue (category: {category})."
+            )
+            return
+        if reason == "max_tokens":
+            await state.finish("failed", error="Claude's answer was cut off mid-turn.")
+            return
+        if reason == "pause_turn":
+            continue  # a server-side tool (web search) is mid-flight: send it back unchanged
+        if reason == "tool_use":
+            results, concluded_now = await _run_tools(state, response)
+            concluded = concluded or concluded_now
+            messages.append({"role": "user", "content": results})
+            continue
+
+        # end_turn: the agent has spoken.
+        text = _text_of(response)
+        if state.mode == "baseline" or concluded:
+            await _complete(state, text)
+            return
+        if nudges >= MAX_NUDGES:
+            await state.finish(
+                "failed",
+                error="The agent ended its turn without a conclusion or an abstention.",
+                report=text,
+            )
+            return
+        nudges += 1
+        await state.events.add("nudge", {"reason": "no conclusion yet", "count": nudges})
+        messages.append(
+            {
+                "role": "user",
+                "content": "You have not reached a conclusion yet. Record your conclusion, call "
+                "check_conclusion, then finalize_conclusion, or abstain if the evidence does not "
+                "support one.",
+            }
+        )
+
+    await state.finish(
+        "budget_exhausted", error="The turn or token budget ran out before an answer."
+    )
+
+
+async def _run_tools(state: _State, response: Any) -> tuple[list[dict], bool]:
+    results, concluded = [], False
+    for block in response.content:
+        if block.type != "tool_use":
+            continue
+        result = await state.toolbox.call(block.name, dict(block.input), block.id)
+        is_error = "error" in result
+        results.append(
+            {
+                "type": "tool_result",
+                "tool_use_id": block.id,
+                "content": tool_result_text(result),
+                "is_error": is_error,
+            }
+        )
+        await state.beat()  # a slow check must not make a live run look abandoned
+        kind = {"check_conclusion": "check", "finalize_conclusion": "finalization"}.get(block.name)
+        await state.events.add(
+            kind or "tool_result",
+            {"tool_use_id": block.id, "name": block.name, "result": result, "is_error": is_error},
+        )
+        if block.name in TERMINAL_TOOLS and result.get("accepted"):
+            concluded = True
+    return results, concluded
+
+
+async def _record_blocks(state: _State, response: Any) -> None:
+    """Write what the model produced this turn into the trace, leaving nothing out."""
+    for block in response.content:
+        kind = block.type
+        if kind == "thinking":
+            if getattr(block, "thinking", ""):
+                await state.events.add("thinking", {"text": block.thinking})
+        elif kind == "redacted_thinking":
+            await state.events.add("thinking", {"text": None, "redacted": True})
+        elif kind == "text":
+            if block.text.strip():
+                await state.events.add("assistant_text", {"text": block.text})
+        elif kind == "tool_use":
+            await state.events.add(
+                "tool_call",
+                {"tool_use_id": block.id, "name": block.name, "input": dict(block.input)},
+            )
+        elif kind == "server_tool_use" and block.name == "web_search":
+            await state.events.add(
+                "web_search", {"query": dict(block.input).get("query"), "tool_use_id": block.id}
+            )
+        elif kind == "web_search_tool_result":
+            content = block.content
+            if isinstance(content, list):
+                found = [
+                    {"url": getattr(i, "url", None), "title": getattr(i, "title", None)}
+                    for i in content
+                ]
+                await state.events.add("web_results", {"results": found})
+            else:
+                await state.events.add(
+                    "web_results",
+                    {"error": getattr(content, "error_code", "unavailable"), "results": []},
+                )
+        else:
+            # Server-side tools beyond web search (code execution used to filter results, and
+            # whatever comes next) are recorded as they are, so the trace stays complete.
+            await state.events.add("server_block", {"block": block.model_dump(mode="json")})
+
+
+def _text_of(response: Any) -> str:
+    return "\n".join(
+        b.text for b in response.content if b.type == "text" and b.text.strip()
+    ).strip()
+
+
+async def _complete(state: _State, text: str) -> None:
+    run = await state._save()
+    report = text
+    if state.mode == "guarded" and run.certainty and run.certainty != "abstained":
+        report += f"\n\n[Verifier record] Final certainty: {run.certainty}."
+    if run.certainty == "abstained" and run.final_report:
+        report = f"{run.final_report}\n\n{text}".strip()
+    await state.finish("succeeded", report=report)
