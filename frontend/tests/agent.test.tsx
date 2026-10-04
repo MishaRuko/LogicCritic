@@ -59,7 +59,7 @@ describe('research conversation', () => {
     await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({
       mode: 'agent', prompt: 'Does treatment X work?', files: [], options: {
         kind: 'hypothesis', mode: 'guarded', completion_criteria: ['Human trials', 'Replication'],
-        falsifiers: [], max_turns: 30, max_web_searches: 0,
+        falsifiers: [], max_turns: 10, max_web_searches: 0,
       },
     }));
   });
