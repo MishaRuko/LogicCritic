@@ -1,0 +1,25 @@
+Adding Cytokine into Cells
+
+A procedure for refreshing cell culture medium and adding cytokines, followed by microscopic inspection and returning the cells to the incubator.
+
+Equipment
+- CO2 Incubator (HERACELL VIOS 160i)
+- TC Hood (Tissue culture hood for sterile work)
+- Aspiration system (Vacuum line with glass pipette for medium removal)
+- Pipette controller (Used with serological pipettes)
+- Micropipette (Used for adding cytokines)
+- Inverted microscope (EVOS system for cell imaging)
+
+Reagents
+- 70% ethanol (Used for hand disinfection)
+- Fresh medium (Pre-warmed medium for cell culture)
+- Cytokine(s)
+
+Procedure
+1. Disinfect hands thoroughly with 70% ethanol.
+2. Carefully remove the required cell culture plat from the incubator, and transport the plate into TC hood
+3. Inside the hood, gently aspirate and discard the old medium from the culture plate without disturbing the cells.
+4. Using a sterile pipette, add the appropriate volume of pre-warmed fresh medium to the plate.
+5. Add cytokine(s) to the medium at the desired working concentration.
+6. Examine the cells under an inverted microscope to assess cell health, density, and morphology.
+7. Place the plate back into the incubator at the correct conditions.

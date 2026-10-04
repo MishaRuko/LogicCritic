@@ -1,0 +1,42 @@
+[
+  {
+    "clip": "DJI_09",
+    "sourceSha256": "b5b3d0801475c1dfcbacc0303168a5219abc4ab50986cc5906bfd97fde0ef098",
+    "cachedSha256": "8a5c3aba3ce3ca174ff4396e98f8f7932a1a4e5767daeac59c49f9617069c27a",
+    "bytes": 3991178,
+    "transform": "H.264 CRF26, 640px width, native aspect (no padding), 15fps, original timebase, no audio, no crop needed",
+    "localPath": "data/fresh/DJI_09.mp4"
+  },
+  {
+    "clip": "DJI_11",
+    "sourceSha256": "dcc3421a6c37398bcce39d9102ad385c7488bde189433fa5311d8902628ef4f4",
+    "cachedSha256": "baba0091315dfe6efd20e8d4c5baf83da3eacd18cf808843d578e8fd78483798",
+    "bytes": 3190946,
+    "transform": "H.264 CRF26, 640px width, native aspect (no padding), 15fps, original timebase, no audio, no crop needed",
+    "localPath": "data/fresh/DJI_11.mp4"
+  },
+  {
+    "clip": "DJI_12",
+    "sourceSha256": "8b5e9d528314c642dc00492f30efaba625dab519c182d9e03c7c583caebfa0a8",
+    "cachedSha256": "7ec17b5e62c601fcc487cab06beb4add48abcd14ae393d7fbd94dcd9e5ee0c6e",
+    "bytes": 4083174,
+    "transform": "H.264 CRF26, 640px width, native aspect (no padding), 15fps, original timebase, no audio, no crop needed",
+    "localPath": "data/fresh/DJI_12.mp4"
+  },
+  {
+    "clip": "DJI_14",
+    "sourceSha256": "59d4125594da3b1d1d81da20f251c61129ebcd049441f0ec1200347150d86de9",
+    "cachedSha256": "eda892fd1c07277eba9b45e4a512baaa1705d73a50ec198a8853b39830c1cb4a",
+    "bytes": 2024700,
+    "transform": "H.264 CRF26, 640px width, native aspect (no padding), 15fps, original timebase, no audio, no crop needed",
+    "localPath": "data/fresh/DJI_14.mp4"
+  },
+  {
+    "clip": "DJI_15",
+    "sourceSha256": "962db859b09c63b2364ccae7c891e04fa7557de5f9c5a87d841d3d109f7c20bf",
+    "cachedSha256": "19506f6dca00035cd85c7fe44e47d6bf60c3508fe67d5fd2804deb28ee3026c2",
+    "bytes": 2216411,
+    "transform": "H.264 CRF26, 640px width, native aspect (no padding), 15fps, original timebase, no audio, no crop needed",
+    "localPath": "data/fresh/DJI_15.mp4"
+  }
+]

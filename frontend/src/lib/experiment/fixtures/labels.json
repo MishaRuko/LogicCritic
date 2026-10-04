@@ -1,0 +1,168 @@
+{
+  "about": "Curated per-step labels for scoring the agent, derived from each clip's published LSV error text. trueSkips: steps the operator omitted. errorSteps: steps with a non-skip deviation (a contradiction there counts as a detection). eitherSteps: a skip or a contradiction both count. Any other skipped/out-of-order/contradicted verdict is a false alarm. split: dev clips may be inspected and tuned on; held-out clips are run once after the design lock. unscoredSteps: steps the published labels cannot settle (e.g. excerpts with zero-length windows); verdicts there are neither credited nor counted as false alarms. Splits: dev (tuned on), heldout (run once on the 06e5d90 lock, since used for diagnosis), fresh (untouched until the next lock).",
+  "clips": {
+    "DJI_10": {
+      "split": "dev",
+      "trueSkips": [],
+      "errorSteps": [],
+      "eitherSteps": [],
+      "note": "Correct run."
+    },
+    "DJI_16": {
+      "split": "dev",
+      "trueSkips": [],
+      "errorSteps": [
+        2
+      ],
+      "eitherSteps": [],
+      "note": "Reagent 2 added to reagent 3 instead of the mixing tube. 25 s excerpt: steps 1, 4, 5, 7 are outside the footage, not omitted."
+    },
+    "DJI_08": {
+      "split": "dev",
+      "trueSkips": [],
+      "errorSteps": [],
+      "eitherSteps": [],
+      "note": "Published error (no incubation after TrypLE) has no step in this clip's protocol, so it cannot be scored per step."
+    },
+    "DJI_17": {
+      "split": "dev",
+      "trueSkips": [
+        3
+      ],
+      "errorSteps": [],
+      "eitherSteps": [],
+      "note": "Skipped step 3 (ice incubation)."
+    },
+    "DJI_23": {
+      "split": "dev",
+      "trueSkips": [],
+      "errorSteps": [
+        2
+      ],
+      "eitherSteps": [],
+      "note": "Did not change tips in step 2."
+    },
+    "DJI_18": {
+      "split": "heldout",
+      "trueSkips": [],
+      "errorSteps": [],
+      "eitherSteps": [],
+      "note": "Correct run."
+    },
+    "DJI_19": {
+      "split": "heldout",
+      "trueSkips": [],
+      "errorSteps": [],
+      "eitherSteps": [],
+      "note": "Correct run."
+    },
+    "DJI_20": {
+      "split": "heldout",
+      "trueSkips": [
+        2,
+        5
+      ],
+      "errorSteps": [],
+      "eitherSteps": [],
+      "note": "Skipped steps 2 and 5."
+    },
+    "DJI_21": {
+      "split": "heldout",
+      "trueSkips": [
+        2
+      ],
+      "errorSteps": [],
+      "eitherSteps": [
+        6
+      ],
+      "note": "Skipped step 2; the spreading part of step 6 was omitted."
+    },
+    "DJI_22": {
+      "split": "heldout",
+      "trueSkips": [],
+      "errorSteps": [],
+      "eitherSteps": [],
+      "note": "Correct run."
+    },
+    "DJI_24": {
+      "split": "heldout",
+      "trueSkips": [],
+      "errorSteps": [
+        2,
+        5
+      ],
+      "eitherSteps": [],
+      "note": "Did not change tips in steps 2 and 5."
+    },
+    "DJI_25": {
+      "split": "heldout",
+      "trueSkips": [
+        3
+      ],
+      "errorSteps": [],
+      "eitherSteps": [],
+      "note": "Skipped step 3 (aspirate old medium)."
+    },
+    "DJI_11": {
+      "split": "dev",
+      "trueSkips": [
+        2
+      ],
+      "errorSteps": [],
+      "eitherSteps": [],
+      "note": "Skipped reagent 2. Mixing (39-48 s) is done by pipetting up and down, which looks like an addition. Became dev data after the user's Trial run (2026-10-04)."
+    },
+    "DJI_12": {
+      "split": "fresh",
+      "trueSkips": [
+        6
+      ],
+      "errorSteps": [],
+      "eitherSteps": [],
+      "note": "Skipped dropwise addition of the mixture to the cells."
+    },
+    "DJI_09": {
+      "split": "fresh",
+      "trueSkips": [],
+      "errorSteps": [
+        2,
+        3
+      ],
+      "eitherSteps": [],
+      "note": "Reagents 1/2/3 added without changing the pipette tip."
+    },
+    "DJI_14": {
+      "split": "fresh",
+      "trueSkips": [
+        3
+      ],
+      "errorSteps": [
+        2
+      ],
+      "eitherSteps": [],
+      "unscoredSteps": [
+        4,
+        5,
+        7
+      ],
+      "note": "No tip change between reagents 1 and 2; skipped reagent 3. 35 s excerpt: steps 4, 5, 7 have zero-length windows."
+    },
+    "DJI_15": {
+      "split": "fresh",
+      "trueSkips": [
+        4
+      ],
+      "errorSteps": [
+        1,
+        2,
+        3
+      ],
+      "eitherSteps": [],
+      "unscoredSteps": [
+        5,
+        6
+      ],
+      "note": "Reagents 1/2/3 added to the plate directly, without mixing. Steps 5, 6 have zero-length windows."
+    }
+  }
+}

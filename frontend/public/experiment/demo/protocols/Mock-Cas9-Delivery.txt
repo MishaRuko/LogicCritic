@@ -1,0 +1,24 @@
+CRISPR Delivery
+
+A procedure for delivering CRISPR components into 293T cells by mixing three reagents and adding the mixture to a cell culture dish.
+
+Equipment
+- 1.5 mL EP tube (sterile)
+- pipette
+- pipette tips
+- 10 cm dish (containing 293T cells)
+
+Reagents
+- reagent 1
+- reagent 2
+- reagent 3
+- 293T cells (In a 10 cm dish)
+
+Procedure
+1. Add reagent 1 into a sterile 1.5 mL EP tube.
+2. Add reagent 2 into the EP tube.
+3. Add reagent 3 into the EP tube.
+4. Mix well.
+5. Incubate at room temperature for 20 min.
+6. Add the mixture dropwise into a 10 cm dish of 293T cells (~70-80% confluency).
+7. Gently rock the dish forward and backward to mix.

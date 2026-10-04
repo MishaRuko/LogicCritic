@@ -1,0 +1,22 @@
+E. coli Transformation
+
+A protocol for transforming competent E. coli cells with plasmid DNA, including heat shock and plating on selective media.
+
+Equipment
+- pipette
+- ice bucket (green container with ice)
+- thermal cycler (used for heat shock at 42°C)
+
+Reagents
+- plasmid DNA
+- competent E. coli cells
+- LB agar plate (containing appropriate selective antibiotic)
+
+Procedure
+1. Add 5 μL of plasmid DNA to the competent E. coli cells.
+2. Mix gently by flicking the tube 4-5 times.
+3. Incubate the DNA-cell mixture on ice for 5 seconds.
+4. Rapidly transfer the tube to a pre-heated 42°C water bath for exactly 5 seconds.
+5. Immediately return the tube to ice for  5 seconds.
+6. Spread 50μL of culture onto an LB agar plate containing the appropriate selective antibiotic.
+7. Invert the plates.
