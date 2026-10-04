@@ -37,7 +37,7 @@ export function VideoAnalysisProgress({ job, protocol }: { job: ExperimentRun; p
     ['Check the evidence', 'Compare recorded observations against the protocol checks.'],
     ['Check verifiability', 'Keep unreadable values and incomplete evidence marked for review.'],
   ];
-  return <section aria-label="Analysis pipeline" className="border-t border-line py-6">
+  return <section aria-label="Analysis pipeline" className="analysis-pipeline border-t border-line py-6">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h2 className={job.status === 'failed' ? 'contradicted' : complete ? 'text-pass' : 'text-running'}>{job.status === 'failed' ? 'Analysis needs attention' : complete ? 'Analysis complete' : 'Checking the recording'}</h2>
       <span className="mono muted text-xs">{complete ? 'Completed in' : 'Elapsed'} {time(elapsed)}</span>

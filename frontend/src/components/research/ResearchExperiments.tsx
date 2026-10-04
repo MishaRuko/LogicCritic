@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Button, cn } from '@cloudflare/kumo';
 import { ArrowRightIcon, CheckIcon, PlayIcon } from '@phosphor-icons/react';
 import * as api from '../../lib/research/api';
@@ -8,7 +8,7 @@ import { isLabSample, labSample } from '../../lib/research/demo';
 import { humanize } from '../../lib/research/graph';
 import type { Experiments, Snapshot } from '../../types/api';
 import { ExperimentDetail } from '../experiment/ExperimentDetail';
-import { VideoAnalysisProgress } from '../experiment/VideoAnalysisProgress';
+import { ExperimentAnalysisDock } from '../experiment/ExperimentAnalysisDock';
 import type { Perform } from './ResearchPanels';
 
 export function ResearchStages({ stage, hasResearch, verified, onChange }: { stage: number; hasResearch: boolean; verified: boolean; onChange: (stage: number) => void }) {
@@ -35,6 +35,7 @@ export function ResearchExperiments({ state, data, loading, error, busy, perform
   const [partial, setPartial] = useState(false);
   const [setup, setSetup] = useState(false);
   const [starting, setStarting] = useState(false);
+  const startVersion = useRef(0);
   const selectedSource = sources.find(source => source.id === sourceId) ?? sources[0];
   const sample = !!selectedSource && isLabSample(selectedSource.original_filename);
   const protocol = data?.protocols.find(p => p.source_id === selectedSource?.id && p.current);
@@ -44,7 +45,10 @@ export function ResearchExperiments({ state, data, loading, error, busy, perform
   const ready = !!data?.verified && !processing && !!selectedSource;
   const activeVideo = data?.runs.some(r => r.mode === 'video' && ['queued', 'running'].includes(r.status));
   const activeReplay = data?.runs.some(r => r.mode !== 'video' && ['queued', 'running'].includes(r.status));
+  const completedDemo = data?.runs.find(item => item.status === 'succeeded' && (item.mode === 'video' || item.filename === 'DJI_08-first-30s.observations.jsonl') && data.protocols.find(draft => draft.id === item.protocol_id)?.source_id === selectedSource?.id);
+  const canSkipDemo = (starting || !!run && ['queued', 'running'].includes(run.status)) && (!!completedDemo || sample && ready && !busy && !activeReplay);
   async function start(mode: 'demo' | 'video' | 'replay', sampleRun = false) {
+    const version = ++startVersion.current;
     setStarting(true);
     try {
       let recording = file;
@@ -55,11 +59,18 @@ export function ResearchExperiments({ state, data, loading, error, busy, perform
         recording = new File([await response.blob()], live ? 'DJI_08-first-30s.mp4' : 'DJI_08-first-30s.observations.jsonl', { type: live ? 'video/mp4' : 'application/x-ndjson' });
       }
       const created = await api.startExperiment(state.workspace.id, protocol?.id, mode, recording, selectedSource!.id, sampleRun || partial);
-      setRunId(created.id); setSetup(false);
-    } finally { setStarting(false); }
+      if (version === startVersion.current) { setRunId(created.id); setSetup(false); }
+    } finally { if (version === startVersion.current) setStarting(false); }
+  }
+  function skipToDemo() {
+    if (completedDemo) {
+      ++startVersion.current; setStarting(false); setRunId(completedDemo.id); setSetup(false);
+    } else {
+      void perform(() => start('replay', true));
+    }
   }
   const actions = <>{sample && <><Button size="sm" disabled={busy || !ready || activeVideo} onClick={() => perform(() => start('video', true))}><PlayIcon size={14} className="mr-2"/>Analyse sample live</Button><Button size="sm" variant="ghost" disabled={busy || !ready || activeReplay} onClick={() => perform(() => start('replay', true))}>{run ? 'Run sample again' : 'Run sample analysis'}</Button></>}{run && <Button size="sm" variant="ghost" onClick={() => setSetup(value => !value)}>{setup ? 'Close upload' : 'Change recording'}</Button>}</>;
-  return <div className="experiment-app h-full overflow-y-auto bg-paper px-5 py-7 sm:px-9"><div className="mx-auto max-w-[1440px]">
+  return <div className="experiment-app experiment-layout h-full bg-paper"><div className="experiment-scroll px-5 py-7 sm:px-9"><div className="mx-auto max-w-[1440px]">
     {!(run?.status === 'succeeded' && runProtocol) && (sample || run) && <div className="mb-6 flex flex-wrap justify-end gap-3">{actions}</div>}
     {loading && <p role="status" className="muted mb-5">Loading experiments…</p>}
     {error && <p role="alert" className="text-fail mb-5">{error.message}</p>}
@@ -73,8 +84,8 @@ export function ResearchExperiments({ state, data, loading, error, busy, perform
       {!sample && <details className="mt-5 text-xs text-zinc-500"><summary className="cursor-pointer">Try synthetic observations</summary><p className="mt-2! mb-3!">Illustrative observations are checked against the extracted methodology.</p><Button size="sm" variant="ghost" disabled={busy || !ready || activeReplay} onClick={() => perform(() => start('demo'))}>Run sample experiment</Button></details>}
     </section>}
     {run?.status === 'succeeded' && runProtocol ? <ExperimentDetail key={run.id} job={run} protocol={runProtocol} source={sources.find(source => source.id === runProtocol.source_id)} onSource={onSource} actions={actions}/>
-      : run && <VideoAnalysisProgress job={run} protocol={runProtocol}/>}
+      : run && <section aria-label="Experiment results" className="border-t border-line py-8"><h2 className={run.status === 'failed' ? 'text-fail' : 'text-running'}>{run.status === 'failed' ? 'Analysis needs attention' : 'Checking the recording'}</h2>{run.error && <p role="alert" className="mt-3! text-fail">{run.error}</p>}{['queued', 'running'].includes(run.status) && <p role="status" className="mt-3! muted">Analysis continues in the background. Expand the bar below to follow each stage.</p>}</section>}
     {!!data?.runs.length && <details className="mt-7 border-t border-line py-5 text-xs text-zinc-500"><summary className="cursor-pointer">Previous runs · {data.runs.length}</summary><div className="mt-3">{data.runs.map(item => <button key={item.id} onClick={() => setRunId(item.id)} className="flex w-full justify-between gap-3 border-b border-line py-3 text-left"><span>{item.filename} · {new Date(item.created_at).toLocaleString()}</span><span className={item.status === 'succeeded' ? 'text-pass' : item.status === 'failed' ? 'text-fail' : 'text-running'}>{humanize(item.status)}</span></button>)}</div></details>}
     {sample && <footer className="mt-5 flex flex-wrap items-center gap-4 border-t border-line pt-4 text-[10px] text-zinc-500"><a href={labSample.protocol} download className="underline">Download protocol PDF</a><a href={labSample.video} download className="underline">Download 30-second video</a><span><a href="https://huggingface.co/datasets/cong-lab/lsv" target="_blank" rel="noreferrer" className="underline">LabSuperVision / LabOS LSV</a> · CC BY-NC 4.0 · preparation excerpt</span></footer>}
-  </div></div>;
+  </div></div>{run && <ExperimentAnalysisDock job={run} protocol={runProtocol} onSkipDemo={canSkipDemo ? skipToDemo : undefined}/>}</div>;
 }

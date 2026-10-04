@@ -72,3 +72,21 @@ describe('research to experiment handoff', () => {
     expect(screen.getByText(/synthetic observations, checked by the real protocol verifier/)).toBeInTheDocument();
   });
 });
+
+it('skips a live analysis to a saved video result without starting another run', async () => {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true, json: async () => [] } as Response);
+  const start = vi.spyOn(api, 'startExperiment');
+  Element.prototype.scrollTo = vi.fn();
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const common = { protocol_id: protocol.id, mode: 'video' as const, filename: 'recording.mp4', error: null, created_at: '2026-10-04T10:00:00Z', result: {} };
+  render(<QueryClientProvider client={client}><ResearchExperiments {...props} data={{ ...data, runs: [
+    { ...common, id: 'live', status: 'running', completed_at: null },
+    { ...common, id: 'saved', status: 'succeeded', completed_at: '2026-10-04T10:01:00Z' },
+  ] }}/></QueryClientProvider>);
+  expect(screen.getByText('Checking the recording')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Skip to demo results' }));
+  await waitFor(() => expect(screen.getByRole('region', { name: 'Execution timeline' })).toBeInTheDocument());
+  expect(screen.queryByText('Checking the recording')).not.toBeInTheDocument();
+  expect(document.querySelector('.video-stage video')).toHaveAttribute('src', '/api/experiment-runs/saved/recording');
+  expect(start).not.toHaveBeenCalled();
+});

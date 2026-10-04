@@ -7,10 +7,11 @@ from lab_vision.models import Observation
 
 from app.database import engine
 from app.main import app
-from app.models import Excerpt
+from app.models import Excerpt, Source
 from app.services.experiments import (
     demo_observations,
     extract_protocol,
+    extract_source_protocol,
     numbered_protocol,
     process_experiment_run,
     verify_observations,
@@ -90,6 +91,75 @@ def test_missing_or_nonconsecutive_methodology_is_not_invented():
         )
     with pytest.raises(ValueError, match="consecutive"):
         numbered_protocol("1. First.\n\n3. Third.", "p", "test")
+
+
+def test_uploaded_pdf_with_restarting_phases_uses_original_file_and_existing_citations(
+    tmp_path, monkeypatch
+):
+    from app.config import get_settings
+    from tests.pdf_factory import make_pdf
+
+    content = make_pdf(
+        [
+            ["Protocol", "1. Preparation of the Gel", "1. Weigh the agarose.", "2. Add buffer."],
+            [
+                "3. Pour the gel.",
+                "2. Separation of DNA Fragments",
+                "1. Load samples.",
+                "2. Run the gel.",
+                "3. Observing DNA fragments",
+                "1. Photograph the gel.",
+                "4. Representative Results",
+                "DNA fragments appear as distinct fluorescent bands.",
+            ],
+        ]
+    )
+    (tmp_path / "protocol.pdf").write_bytes(content)
+    monkeypatch.setattr(get_settings(), "upload_dir", str(tmp_path))
+    source = Source(mime_type="application/pdf", storage_key="protocol.pdf")
+    # Existing research ingestion combined steps and mistook a protocol phase
+    # for a new non-method section. Preparing an experiment must still work.
+    old_excerpts = [
+        Excerpt(id=uuid.uuid4(), text="1. Preparation of the Gel", locator={"section": "Protocol"}),
+        Excerpt(
+            id=uuid.uuid4(),
+            text="1. Weigh the agarose. 2. Add buffer. 3. Pour the gel.",
+            locator={"section": "Protocol"},
+        ),
+        Excerpt(
+            id=uuid.uuid4(),
+            text="2. Separation of DNA Fragments 1. Load samples. 2. Run the gel.",
+            locator={"section": "Protocol"},
+        ),
+        Excerpt(
+            id=uuid.uuid4(),
+            text="1. Photograph the gel.",
+            locator={"section": "Observing DNA fragments"},
+        ),
+    ]
+    protocol, method, citations = extract_source_protocol(source, old_excerpts, "p", "Gel")
+    assert method == "numbered_instructions"
+    assert [s.id for s in protocol.steps] == [f"s{i}" for i in range(1, 7)]
+    assert [s.source_text for s in protocol.steps] == [
+        "Weigh the agarose.",
+        "Add buffer.",
+        "Pour the gel.",
+        "Load samples.",
+        "Run the gel.",
+        "Photograph the gel.",
+    ]
+    assert citations["s6"] == [str(old_excerpts[-1].id)]
+    assert all(citations.values())
+
+
+def test_protocol_step_can_cite_multiple_excerpt_chunks():
+    excerpts = [
+        Excerpt(id=uuid.uuid4(), text="1. Set the instrument", locator={"section": "Methods"}),
+        Excerpt(id=uuid.uuid4(), text="to 25 °C.", locator={"section": "Methods"}),
+    ]
+    protocol, _, citations = extract_protocol(excerpts, "p", "test")
+    assert len(protocol.steps) == 1 and protocol.steps[0].checks[0].expected == 25
+    assert citations["s1"] == [str(e.id) for e in excerpts]
 
 
 def test_synthetic_observations_are_judged_by_the_real_verifier():
