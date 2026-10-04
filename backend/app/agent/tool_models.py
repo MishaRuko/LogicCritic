@@ -194,9 +194,10 @@ class ReviseClaimInput(BaseModel):
 class ProtocolStepInput(BaseModel):
     action: str = Field(
         description="One action a person performs, as the source reports it, with the exact "
-        "volumes, temperatures and times and the instrument used. Pick the value the source's "
-        "own procedure uses; do not write ranges or alternatives. Never add a step the sources "
-        "do not state."
+        "volumes, temperatures and times, and the instrument that sets each volume or "
+        "temperature (for example 'with a pipette set to 5 µL', 'in a water bath set to "
+        "42 °C') when the source says which. Pick the value the source's own procedure uses; do "
+        "not write ranges or alternatives. Never add a step the sources do not state."
     )
     excerpt_ids: list[str] = Field(
         description="excerpt_ids you have read that state this step (at least one)."

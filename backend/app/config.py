@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     agent_model: str = "claude-sonnet-5-5"
     agent_effort: str | None = "medium"
     agent_judge_model: str = "claude-sonnet-5"
-    agent_max_turns: int = 30
+    agent_max_turns: int = 10
     agent_max_web_searches: int = 10
     agent_turn_max_tokens: int = 16000
     agent_user_agent: str = "LogicCritic-ResearchAgent/1.0 (evidence gathering for research review)"
