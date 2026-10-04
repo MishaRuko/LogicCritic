@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.database import get_session
 from app.models import (
+    AgentRun,
     Excerpt,
     ExperimentProtocol,
     ExperimentRun,
@@ -56,6 +57,49 @@ class RunResponse(BaseModel):
 
 class ExtractRequest(BaseModel):
     source_id: uuid.UUID
+
+
+async def agent_suggestion(
+    session: AsyncSession, workspace_id: uuid.UUID, fingerprint: str
+) -> dict | None:
+    """The protocol of the most recent finished agent run, if that run handed one over.
+
+    Only the latest run counts: an earlier run's protocol answers an earlier question, so it is
+    never offered once a later run has finished without one.
+    """
+    run = await session.scalar(
+        select(AgentRun)
+        .where(AgentRun.workspace_id == workspace_id, AgentRun.status == "succeeded")
+        .order_by(AgentRun.created_at.desc(), AgentRun.id.desc())
+        .limit(1)
+    )
+    if run is None:
+        return None
+    source = await session.scalar(
+        select(Source)
+        .where(
+            Source.workspace_id == workspace_id,
+            Source.origin == "agent",
+            Source.metadata_["parser"].astext == "agent_protocol_v1",
+            Source.metadata_["run_id"].astext == str(run.id),
+        )
+        .order_by(Source.created_at.desc())
+        .limit(1)
+    )
+    if source is None:
+        return None
+    prepared = await session.scalar(
+        select(ExperimentProtocol)
+        .where(ExperimentProtocol.source_id == source.id)
+        .order_by(ExperimentProtocol.created_at.desc())
+        .limit(1)
+    )
+    return {
+        "run_id": str(run.id),
+        "source_id": str(source.id),
+        "protocol_id": str(prepared.id) if prepared else None,
+        "current": bool(prepared and prepared.research_fingerprint == fingerprint),
+    }
 
 
 async def require_verified(session: AsyncSession, workspace_id: uuid.UUID) -> str:
@@ -126,6 +170,7 @@ async def list_experiments(workspace_id: uuid.UUID, session: AsyncSession = Depe
             for p in protocols
         ],
         "runs": [RunResponse.model_validate(r) for r in runs],
+        "suggested": await agent_suggestion(session, workspace_id, fingerprint),
     }
 
 
@@ -220,19 +265,10 @@ async def start_experiment(
     if protocol_id and (protocol is None or protocol.workspace_id != workspace_id):
         raise HTTPException(404, "Protocol not found")
     if protocol is None and source_id is None:
-        # Nothing chosen: use the protocol the research agent handed over, if it is current.
-        protocol = await session.scalar(
-            select(ExperimentProtocol)
-            .join(Source, Source.id == ExperimentProtocol.source_id)
-            .where(
-                ExperimentProtocol.workspace_id == workspace_id,
-                ExperimentProtocol.research_fingerprint == fingerprint,
-                Source.origin == "agent",
-                Source.metadata_["parser"].astext == "agent_protocol_v1",
-            )
-            .order_by(ExperimentProtocol.created_at.desc())
-            .limit(1)
-        )
+        # Nothing chosen: use the protocol the latest agent run handed over, if it is current.
+        suggestion = await agent_suggestion(session, workspace_id, fingerprint)
+        if suggestion and suggestion["current"]:
+            protocol = await session.get(ExperimentProtocol, uuid.UUID(suggestion["protocol_id"]))
     if protocol is None or protocol.research_fingerprint != fingerprint:
         selected_source = source_id or (protocol.source_id if protocol else None)
         if selected_source is None:

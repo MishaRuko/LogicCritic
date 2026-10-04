@@ -1,7 +1,7 @@
 # Working on Trial
 
 Notes for anyone (person or coding agent) picking this project up in a new session. Read this
-first, then `docs/HOW_IT_WORKS.md` for how the system behaves. `ARCHITECTURE.md` is the original
+first. `ARCHITECTURE.md` is the original
 design and is partly aspirational: anything it describes that is not in the code (for example
 embeddings and vector search) was never built.
 
@@ -28,7 +28,7 @@ frontend/           Next.js app (read frontend/AGENTS.md: the Next version has b
 vision/             lab_vision package: protocol structuring and lab video analysis
 infra/              Caddyfiles and the host nginx site (nginx-trial.conf)
 fixtures/           sample material, evaluation PMCID list
-docs/               HOW_IT_WORKS.md, experiments.md, integration.md
+docs/               experiments.md, integration.md
 ```
 
 Services (docker-compose.yml): `caddy` (ingress), `frontend`, `api`, `worker` (extraction jobs,
@@ -94,8 +94,8 @@ Current baseline: backend 372 passed, frontend 64 passed, vision 75 passed.
 
 CLI: `python -m app.evaluations.cli` with `fetch-pmc`, `generate`, `create`, `run <id>`
 (resumable, `--concurrency`, `--retry-failed`), `score <id>` (re-score stored answers),
-`report <id>`, `scifact`, `paper-pilot`. See `docs/HOW_IT_WORKS.md` for the method and results
-and `DEPLOYMENT.md` for examples.
+`report <id>`, `scifact`, `paper-pilot`. See `DEPLOYMENT.md` for examples
+and the scorer in `backend/app/evaluations/scoring.py` for the method.
 
 Stored runs are in the **local** Docker database (not production):
 
