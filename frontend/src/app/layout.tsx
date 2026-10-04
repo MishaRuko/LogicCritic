@@ -4,7 +4,7 @@ import './globals.css';
 import './experiment.css';
 import { Providers } from './providers';
 export const metadata: Metadata = {
-  title: 'Trial — Research argument critic',
+  title: 'Trial | Research argument critic',
   description: 'Review scientific arguments, inspect exact source excerpts, and verify proof obligations.',
   icons: { icon: '/favicon.svg' },
 };
