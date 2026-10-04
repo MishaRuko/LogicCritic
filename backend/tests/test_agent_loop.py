@@ -427,6 +427,34 @@ def test_tools_are_strict_and_the_search_tool_follows_the_budget() -> None:
     assert len(build_tools("baseline", 1)) == 5 and len(build_tools("guarded", 1)) == 11
 
 
+async def test_the_report_leads_with_the_verdict_given_at_finalization() -> None:
+    world = await make_world(sources=SOURCES)
+    claim = claim_args(world, "Drug X reduced 28-day mortality by 30%.", "trial", role="conclusion")
+
+    def finalize(verdict):
+        return lambda request: reply(
+            tool(
+                "finalize_conclusion",
+                statement_id=statement_id_from(client, 1),
+                certainty="hypothesis",
+                verdict=verdict,
+            ),
+            stop="tool_use",
+        )
+
+    client = FakeClaude(
+        reply(tool("record_claim", **claim), stop="tool_use"),
+        finalize("x" * 400),  # refused: a verdict is the bottom line, not the argument
+        finalize("Verdict: SUPPORTS"),
+    )
+    await execute_run(world.run_id, client=client)
+
+    run = await run_of(world)
+    assert "at most 300 characters" in client.tool_results(2)[0]["content"]
+    assert run.status == "succeeded"
+    assert run.final_report.startswith("Verdict: SUPPORTS\n\nDrug X reduced 28-day mortality")
+
+
 def test_verifier_caveats_become_short_public_limitations() -> None:
     from app.agent.loop import public_caveats
 
@@ -440,11 +468,7 @@ def test_verifier_caveats_become_short_public_limitations() -> None:
         ]
     )
 
-    assert lines == [
-        "2 of the evidence standards set before this research were not fully met by the cited "
-        "passages, so the conclusion is not stated as established.",
-        "The conclusion was not formally derived from the recorded claims.",
-    ]
+    assert lines == ["The conclusion was not formally derived from the recorded claims."]
     assert not any("Reviewer" in line or "your own" in line for line in lines)
 
 

@@ -420,3 +420,24 @@ async def test_verdicts_are_kept_in_their_own_table_not_in_the_run_usage() -> No
     assert rows[0].material["criteria"] == ["A randomised trial"]
     assert rows[0].verdict["criteria"][0]["met"] is True
     assert "judge_cache" not in run.usage
+
+
+def test_design_verdicts_on_claims_without_a_declared_design_are_dropped() -> None:
+    from app.services.judge import DesignVerdict, JudgeOutput, _tidy
+
+    material = {
+        "criteria": [],
+        "claims": [
+            {"statement_id": "declared", "declared_design": "randomised_trial"},
+            {"statement_id": "descriptive", "declared_design": None},
+        ],
+    }
+    output = JudgeOutput(
+        criteria=[],
+        designs=[
+            DesignVerdict(statement_id="declared", design_shown=False, rationale="no randomisation"),
+            DesignVerdict(statement_id="descriptive", design_shown=False, rationale="not causal"),
+        ],
+    )
+
+    assert [d.statement_id for d in _tidy(output, material).designs] == ["declared"]

@@ -59,6 +59,7 @@ from app.services.text_ingestion import ParsedExcerpt, parse_structured_text
 log = logging.getLogger(__name__)
 
 READ_PAGE_CHARS = 14_000
+MAX_VERDICT_CHARS = 300
 EXCERPT_PREVIEW_CHARS = 140
 PROMPT_VERSION = "research_agent_v6"
 
@@ -508,6 +509,11 @@ class Toolbox:
 
     async def finalize_conclusion(self, args: FinalizeConclusionInput, _: str) -> dict:
         statement_id = _uuid(args.statement_id, "statement_id")
+        if len(args.verdict) > MAX_VERDICT_CHARS:
+            raise ToolError(
+                f"The verdict is the bottom line only: at most {MAX_VERDICT_CHARS} characters. "
+                "Put the evidence and deductions in the conclusion."
+            )
         async with self._sessions() as session:
             run = await session.get(AgentRun, self._run_id)
             goal = await session.get(ResearchGoal, run.goal_id)
@@ -527,6 +533,7 @@ class Toolbox:
             "accepted": True,
             "certainty": args.certainty,
             "conclusion": result.statement_text,
+            "verdict": args.verdict.strip(),
             "caveats": [o.as_dict() for o in result.obligations],
             "next": "State your answer. Include every caveat above.",
         }

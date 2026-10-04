@@ -116,3 +116,131 @@ def test_europe_pmc_article_becomes_bounded_sectioned_excerpts() -> None:
     assert len(excerpts) > 5
     assert all(len(item.text) <= MAX_EXCERPT_CHARS for item in excerpts)
     assert any(item.locator.get("section") == "Methods" for item in excerpts)
+
+
+# -- v3 scoring ----------------------------------------------------------------------------------
+
+from app.evaluations import scoring
+from app.evaluations.scifact_cases import to_eval_case, verdict_cases
+
+
+KEY = {
+    "verdict_options": scoring.PAPER_VERDICTS,
+    "expected_verdict": "partially_supported",
+    "required_deductions": [{"deduction": "a", "evidence": "x"}, {"deduction": "b", "evidence": "y"}],
+}
+
+
+def test_metrics_count_errors_and_ignore_claim_volume_for_precision() -> None:
+    raw = {
+        "claims": [
+            {"claim": "n=120", "status": "supported"},
+            {"claim": "28 months", "status": "contradicted"},
+            {"claim": "mainly phenobarbital", "status": "unsupported"},
+            {"claim": "double blind", "status": "supported"},
+        ],
+        "verdict_given": "partially_supported",
+        "deductions": [{"index": 0, "status": "valid"}, {"index": 1, "status": "flawed"}],
+        "invalid_inferences": ["non-significance read as equivalence"],
+    }
+
+    result = scoring.metrics(raw, KEY)
+
+    assert result["claims_contradicted"] == 1 and result["claims_unsupported"] == 1
+    assert result["precision"] == 0.5
+    assert result["errors"] == 2  # contradicted + invalid inference; omissions never count
+    assert result["verdict_correct"] is True
+    assert result["deduction_recall"] == 0.5 and result["deductions_flawed"] == 1
+
+
+def test_missing_deduction_reports_count_as_absent() -> None:
+    raw = {"claims": [], "verdict_given": "none", "deductions": [], "invalid_inferences": []}
+
+    result = scoring.metrics(raw, KEY)
+
+    assert result["deduction_recall"] == 0 and result["precision"] is None
+    assert result["verdict_correct"] is False
+
+
+def test_explicit_scifact_verdict_is_read_deterministically() -> None:
+    options = scoring.SCIFACT_VERDICTS
+    assert scoring.explicit_verdict("Verdict: **NOT ENOUGH INFO**\nThe abstract...", options) == "NOT ENOUGH INFO"
+    assert scoring.explicit_verdict("verdict: contradicts", options) == "CONTRADICTS"
+    assert scoring.explicit_verdict("It supports the claim.", options) is None
+
+
+def test_paired_summary_reports_guarded_minus_baseline() -> None:
+    pairs = [({"errors": 3}, {"errors": 1}), ({"errors": 2}, {"errors": 0})]
+
+    row = next(r for r in scoring.paired_summary(pairs) if r["metric"] == "errors")
+
+    assert row["baseline"] == 2.5 and row["guarded"] == 0.5 and row["diff"] == -2.0
+    assert row["ci_low"] <= row["diff"] <= row["ci_high"]
+
+
+def test_scifact_cases_include_not_enough_info_and_gold_labels() -> None:
+    corpus = [{"doc_id": 1, "title": "T", "abstract": ["S0.", "S1."]}, {"doc_id": 2, "title": "U", "abstract": ["Z."]}]
+    claims = [
+        {"id": 7, "claim": "X helps.", "cited_doc_ids": [1, 2],
+         "evidence": {"1": [{"label": "CONTRADICT", "sentences": [1]}]}},
+    ]
+
+    cases = verdict_cases(corpus, claims)
+    built = to_eval_case(cases[0])
+
+    assert [c["label"] for c in cases] == ["CONTRADICTS", "NOT ENOUGH INFO"]
+    assert built["gold_label"] == "CONTRADICTS" and "Verdict: SUPPORTS" in built["question"]
+    assert "gold_label" not in built["question"]
+    assert built["packet"]["sources"][0]["text"] == "# T\n\nS0.\n\nS1."
+
+
+async def test_scifact_key_is_the_gold_label_and_scorer_never_sees_it() -> None:
+    from types import SimpleNamespace
+
+    from tests.agent_helpers import reply, text
+
+    class Client:
+        def __init__(self):
+            self.requests = []
+            self.messages = SimpleNamespace(create=self.create)
+
+        async def create(self, **request):
+            self.requests.append(request)
+            return reply(text(json.dumps({
+                "claims": [{"claim": "S1 says no effect", "status": "supported", "note": ""}],
+                "verdict_given": "SUPPORTS", "invalid_inferences": [], "deductions": [],
+            })))
+
+    client = Client()
+    tally = {"calls": 0, "input_tokens": 0, "output_tokens": 0}
+    key = await scoring.derive_key(client, "m", {"gold_label": "CONTRADICTS", "question": "q"}, {}, tally)
+    _, result = await scoring.score_answer(
+        client, "m", "q", {"sources": []}, key, "Verdict: CONTRADICTS. S1 shows no effect.", tally
+    )
+
+    sent = client.requests[0]["messages"][0]["content"]
+    assert "expected_verdict" not in sent and "SciFact expert label" not in sent
+    assert result["verdict_given"] == "CONTRADICTS"  # the explicit line wins over the scorer
+    assert result["verdict_correct"] is True
+
+
+async def test_cost_cap_ignores_arms_still_running() -> None:
+    from app.database import engine, session_factory
+    from app.evaluations.service import _spent, create_evaluation
+    from app.models import EvaluationCase, EvaluationOutput
+    from tests.agent_helpers import make_world
+    from sqlalchemy import select
+
+    await engine.dispose()
+    world = await make_world()
+    evaluation_id = await create_evaluation("t", [{"packet": {"sources": []}, "question": "q?"}])
+    async with session_factory() as session:
+        case = await session.scalar(select(EvaluationCase).where(EvaluationCase.evaluation_run_id == evaluation_id))
+        session.add(EvaluationOutput(evaluation_case_id=case.id, arm="baseline", workspace_id=world.workspace_id,
+                                     agent_run_id=world.run_id, status="running", usage={}))
+        await session.commit()
+
+    try:
+        assert await _spent(evaluation_id, sessions=session_factory) == 0
+    finally:
+        await engine.dispose()  # pooled connections are bound to this test's event loop

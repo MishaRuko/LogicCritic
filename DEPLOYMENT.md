@@ -75,12 +75,25 @@ the immutable manifest before spending on agent runs:
 ```bash
 docker compose exec api python -m app.evaluations.cli generate --packet /data/packet.json --output /data/cases.jsonl --count 3
 docker compose exec api python -m app.evaluations.cli create --name "full-text pilot" --manifest /data/cases.jsonl
-docker compose exec api python -m app.evaluations.cli run <evaluation-id>
+docker compose exec api python -m app.evaluations.cli run <evaluation-id> --concurrency 5
 docker compose exec api python -m app.evaluations.cli report <evaluation-id>
 ```
 
-The run persists source packets, case rubrics, arm-to-blind-label mappings, all agent outputs and
-usage, anonymous judge material/verdicts, and the generated Markdown report. Opus sees answers as
-only `A` and `B`; the revealed arm mapping is kept in the database/report. This is a useful blinded
-hackathon signal, not independent scientific validation: the stronger model both creates cases and
-judges them.
+`run` is resumable (finished arms and scores are kept; `--retry-failed` re-runs failed arms).
+Two further entry points:
+
+```bash
+# SciFact dev claims with expert gold labels (SUPPORTS / CONTRADICTS / NOT ENOUGH INFO)
+docker compose exec api python -m app.evaluations.cli scifact --name "scifact" --per-label 20
+# Re-score stored answers with the current scorer, without re-running any agent
+docker compose exec api python -m app.evaluations.cli score <evaluation-id>
+```
+
+Neither arm sees the evaluator's rubric. Scoring (scorer `v3`) is length-neutral: each answer is
+scored alone against the source packet, never beside the other arm's answer. Opus derives a key
+per case (expected verdict and 1-3 required deductions; SciFact uses its gold label) and then
+reports, per answer, every factual claim as supported / contradicted / unsupported, invalid
+inferences, the verdict given (the expected verdict is withheld from the scorer) and which
+required deductions were drawn. Omissions are never errors. The report gives arm means and the
+guarded-minus-baseline difference with a paired bootstrap 95% CI. Apart from SciFact's labels,
+keys and scores come from an LLM: a hackathon signal, not independent scientific validation.

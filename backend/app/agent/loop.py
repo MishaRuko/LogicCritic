@@ -5,6 +5,7 @@ happens, the guardrail sits between the model and its final answer, and each run
 """
 
 import logging
+import re
 import time
 import uuid
 from datetime import UTC, datetime
@@ -493,6 +494,9 @@ async def _complete(state: _State, text: str) -> None:
             {},
         )
         report = conclusion.text if conclusion else "Verified conclusion unavailable."
+        verdict = re.sub(r"^\W*verdict\W*", "", accepted.get("verdict") or "", flags=re.I).strip()
+        if verdict:
+            report = f"Verdict: {verdict}\n\n{report}"
         limitations = public_caveats(accepted.get("caveats", []))
         if limitations:
             report += "\n\nLimitations:\n" + "\n".join(f"- {item}" for item in limitations)
@@ -504,29 +508,26 @@ async def _complete(state: _State, text: str) -> None:
 PUBLIC_CAVEATS = {
     "missing_premise": "Part of the reasoning relies on a premise the cited passages do not state.",
     "unreasoned_conclusion": "The conclusion was not formally derived from the recorded claims.",
+    "causal_design_not_shown": "A causal claim rests on a study design the cited text does not show.",
+    "withdrawn_premise": "Part of the reasoning uses a claim that was later withdrawn.",
+    "judge_unavailable": "The independent evidence check could not run.",
 }
 
 
 def public_caveats(caveats: list[dict]) -> list[str]:
     """Turn internal verifier obligations into short, deduplicated user-facing limitations."""
     lines: list[str] = []
-    unmet = 0
     for item in caveats:
         kind = item.get("kind")
         description = (item.get("description") or "").strip()
         if kind == "unmet_criteria":
-            unmet += 1
-        elif kind in PUBLIC_CAVEATS:
+            # Internal checklists: they already set the certainty, and the trace keeps them in
+            # full. Restating them tells a reader nothing about the evidence.
+            continue
+        if kind in PUBLIC_CAVEATS:
             lines.append(PUBLIC_CAVEATS[kind])
         elif description:
             lines.append(_shorten(description.split("Reviewer:", 1)[0]))
-    if unmet:
-        # The criteria texts are internal checklists; the run trace keeps them in full.
-        lines.insert(
-            0,
-            f"{unmet} of the evidence standards set before this research were not fully met by "
-            "the cited passages, so the conclusion is not stated as established.",
-        )
     return list(dict.fromkeys(lines))
 
 

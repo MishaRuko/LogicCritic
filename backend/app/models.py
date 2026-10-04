@@ -382,3 +382,24 @@ class EvaluationJudgment(Base):
     verdict: Mapped[dict] = mapped_column(JSONB)
     usage: Mapped[dict] = mapped_column(JSONB, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class EvaluationScore(Base):
+    """An absolute, single-answer score: no other answer is shown, so no position or length
+    comparison can enter it."""
+
+    __tablename__ = "evaluation_scores"
+    __table_args__ = (
+        UniqueConstraint("evaluation_output_id", "scorer", name="uq_evaluation_scores_output_scorer"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    evaluation_output_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("evaluation_outputs.id", ondelete="CASCADE")
+    )
+    scorer: Mapped[str] = mapped_column(String(32))
+    model: Mapped[str] = mapped_column(String(255))
+    material: Mapped[dict] = mapped_column(JSONB)
+    score: Mapped[dict] = mapped_column(JSONB)
+    usage: Mapped[dict] = mapped_column(JSONB, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

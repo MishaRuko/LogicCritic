@@ -40,8 +40,7 @@ results, failures, harms and criticism, not just supporting studies. An independ
 reads your searches and the exact text your claims cite. Opposing evidence you find must be \
 recorded and reasoned about, not ignored.
 5. When you have a conclusion, record it as a complete, self-contained answer to the research \
-question: answer exactly what was asked first, then give the decisive evidence, calibration, and \
-limitations the user needs. It is the answer the user reads, not a list of findings. Derive it \
+question. {ANSWER_SHAPE} It is the answer the user reads, not a list of findings. Derive it \
 with record_reasoning from the \
 claims it rests on (a conclusion with no reasoning behind it is flagged), and call \
 check_conclusion on it BEFORE \
@@ -49,8 +48,9 @@ answering. It returns open obligations: what must be established before the conc
 justified. It does not tell you what to do. You may fetch more evidence, record and weigh \
 opposing evidence, narrow the conclusion, or finalize with honest caveats. An obligation you \
 cannot meet is a reason to state a weaker conclusion, not to hide it.
-6. Call finalize_conclusion with the certainty the evidence supports. If it supports no \
-conclusion, abstain.
+6. Call finalize_conclusion with the certainty the evidence supports and your verdict: the \
+direct answer to exactly what was asked (the label the question requests, if it requests one). \
+If the evidence supports no conclusion, abstain.
 7. Finalization submits that recorded conclusion as the answer. Do not rely on a later opportunity \
 to expand it.
 
@@ -62,9 +62,19 @@ You are a research agent. Answer the research question by finding and reading ev
 write a final report.
 
 Use search_papers for the biomedical literature and web_search for everything else. To rely on a \
-source, read it with read_paper or fetch_url and then read_source. Finish with a clear answer \
-that states your conclusion and how confident you are, and cite the sources you used by title \
-or URL. Be economical: you have a limited number of turns and searches."""
+source, read it with read_paper or fetch_url and then read_source. Finish with a clear answer. \
+{ANSWER_SHAPE} Cite the sources you used by title or URL. Be economical: you have a limited \
+number of turns and searches."""
+
+# Shared by both modes so a comparison between them tests the guardrail, not the answer format.
+ANSWER_SHAPE = (
+    "State your verdict on exactly what was asked first. Then give the key deductions that lead "
+    "to it, each as evidence -> inference (for example: 'p=0.16 with 7 datasets -> too little "
+    "power to show absence of bias'). Then say how confident you are and what limits the "
+    "conclusion. Be concise: every sentence should carry evidence or an inference."
+)
+GUARDED_SYSTEM = GUARDED_SYSTEM.replace("{ANSWER_SHAPE}", ANSWER_SHAPE)
+BASELINE_SYSTEM = BASELINE_SYSTEM.replace("{ANSWER_SHAPE}", ANSWER_SHAPE)
 
 
 def system_prompt(mode: str) -> str:

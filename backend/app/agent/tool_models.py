@@ -170,6 +170,14 @@ class FinalizeConclusionInput(BaseModel):
             "obligations are open."
         )
     )
+    verdict: str = Field(
+        default="",
+        description=(
+            "Your direct answer to exactly what the question asks, in one short sentence (for "
+            "example the verdict label it requests). It must agree with the conclusion; the "
+            "conclusion carries the evidence and deductions."
+        ),
+    )
 
 
 class AbstainInput(BaseModel):

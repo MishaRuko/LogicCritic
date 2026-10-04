@@ -248,7 +248,10 @@ def _tidy(output: JudgeOutput, material: dict) -> JudgeOutput:
                 supporting_statement_ids=[],
             ),
         )
-    designs = [d for d in output.designs if d.statement_id in known]
+    # A design verdict only means something for a claim that declared a design: the judge
+    # sometimes rules on descriptive claims too, which would raise a false obligation.
+    declared = {c["statement_id"] for c in material.get("claims", []) if c.get("declared_design")}
+    designs = [d for d in output.designs if d.statement_id in declared]
     return JudgeOutput(criteria=[seen[i] for i in sorted(seen)], designs=designs)
 
 
