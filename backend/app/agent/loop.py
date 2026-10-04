@@ -272,15 +272,16 @@ async def _drive(state: _State, client: Any, goal: ResearchGoal) -> None:
             break
         request: dict[str, Any] = {
             "model": state.model,
-            "max_tokens": settings.agent_turn_max_tokens,
+            "max_tokens": budgets.get("turn_max_tokens") or settings.agent_turn_max_tokens,
             "system": system,
             "tools": tools,
             "messages": messages,
             "cache_control": {"type": "ephemeral"},
             "thinking": {"type": "adaptive", "display": "summarized"},
         }
-        if settings.agent_effort:
-            request["output_config"] = {"effort": settings.agent_effort}
+        effort = budgets.get("effort", settings.agent_effort)
+        if effort:
+            request["output_config"] = {"effort": effort}
         started = time.monotonic()
         response = await client.messages.create(**request)
         latency = time.monotonic() - started
@@ -315,6 +316,9 @@ async def _drive(state: _State, client: Any, goal: ResearchGoal) -> None:
         if reason == "tool_use":
             results, concluded_now = await _run_tools(state, response)
             concluded = concluded or concluded_now
+            if concluded:
+                await _complete(state, "")
+                return
             messages.append({"role": "user", "content": results})
             continue
 
@@ -473,20 +477,61 @@ async def _complete(state: _State, text: str) -> None:
     if state.mode == "guarded" and run.certainty and run.certainty != "abstained":
         async with state.sessions() as session:
             conclusion = await session.get(Statement, run.final_statement_id)
-            finalization = await session.scalar(
-                select(AgentEvent)
-                .where(AgentEvent.run_id == run.id, AgentEvent.type == "finalization")
-                .order_by(AgentEvent.seq.desc())
-                .limit(1)
+            finalizations = list(
+                await session.scalars(
+                    select(AgentEvent)
+                    .where(AgentEvent.run_id == run.id, AgentEvent.type == "finalization")
+                    .order_by(AgentEvent.seq.desc())
+                )
             )
-        result = (finalization.payload or {}).get("result", {}) if finalization else {}
-        caveats = result.get("caveats", []) if result.get("accepted") else []
+        accepted = next(
+            (
+                event.payload["result"]
+                for event in finalizations
+                if (event.payload or {}).get("result", {}).get("accepted")
+            ),
+            {},
+        )
         report = conclusion.text if conclusion else "Verified conclusion unavailable."
-        descriptions = [item.get("description", "").strip() for item in caveats]
-        descriptions = [item for item in descriptions if item]
-        if descriptions:
-            report += "\n\nCaveats:\n" + "\n".join(f"- {item}" for item in descriptions)
-        report += f"\n\n[Verifier record] Final certainty: {run.certainty}."
+        limitations = public_caveats(accepted.get("caveats", []))
+        if limitations:
+            report += "\n\nLimitations:\n" + "\n".join(f"- {item}" for item in limitations)
     elif run.certainty == "abstained" and run.final_report:
         report = run.final_report
     await state.finish("succeeded", report=report)
+
+
+PUBLIC_CAVEATS = {
+    "missing_premise": "Part of the reasoning relies on a premise the cited passages do not state.",
+    "unreasoned_conclusion": "The conclusion was not formally derived from the recorded claims.",
+}
+
+
+def public_caveats(caveats: list[dict]) -> list[str]:
+    """Turn internal verifier obligations into short, deduplicated user-facing limitations."""
+    lines: list[str] = []
+    unmet = 0
+    for item in caveats:
+        kind = item.get("kind")
+        description = (item.get("description") or "").strip()
+        if kind == "unmet_criteria":
+            unmet += 1
+        elif kind in PUBLIC_CAVEATS:
+            lines.append(PUBLIC_CAVEATS[kind])
+        elif description:
+            lines.append(_shorten(description.split("Reviewer:", 1)[0]))
+    if unmet:
+        # The criteria texts are internal checklists; the run trace keeps them in full.
+        lines.insert(
+            0,
+            f"{unmet} of the evidence standards set before this research were not fully met by "
+            "the cited passages, so the conclusion is not stated as established.",
+        )
+    return list(dict.fromkeys(lines))
+
+
+def _shorten(text: str, limit: int = 160) -> str:
+    text = " ".join(text.split()).rstrip(" .")
+    if len(text) <= limit:
+        return text
+    return text[:limit].rsplit(" ", 1)[0].rstrip(",;:") + "…"

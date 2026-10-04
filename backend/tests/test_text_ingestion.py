@@ -1,4 +1,4 @@
-from app.services.text_ingestion import parse_structured_text
+from app.services.text_ingestion import MAX_EXCERPT_CHARS, parse_structured_text
 
 
 def test_parses_markdown_sections_with_stable_character_locators() -> None:
@@ -26,3 +26,28 @@ def test_parses_single_paragraph_with_a_trailing_newline() -> None:
     assert len(excerpts) == 1
     assert excerpts[0].text == "A single source paragraph."
     assert excerpts[0].locator == {"start": 0, "end": 26, "sequence": 0}
+
+
+def test_splits_long_paragraphs_into_bounded_exact_excerpts() -> None:
+    text = " ".join(f"Sentence {index}." for index in range(400))
+
+    excerpts = parse_structured_text(text)
+
+    assert len(excerpts) > 1
+    assert all(len(item.text) <= MAX_EXCERPT_CHARS for item in excerpts)
+    assert [item.sequence for item in excerpts] == list(range(len(excerpts)))
+    assert all(
+        text[item.locator["start"] : item.locator["end"]] == item.text for item in excerpts
+    )
+
+
+def test_keeps_exact_offsets_for_crlf_text_and_hard_splits_long_tokens() -> None:
+    text = "# Results\r\n\r\n" + "x" * (MAX_EXCERPT_CHARS * 2 + 5)
+
+    excerpts = parse_structured_text(text)
+
+    assert len(excerpts) == 4
+    assert all(len(item.text) <= MAX_EXCERPT_CHARS for item in excerpts)
+    assert all(
+        text[item.locator["start"] : item.locator["end"]] == item.text for item in excerpts
+    )

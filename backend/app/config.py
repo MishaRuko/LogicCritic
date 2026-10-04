@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     eval_generator_model: str = "claude-sonnet-5-5"
     eval_judge_model: str = "claude-opus-5-5"
     eval_max_turns: int = 6
+    eval_guarded_max_turns: int = 12
     eval_max_web_searches: int = 0
     eval_max_cost_usd: float = 50.0
     amass_base_url: str = "https://api.amass.tech/api/v1"

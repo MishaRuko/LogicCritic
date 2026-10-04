@@ -14,7 +14,7 @@ from app.config import get_settings
 from app.models import AmassCacheEntry, Excerpt, GraphEvent, Source, SourceValidity
 from app.services.amass import BIOMEDCORE, AmassClient, AmassError, BiomedRecord
 from app.services.source_store import DuplicateSource, NewSource, store_source
-from app.services.text_ingestion import ParsedExcerpt, parse_structured_text
+from app.services.text_ingestion import ParsedExcerpt, _bounded_spans, parse_structured_text
 
 PARSER = "amass_biomedcore_v3"
 MAX_EXCERPT_CHARS = 1500
@@ -80,7 +80,7 @@ def record_to_excerpts(record: BiomedRecord) -> list[ParsedExcerpt]:
         value = getattr(record, field)
         if not value or not value.strip():
             continue
-        for item in parse_structured_text(value):
+        for item in parse_structured_text(value, bounded=False):
             section = item.locator.get("section")
             for text, start, label in split_block(item.text, int(item.locator["start"]), section):
                 add(text, field, start, label)
@@ -153,7 +153,12 @@ def _sentence_spans(line: str, offset: int) -> list[tuple[int, int]]:
         spans.append((offset + cursor, offset + match.start()))
         cursor = match.end()
     spans.append((offset + cursor, offset + len(line)))
-    return spans
+    # A single sentence can still exceed the cap; split it at whitespace or hard-cut it.
+    return [
+        (offset + a, offset + b)
+        for start, end in spans
+        for a, b in _bounded_spans(line, start - offset, end - offset)
+    ]
 
 
 def content_fingerprint(record: BiomedRecord) -> str:

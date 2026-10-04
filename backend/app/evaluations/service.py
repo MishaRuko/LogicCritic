@@ -25,6 +25,7 @@ from app.models import (
 )
 from app.schemas import AgentRunCreate
 from app.services.claude_call import get_client, new_tally, structured_call
+from app.services.judge import Judge
 from app.services.source_store import NewSource, store_source
 from app.services.text_ingestion import parse_structured_text
 
@@ -64,7 +65,8 @@ Answer B independently against the supplied question, source packet, and hidden 
 know which system produced either answer and must not infer or discuss it. Reward factual accuracy,
 use of the supplied evidence, appropriate uncertainty, and direct handling of the trap. Penalize
 unsupported claims, causal overreach, ignored limitations, and confident answers where abstention
-or qualification is warranted. A score of 4 is fully correct and well calibrated; 0 is materially
+or qualification is warranted. Treat facts stated in the question as claims to assess, not source
+evidence: reward them only when the supplied packet supports them. A score of 4 is fully correct and well calibrated; 0 is materially
 wrong or unsupported. Choose the higher score as winner, or tie only when equal. Return only JSON
 without Markdown: {"answer_a_score":integer,"answer_b_score":integer,"winner":"A"|"B"|"tie","critical_errors_a":[string],"critical_errors_b":[string],"rationale":string}."""
 
@@ -101,10 +103,14 @@ async def create_evaluation(
         evaluation = EvaluationRun(
             name=name,
             config={
-                "generator_model": settings.eval_generator_model,
-                "judge_model": settings.eval_judge_model,
-                "max_turns": settings.eval_max_turns,
+                "arm_model": settings.eval_generator_model,
+                "evaluation_judge_model": settings.eval_judge_model,
+                "guard_judge_model": settings.agent_judge_model,
+                "baseline_max_turns": settings.eval_max_turns,
+                "guarded_max_turns": settings.eval_guarded_max_turns,
                 "max_web_searches": settings.eval_max_web_searches,
+                "turn_max_tokens": settings.agent_turn_max_tokens,
+                "effort": settings.agent_effort,
                 "max_cost_usd": settings.eval_max_cost_usd,
                 "source_access": "packet only; web search disabled",
                 "method_note": "Synthetic cases and blind LLM judging are a hackathon signal, not independent validation.",
@@ -160,25 +166,20 @@ async def _materialize_workspace(session: AsyncSession, packet: dict, title: str
 async def _run_arm(
     case: EvaluationCase,
     arm: Literal["baseline", "guarded"],
+    config: dict,
     *,
     sessions: async_sessionmaker[AsyncSession],
     client: Any,
 ) -> EvaluationOutput:
-    settings = get_settings()
     async with sessions() as session:
         workspace = await _materialize_workspace(session, case.packet, f"Evaluation {case.id} {arm}")
-        rubric = case.rubric
-        payload = AgentRunCreate(
-            idempotency_key=f"evaluation-{case.id}-{arm}",
-            question=rubric["question"],
-            kind="question",
-            completion_criteria=rubric.get("completion_criteria", []),
-            mode=arm,
-            model=settings.eval_generator_model,
-            max_turns=settings.eval_max_turns,
-            max_web_searches=settings.eval_max_web_searches,
-        )
+        payload = _arm_payload(case, arm, config)
         run = await create_run(session, workspace.id, payload)
+        run.budgets = {
+            **run.budgets,
+            "turn_max_tokens": config.get("turn_max_tokens"),
+            "effort": config.get("effort"),
+        }
         run.status = "running"
         await session.commit()
         output = EvaluationOutput(
@@ -191,7 +192,8 @@ async def _run_arm(
         session.add(output)
         await session.commit()
         output_id = output.id
-    await execute_run(run.id, sessions=sessions, client=client, amass=None)
+    guard_judge = Judge(client, model=config.get("guard_judge_model")) if arm == "guarded" else None
+    await execute_run(run.id, sessions=sessions, client=client, amass=None, judge=guard_judge)
     async with sessions() as session:
         run = await session.get(AgentRun, run.id)
         output = await session.get(EvaluationOutput, output_id)
@@ -203,20 +205,38 @@ async def _run_arm(
         return output
 
 
+def _arm_payload(case: EvaluationCase, arm: str, config: dict) -> AgentRunCreate:
+    """Build an arm request without exposing the evaluator's answer-specific rubric."""
+    return AgentRunCreate(
+        idempotency_key=f"evaluation-{case.id}-{arm}",
+        question=case.rubric["question"],
+        kind="question",
+        completion_criteria=[],
+        mode=arm,
+        model=config.get("arm_model", config.get("generator_model")),
+        max_turns=config.get(f"{arm}_max_turns", config.get("max_turns")),
+        max_web_searches=config["max_web_searches"],
+    )
+
+
 async def _judge_case(
-    case: EvaluationCase, outputs: list[EvaluationOutput], *, sessions, client: Any
+    case: EvaluationCase, outputs: list[EvaluationOutput], config: dict, *, sessions, client: Any
 ) -> EvaluationJudgment | None:
     by_arm = {output.arm: output for output in outputs}
-    if any(by_arm.get(arm) is None or by_arm[arm].status != "succeeded" for arm in ("baseline", "guarded")):
+    if any(
+        by_arm.get(arm) is None
+        or by_arm[arm].status != "succeeded"
+        or not (by_arm[arm].answer or "").strip()
+        for arm in ("baseline", "guarded")
+    ):
         return None
     labels = case.blind_labels
-    answers = {labels[arm]: by_arm[arm].answer for arm in ("baseline", "guarded")}
+    answers = _blind_answers(labels, by_arm)
     material = {"packet": case.packet, "question": case.rubric["question"], "rubric": case.rubric, "answers": answers}
-    settings = get_settings()
     tally = new_tally()
     verdict = await structured_call(
         client,
-        model=settings.eval_judge_model,
+        model=config.get("evaluation_judge_model", config.get("judge_model")),
         system=JUDGE_SYSTEM,
         content=material,
         tool_name="submit_blind_evaluation",
@@ -231,7 +251,7 @@ async def _judge_case(
     async with sessions() as session:
         judgment = EvaluationJudgment(
             evaluation_case_id=case.id,
-            model=settings.eval_judge_model,
+            model=config.get("evaluation_judge_model", config.get("judge_model")),
             material=material,
             verdict=verdict.model_dump(),
             usage=tally,
@@ -253,29 +273,43 @@ async def run_evaluation(
         evaluation.status = "running"
         await session.commit()
         cases = list(await session.scalars(select(EvaluationCase).where(EvaluationCase.evaluation_run_id == evaluation_id).order_by(EvaluationCase.position)))
+        config = dict(evaluation.config)
     for case in cases:
+        if await _spent(evaluation_id, sessions=sessions) >= config["max_cost_usd"]:
+            await render_report(evaluation_id, sessions=sessions, status="budget_exhausted")
+            return
         async with sessions() as session:
             existing = list(await session.scalars(select(EvaluationOutput).where(EvaluationOutput.evaluation_case_id == case.id)))
         by_arm = {output.arm: output for output in existing}
-        for arm in ("baseline", "guarded"):
+        arm_order = sorted(("baseline", "guarded"), key=lambda arm: case.blind_labels[arm])
+        for arm in arm_order:
             if arm not in by_arm:
-                if await _spent(evaluation_id, sessions=sessions) >= evaluation.config["max_cost_usd"]:
-                    async with sessions() as session:
-                        row = await session.get(EvaluationRun, evaluation_id)
-                        row.status = "budget_exhausted"
-                        await session.commit()
-                    await render_report(evaluation_id, sessions=sessions, status="budget_exhausted")
-                    return
-                by_arm[arm] = await _run_arm(case, arm, sessions=sessions, client=client)
+                by_arm[arm] = await _run_arm(case, arm, config, sessions=sessions, client=client)
         async with sessions() as session:
             already_judged = await session.scalar(select(EvaluationJudgment).where(EvaluationJudgment.evaluation_case_id == case.id))
         if already_judged is None:
-            await _judge_case(case, list(by_arm.values()), sessions=sessions, client=client)
+            already_judged = await _judge_case(
+                case, list(by_arm.values()), config, sessions=sessions, client=client
+            )
         async with sessions() as session:
             row = await session.get(EvaluationCase, case.id)
-            row.status = "completed"
+            row.status = "completed" if already_judged is not None else "incomplete"
             await session.commit()
-    await render_report(evaluation_id, sessions=sessions)
+    await render_report(evaluation_id, sessions=sessions, status="completed")
+
+
+def _normalize_answer(answer: str | None) -> str:
+    """Remove system-authored arm markers without rewriting substantive answer content."""
+    text = (answer or "").replace("\r\n", "\n").replace("\r", "\n").strip()
+    marker = "\n\n[Verifier record] Final certainty:"
+    if marker in text:
+        text = text.split(marker, 1)[0].rstrip()
+    return text
+
+
+def _blind_answers(labels: dict, by_arm: dict[str, EvaluationOutput]) -> dict[str, str]:
+    labeled = {labels[arm]: _normalize_answer(by_arm[arm].answer) for arm in labels}
+    return {label: labeled[label] for label in ("A", "B")}
 
 
 async def _spent(evaluation_id: uuid.UUID, *, sessions: async_sessionmaker[AsyncSession]) -> float:
@@ -285,13 +319,22 @@ async def _spent(evaluation_id: uuid.UUID, *, sessions: async_sessionmaker[Async
         case_ids = [case.id for case in cases]
         outputs = list(await session.scalars(select(EvaluationOutput).where(EvaluationOutput.evaluation_case_id.in_(case_ids)))) if case_ids else []
         judgments = list(await session.scalars(select(EvaluationJudgment).where(EvaluationJudgment.evaluation_case_id.in_(case_ids)))) if case_ids else []
-    agent_cost = sum(float(output.usage.get("cost_usd") or 0) for output in outputs)
-    judge_cost = sum(estimate_cost(judgment.model, judgment.usage) or 0 for judgment in judgments)
+    costs = [output.usage.get("cost_usd") for output in outputs]
+    if any(cost is None for cost in costs):
+        raise ValueError("Cannot enforce the evaluation cost cap for an unpriced arm model")
+    agent_cost = sum(float(cost) for cost in costs)
+    estimated = [estimate_cost(judgment.model, judgment.usage) for judgment in judgments]
+    if any(cost is None for cost in estimated):
+        raise ValueError("Cannot enforce the evaluation cost cap for an unpriced judge model")
+    judge_cost = sum(estimated)
     return agent_cost + judge_cost
 
 
 async def render_report(
-    evaluation_id: uuid.UUID, *, sessions: async_sessionmaker[AsyncSession] = session_factory, status: str = "completed"
+    evaluation_id: uuid.UUID,
+    *,
+    sessions: async_sessionmaker[AsyncSession] = session_factory,
+    status: str | None = None,
 ) -> str:
     async with sessions() as session:
         evaluation = await session.get(EvaluationRun, evaluation_id)
@@ -330,7 +373,8 @@ async def render_report(
         ]
         report = "\n".join(lines)
         evaluation.report = report
-        evaluation.status = status
-        evaluation.completed_at = datetime.now(UTC)
+        if status is not None:
+            evaluation.status = status
+            evaluation.completed_at = datetime.now(UTC)
         await session.commit()
         return report

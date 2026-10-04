@@ -18,12 +18,22 @@ def packet_from_xml(pmcid: str, xml: str) -> dict:
     root = ET.fromstring(xml)
     title = _text(root.find(".//article-title")) or pmcid
     abstract = _text(root.find(".//abstract"))
-    body = _text(root.find(".//body"))
-    if not body:
+    body_element = root.find(".//body")
+    if body_element is None or not _text(body_element):
         raise ValueError(f"{pmcid} has no article body")
     # References, acknowledgements and supplements add substantial context cost but do not form the
     # evidence body being evaluated. The cap keeps every paired run within the declared pilot budget.
-    text = f"# {title}\n\n## Abstract\n{abstract}\n\n## Article body\n{body}"
+    parts = [f"# {title}", "## Abstract", abstract, "## Article body"]
+    for element in body_element.iter():
+        tag = element.tag.rsplit("}", 1)[-1]
+        content = _text(element)
+        if not content:
+            continue
+        if tag == "title":
+            parts.append(f"### {content}")
+        elif tag in {"p", "tr"}:
+            parts.append(content)
+    text = "\n\n".join(parts)
     if len(text) > MAX_BODY_CHARS:
         text = text[:MAX_BODY_CHARS].rsplit(" ", 1)[0] + "\n\n[Article body truncated at evaluation packet limit.]"
     return {

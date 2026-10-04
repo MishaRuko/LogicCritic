@@ -1,7 +1,16 @@
 import json
+from types import SimpleNamespace
+import uuid
 
-from app.evaluations.service import GeneratedCases, PairwiseVerdict, packet_hash
 from app.evaluations.europe_pmc import packet_from_xml
+from app.evaluations.service import (
+    GeneratedCases,
+    PairwiseVerdict,
+    _arm_payload,
+    _blind_answers,
+    packet_hash,
+)
+from app.services.text_ingestion import MAX_EXCERPT_CHARS, parse_structured_text
 
 
 def test_packet_hash_is_stable_when_json_key_order_changes() -> None:
@@ -55,3 +64,55 @@ def test_europe_pmc_packet_keeps_article_body_and_drops_references() -> None:
     assert packet["id"] == "PMC123"
     assert "Observed result." in packet["sources"][0]["text"]
     assert "Reference omitted." not in packet["sources"][0]["text"]
+    assert "### Results" in packet["sources"][0]["text"]
+
+
+def test_evaluation_arm_never_receives_answer_specific_criteria() -> None:
+    case = SimpleNamespace(
+        id=uuid.uuid4(),
+        rubric={
+            "question": "What does the evidence support?",
+            "completion_criteria": ["The answer-key fact is 42."],
+        },
+    )
+    config = {
+        "arm_model": "claude-sonnet-5-5",
+        "baseline_max_turns": 6,
+        "guarded_max_turns": 12,
+        "max_web_searches": 0,
+    }
+
+    baseline = _arm_payload(case, "baseline", config)
+    guarded = _arm_payload(case, "guarded", config)
+
+    assert baseline.completion_criteria == guarded.completion_criteria == []
+    assert baseline.max_turns == 6 and guarded.max_turns == 12
+
+
+def test_blind_answers_are_always_ordered_by_label_and_strip_only_system_marker() -> None:
+    outputs = {
+        "baseline": SimpleNamespace(answer="Baseline [95% CI]."),
+        "guarded": SimpleNamespace(
+            answer="Guarded answer.\n\n[Verifier record] Final certainty: conditional."
+        ),
+    }
+
+    answers = _blind_answers({"baseline": "B", "guarded": "A"}, outputs)
+
+    assert list(answers) == ["A", "B"]
+    assert answers == {"A": "Guarded answer.", "B": "Baseline [95% CI]."}
+
+
+def test_europe_pmc_article_becomes_bounded_sectioned_excerpts() -> None:
+    paragraph = " ".join(f"Result {index}." for index in range(500))
+    packet = packet_from_xml(
+        "PMC456",
+        f"<article><front><article-title>Title</article-title><abstract>Summary</abstract></front>"
+        f"<body><sec><title>Methods</title><p>{paragraph}</p></sec></body></article>",
+    )
+
+    excerpts = parse_structured_text(packet["sources"][0]["text"])
+
+    assert len(excerpts) > 5
+    assert all(len(item.text) <= MAX_EXCERPT_CHARS for item in excerpts)
+    assert any(item.locator.get("section") == "Methods" for item in excerpts)

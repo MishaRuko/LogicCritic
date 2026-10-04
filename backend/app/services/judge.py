@@ -109,7 +109,10 @@ either way, so a conclusion that refutes the claim can meet them as well as one 
 it. Never phrase one as 'consistent evidence of benefit' or any other direction; say 'consistent \
 findings, in whichever direction'. Do not ask for things a paper's text cannot show: who \
 funded or conducted the work, the researchers' motives or affiliations. Do not name \
-particular trials or papers. Be specific to this topic, not generic. Also state 1 to 3 \
+particular trials or papers. Be specific to this topic, not generic. If the question asks \
+about a specific study, paper or supplied source, the criteria concern what that source's \
+design, data and reporting must show; do not demand replication in other studies or evidence \
+outside it. Keep each criterion under 25 words. Also state 1 to 3 \
 findings that would show a tentative answer wrong. Do \
 not guess the answer."""
 
