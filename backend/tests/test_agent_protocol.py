@@ -318,3 +318,64 @@ def test_the_finalize_tool_makes_the_agent_choose() -> None:
     schema = tool_def["input_schema"]
     assert "protocol" in schema["required"]
     assert schema["properties"]["protocol"]["enum"] == ["recorded", "none"]
+
+
+# -- reading checks out of an agent's protocol ----------------------------------------------------
+
+
+def checks_of(*lines: str) -> list[list[tuple[float, str]]]:
+    from app.services.experiments import numbered_protocol
+
+    text = "\n\n".join(f"{n}. {line}" for n, line in enumerate(lines, 1))
+    protocol = numbered_protocol(text, "p", "Test")
+    return [[(c.expected, c.unit) for c in step.checks] for step in protocol.steps]
+
+
+@pytest.mark.parametrize(
+    ("line", "expected"),
+    [
+        ("Add 5 µl of DNA with a pipette.", [(5.0, "µL")]),
+        ("Add 5 ul of DNA with a pipette.", [(5.0, "uL")]),
+        ("Add 250 ml of buffer with a pipette.", [(250.0, "mL")]),
+        ("Add 5 µL of DNA with a pipette.", [(5.0, "µL")]),
+        ("Heat shock at 42 °c for 30 s.", [(42.0, "°C")]),
+    ],
+)
+def test_units_are_read_however_a_paper_spells_them(line, expected) -> None:
+    assert checks_of(line) == [expected]
+
+
+def test_a_value_mentioned_twice_in_a_step_is_one_check() -> None:
+    line = "Add 5 µL of DNA with a pipette set to 5 µL."
+    assert checks_of(line) == [[(5.0, "µL")]]
+    assert checks_of("Heat to 42 °C, holding the bath at 42 °C.") == [[(42.0, "°C")]]
+
+
+def test_different_values_in_one_step_each_get_a_check() -> None:
+    assert checks_of("Move from 37 °C to 42 °C.") == [[(37.0, "°C"), (42.0, "°C")]]
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "Add 1–5 µl of DNA with a pipette.",
+        "Add 1-5 µl of DNA with a pipette.",
+        "Spread 20–200 µl on a plate with a pipette.",
+        "Keep the cells at -20 °C.",
+        "Keep the cells at −20 °C.",
+    ],
+)
+def test_a_range_or_a_negative_is_not_mistaken_for_a_setting(line) -> None:
+    assert checks_of(line) == [[]]
+
+
+def test_a_volume_still_needs_a_named_instrument_to_become_a_check() -> None:
+    assert checks_of("Add 5 µl of DNA to the cells.") == [[]]
+
+
+def test_the_protocol_tool_asks_for_the_instrument_and_for_single_values() -> None:
+    from app.agent.tool_models import ProtocolStepInput
+
+    description = ProtocolStepInput.model_fields["action"].description
+    assert "instrument that sets each volume or temperature" in description
+    assert "do not write ranges" in description

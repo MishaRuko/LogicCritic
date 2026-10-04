@@ -31,6 +31,13 @@ from app.services.text_ingestion import ParsedExcerpt
 
 log = logging.getLogger(__name__)
 METHOD_SECTION = re.compile(r"method|protocol|procedure|experimental|materials", re.I)
+# Papers write "µl", "ul" or "ml" as often as "µL"; read them all and keep one spelling per unit.
+UNIT_SPELLING = {"μl": "μL", "µl": "µL", "ul": "uL", "ml": "mL", "°c": "°C", "degc": "degC"}
+# A number is a setting only on its own: not the end of a range ("1–5 µL") and not a negative
+# ("-20 °C"), which would otherwise be read as 5 µL and +20 °C.
+SETTING = re.compile(
+    r"(?<![\d.\-–−])(\d+(?:\.\d+)?)\s*(μL|µL|uL|mL|°C|degC|%)(?=\s|[.,;)]|$)", re.IGNORECASE
+)
 
 
 def methodology_excerpts(excerpts: list[Excerpt] | list[ParsedExcerpt]) -> list:
@@ -84,10 +91,12 @@ def numbered_protocol(text: str, protocol_id: str, title: str) -> Protocol | Non
         quote = match[2].strip()
         checks = []
         # Only visibly measurable numeric settings supported by the actual instruction.
-        for value in re.finditer(
-            r"(\d+(?:\.\d+)?)\s*(μL|µL|uL|mL|°C|degC|%)(?=\s|[.,;)]|$)", quote
-        ):
-            unit = value[2]
+        seen = set()
+        for value in SETTING.finditer(quote):
+            unit = UNIT_SPELLING.get(value[2].lower(), value[2])
+            if (float(value[1]), unit) in seen:
+                continue  # "5 µL … a pipette set to 5 µL" is one setting, not two
+            seen.add((float(value[1]), unit))
             temperature = unit in {"°C", "degC"}
             # A dispensed quantity without a named readable instrument remains an instruction.
             if not temperature and unit != "%" and "pipette" not in quote.lower():
