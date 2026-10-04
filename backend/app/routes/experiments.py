@@ -23,6 +23,7 @@ from app.models import (
     SourceValidity,
 )
 from app.routes.workspaces import require_workspace
+from app.services.demo_protocol import lab_protocol
 from app.services.experiments import extract_source_protocol
 from app.services.research_state import research_fingerprint, verification_state
 
@@ -199,16 +200,19 @@ async def prepare_protocol(
         )
     )
     protocol_id = uuid.uuid4()
-    try:
-        protocol, method, citations = await asyncio.to_thread(
-            extract_source_protocol,
-            source,
-            excerpts,
-            str(protocol_id),
-            source.title or source.original_filename,
-        )
-    except (ValueError, RuntimeError) as error:
-        raise HTTPException(422, str(error)) from error
+    if get_settings().demo_protocol:
+        protocol, method, citations = lab_protocol(str(protocol_id))
+    else:
+        try:
+            protocol, method, citations = await asyncio.to_thread(
+                extract_source_protocol,
+                source,
+                excerpts,
+                str(protocol_id),
+                source.title or source.original_filename,
+            )
+        except (ValueError, RuntimeError) as error:
+            raise HTTPException(422, str(error)) from error
     # Model calls can take time; reject if the research changed during extraction.
     session.expire_all()
     if await require_research_ready(session, workspace_id) != fingerprint:

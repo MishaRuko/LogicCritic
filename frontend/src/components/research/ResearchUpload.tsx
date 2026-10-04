@@ -26,7 +26,7 @@ export function ResearchComposer({ mode, onModeChange, busy, submit, processing 
   const [error, setError] = useState('');
   const [fileKey, setFileKey] = useState(0);
   const [kind, setKind] = useState<AgentRunInput['kind']>('question');
-  const [maxTurns, setMaxTurns] = useState(10);
+  const [maxTurns, setMaxTurns] = useState(20);
   const [maxSearches, setMaxSearches] = useState(10);
   const [criteria, setCriteria] = useState('');
   const [falsifiers, setFalsifiers] = useState('');

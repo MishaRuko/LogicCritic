@@ -10,7 +10,7 @@ const preference = 'trial:experiment-analysis-hidden';
 const stages = ['Methodology', 'Frames', 'Evidence', 'Verdicts'];
 
 export function ExperimentAnalysisDock({ job, protocol, onSkipDemo }: { job: ExperimentRun; protocol?: ExperimentProtocol; onSkipDemo?: () => void }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const [hidden, setHidden] = useState(false);
   const panelId = useId();
   const toggle = useRef<HTMLButtonElement>(null);

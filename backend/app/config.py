@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     upload_dir: str = "/data/uploads"
     max_upload_bytes: int = 10 * 1024 * 1024
     max_experiment_upload_bytes: int = 100 * 1024 * 1024
+    # Demo only: prepare the lab's real protocol for every experiment (see services/demo_protocol).
+    demo_protocol: bool = False
     vision_model: str = "claude-opus-5-5"
     vision_effort: str | None = "medium"
     vision_fallbacks: bool = True
@@ -27,7 +29,7 @@ class Settings(BaseSettings):
     agent_model: str = "claude-sonnet-5-5"
     agent_effort: str | None = "medium"
     agent_judge_model: str = "claude-sonnet-5"
-    agent_max_turns: int = 10
+    agent_max_turns: int = 20
     agent_max_web_searches: int = 10
     agent_turn_max_tokens: int = 16000
     agent_user_agent: str = "LogicCritic-ResearchAgent/1.0 (evidence gathering for research review)"

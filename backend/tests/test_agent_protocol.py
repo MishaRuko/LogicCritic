@@ -504,7 +504,10 @@ async def test_a_stale_agent_protocol_is_refreshed_without_manual_verification(a
     assert not (await api.get(f"{base}/experiments")).json()["verified"]
     started = await api.post(f"{base}/experiment-runs", data={"mode": "demo"})
     assert started.status_code == 202, started.text
-    assert started.json()["protocol_id"] != (await events_named(world, "experiment_ready"))[0].payload["protocol_id"]
+    assert (
+        started.json()["protocol_id"]
+        != (await events_named(world, "experiment_ready"))[0].payload["protocol_id"]
+    )
 
 
 async def test_no_protocol_means_nothing_is_prepared() -> None:
@@ -669,3 +672,36 @@ async def test_the_video_model_is_shown_the_agents_protocol_and_nothing_else(
     ]
     for stray in ("A second paper", "retracted paper", "Set the pipette to 50 uL"):
         assert stray not in shown  # no other protocol, paper or fixture leaks in
+
+
+# -- the demo switch -----------------------------------------------------------------------------
+
+
+async def test_the_demo_switch_prepares_the_lab_protocol_whatever_source_is_chosen(
+    api, monkeypatch
+) -> None:
+    monkeypatch.setattr(get_settings(), "demo_protocol", True)
+    world = await make_world(sources=METHODS)
+    base = f"/api/workspaces/{world.workspace_id}"
+    await api.post(f"{base}/verify")
+    # "other" has no methods section at all, and would normally be refused
+    response = await api.post(f"{base}/protocols", json={"source_id": str(world.sources["other"])})
+    assert response.status_code == 201
+    body = response.json()
+    assert body["extraction_method"] == "demo_fixture"
+    steps = body["protocol"]["steps"]
+    assert len(steps) == 7 and steps[0]["description"].startswith("Using a pipette set to 5 μL")
+    assert [(c["expected"], c["unit"]) for s in steps for c in s["checks"]] == [
+        (5.0, "μL"),
+        (42.0, "°C"),
+        (50.0, "μL"),
+    ]
+
+
+async def test_without_the_switch_the_protocol_comes_from_the_source(api) -> None:
+    world = await make_world(sources=METHODS)
+    base = f"/api/workspaces/{world.workspace_id}"
+    await api.post(f"{base}/verify")
+    refused = await api.post(f"{base}/protocols", json={"source_id": str(world.sources["other"])})
+    assert refused.status_code == 422  # no methodology section: nothing is invented
+

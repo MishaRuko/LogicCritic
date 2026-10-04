@@ -185,7 +185,7 @@ it('skips a live analysis to a saved video result without starting another run',
     { ...common, id: 'live', status: 'running', completed_at: null },
     { ...common, id: 'saved', status: 'succeeded', completed_at: '2026-10-04T10:01:00Z' },
   ] }}/></QueryClientProvider>);
-  expect(screen.getByText('Checking the recording')).toBeInTheDocument();
+  expect(screen.getAllByText('Checking the recording').length).toBeGreaterThan(0); // the page and the open analysis window
   fireEvent.click(screen.getByRole('button', { name: 'Skip to demo results' }));
   await waitFor(() => expect(screen.getByRole('region', { name: 'Execution timeline' })).toBeInTheDocument());
   expect(screen.queryByText('Checking the recording')).not.toBeInTheDocument();
