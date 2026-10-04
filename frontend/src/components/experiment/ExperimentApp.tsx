@@ -12,6 +12,7 @@ import { grabFrame, openVideo } from '../../lib/experiment/frames';
 import type { RecordSnapshot } from '../../lib/experiment/types';
 import { observationAt } from '../../lib/experiment/playback';
 import { deleteVideo, getVideo, loadAnalyses, saveAnalyses, type Analysis } from '../../lib/experiment/store';
+import { linkAnalysis, methodFromSource, readHandoff, workspaceUrl } from '../../lib/experiment/handoff';
 import type { ExperimentRecord } from '../../lib/experiment/types';
 import { ExecutionWorkspace } from './ExecutionWorkspace';
 import { HowItWorks } from './HowItWorks';
@@ -19,7 +20,7 @@ import { NewAnalysis } from './NewAnalysis';
 import { RecordView, downloadJSON } from './RecordView';
 import { Sidebar } from './Sidebar';
 
-type Page = { kind: 'new'; sample?: Sample } | { kind: 'analysis'; id: string } | { kind: 'how' };
+type Page = { kind: 'new'; sample?: Sample; method?: File } | { kind: 'analysis'; id: string } | { kind: 'how' };
 type Tab = 'execution' | 'method' | 'record';
 const sampleAnalyses = samples.map(cachedAnalysis).filter((a): a is Analysis => !!a);
 
@@ -30,7 +31,12 @@ export function ExperimentApp() {
 
 function App() {
   const [analyses, setAnalyses] = useState<Analysis[]>(loadAnalyses);
-  const [page, setPage] = useState<Page>(() => sampleAnalyses[0] ? { kind: 'analysis', id: sampleAnalyses.find(a => a.run.id === 'DJI_16')?.id ?? sampleAnalyses[0].id } : { kind: 'new' });
+  const [page, setPage] = useState<Page>(() => {
+    // ?analysis=<id> opens one analysis (linked from an argument workspace).
+    const requested = new URLSearchParams(window.location.search).get('analysis');
+    if (requested && [...loadAnalyses(), ...sampleAnalyses].some(a => a.id === requested)) return { kind: 'analysis', id: requested };
+    return sampleAnalyses[0] ? { kind: 'analysis', id: sampleAnalyses.find(a => a.run.id === 'DJI_16')?.id ?? sampleAnalyses[0].id } : { kind: 'new' };
+  });
   const [tab, setTab] = useState<Tab>('execution');
   const [selected, setSelected] = useState('');
   const [currentTime, setCurrentTime] = useState(0);
@@ -40,13 +46,20 @@ function App() {
   const [claudeReady, setClaudeReady] = useState<boolean>();
   const [collapsed, setCollapsed] = useState(() => { const stored = localStorage.getItem('lens-sidebar-collapsed'); return stored ? stored === 'true' : window.innerWidth < 1100; });
   const video = useRef<HTMLVideoElement>(null);
+  const [handoff] = useState(() => readHandoff(window.location.search));
 
   const analysis = page.kind === 'analysis' ? [...analyses, ...sampleAnalyses].find(a => a.id === page.id) : undefined;
   const run = useMemo(() => analysis && videoUrl ? { ...analysis.run, video: videoUrl } : undefined, [analysis, videoUrl]);
   const method = analysis?.method;
   const results = useMemo(() => analysis ? verifyRun(analysis.method, analysis.run) : {}, [analysis]);
 
-  useEffect(() => { if (analysis) open(analysis); }, []);
+  useEffect(() => { if (analysis && !handoff) open(analysis); }, []);
+  // Continue to experiment: start a new analysis with the workspace source as the method.
+  useEffect(() => {
+    if (!handoff) return;
+    setPage({ kind: 'new' });
+    methodFromSource(handoff.source).then(method => setPage({ kind: 'new', method }), e => notify(e instanceof Error ? e.message : String(e)));
+  }, [handoff]);
   useEffect(() => { saveAnalyses(analyses); }, [analyses]);
   useEffect(() => { localStorage.setItem('lens-sidebar-collapsed', String(collapsed)); }, [collapsed]);
   useEffect(() => {
@@ -108,7 +121,8 @@ function App() {
       activeId={page.kind === 'analysis' ? page.id : undefined} activeSample={page.kind === 'new' ? page.sample : undefined} howActive={page.kind === 'how'}
       onOpen={open} onNew={sample => setPage({ kind: 'new', sample })} onRemove={remove} onHowItWorks={() => setPage({ kind: 'how' })}/>
     <div className="app-main"><div className="page">
-      {page.kind === 'new' ? <NewAnalysis key={page.sample?.id ?? 'blank'} initialSample={page.sample} claudeReady={claudeReady} onOpen={open} onComplete={a => { setAnalyses(list => [...list, a]); open(a); }}/>
+      {handoff && <div className="handoff-banner"><span>Method from your argument workspace. Results are linked back to it.</span><a href={workspaceUrl(handoff.workspace)}>← Back to workspace</a></div>}
+      {page.kind === 'new' ? <NewAnalysis key={page.sample?.id ?? page.method?.name ?? 'blank'} initialSample={page.sample} initialMethod={page.method} claudeReady={claudeReady} onOpen={open} onComplete={a => { setAnalyses(list => [...list, a]); if (handoff) linkAnalysis(handoff.workspace, a.id); open(a); }}/>
       : page.kind === 'how' ? <HowItWorks onExample={() => { const a = sampleAnalyses.find(a => a.run.id === 'DJI_16'); if (a) open(a); else setPage({ kind: 'new', sample: samples.find(s => s.id === 'DJI_16') }); }}/>
       : analysis && method ? <>
         <div className="experiment-heading">

@@ -29,7 +29,7 @@ function videoDuration(url: string) {
   return new Promise<number>((resolve, reject) => { const v = document.createElement('video'); v.preload = 'metadata'; v.onloadedmetadata = () => resolve(v.duration); v.onerror = () => reject(new Error('This browser cannot read that video. Try an H.264 MP4.')); v.src = url; });
 }
 
-export function NewAnalysis({ initialSample, claudeReady, onComplete, onOpen }: { initialSample?: Sample; claudeReady: boolean | undefined; onComplete: (analysis: Analysis) => void; onOpen: (analysis: Analysis) => void }) {
+export function NewAnalysis({ initialSample, initialMethod, claudeReady, onComplete, onOpen }: { initialSample?: Sample; initialMethod?: File; claudeReady: boolean | undefined; onComplete: (analysis: Analysis) => void; onOpen: (analysis: Analysis) => void }) {
   const [method, setMethod] = useState<MethodInput>();
   const [video, setVideo] = useState<VideoInput>();
   const [stage, setStage] = useState<Stage>();
@@ -40,6 +40,8 @@ export function NewAnalysis({ initialSample, claudeReady, onComplete, onOpen }: 
   const [inspecting, setInspecting] = useState<{ start: number; end: number }>();
   const logEnd = useRef<HTMLDivElement>(null);
   useEffect(() => { if (initialSample) chooseSample(initialSample); }, [initialSample]);
+  // Method handed over from an argument workspace (see lib/experiment/handoff.ts).
+  useEffect(() => { if (initialMethod) { setMethod({ name: initialMethod.name, file: initialMethod }); reset(); } }, [initialMethod]);
   useEffect(() => { logEnd.current?.scrollIntoView({ block: 'nearest' }); }, [log]);
   function chooseSample(sample: Sample) {
     setMethod({ name: sample.protocolName, sample }); setVideo({ name: `${sample.id}.mp4`, url: sample.video, duration: sample.duration, sample }); reset();

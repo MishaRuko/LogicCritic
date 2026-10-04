@@ -387,4 +387,6 @@ code { font-family: var(--mono); font-size: .92em; background: var(--soft); padd
 .download-button:focus-visible { outline: 2px solid #09090b; outline-offset: 2px; }
 .download-divider { width: 1px; align-self: stretch; margin: 9px 1px 9px 3px; background: rgba(255, 255, 255, .25); }
 
+.handoff-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; padding: 9px 12px; border: 1px solid var(--line, #e4e4e7); border-radius: 7px; background: #f4f4f5; font-size: 12px; }
+.handoff-banner a { color: inherit; font-weight: 500; text-decoration: none; }
 }
