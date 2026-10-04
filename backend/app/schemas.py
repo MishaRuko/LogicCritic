@@ -461,6 +461,8 @@ class AgentProtocol(BaseModel):
     title: str | None
     basis: str
     steps: list[AgentProtocolStep]
+    # Set once the protocol is prepared for the experiment tools (pass it as `protocol_id`).
+    experiment_protocol_id: uuid.UUID | None = None
 
 
 class AgentRunResponse(APIModel):

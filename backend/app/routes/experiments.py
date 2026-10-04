@@ -219,6 +219,20 @@ async def start_experiment(
     protocol = await session.get(ExperimentProtocol, protocol_id) if protocol_id else None
     if protocol_id and (protocol is None or protocol.workspace_id != workspace_id):
         raise HTTPException(404, "Protocol not found")
+    if protocol is None and source_id is None:
+        # Nothing chosen: use the protocol the research agent handed over, if it is current.
+        protocol = await session.scalar(
+            select(ExperimentProtocol)
+            .join(Source, Source.id == ExperimentProtocol.source_id)
+            .where(
+                ExperimentProtocol.workspace_id == workspace_id,
+                ExperimentProtocol.research_fingerprint == fingerprint,
+                Source.origin == "agent",
+                Source.metadata_["parser"].astext == "agent_protocol_v1",
+            )
+            .order_by(ExperimentProtocol.created_at.desc())
+            .limit(1)
+        )
     if protocol is None or protocol.research_fingerprint != fingerprint:
         selected_source = source_id or (protocol.source_id if protocol else None)
         if selected_source is None:

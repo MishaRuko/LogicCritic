@@ -36,7 +36,12 @@ export function ResearchExperiments({ state, data, loading, error, busy, perform
   const [setup, setSetup] = useState(false);
   const [starting, setStarting] = useState(false);
   const startVersion = useRef(0);
-  const selectedSource = sources.find(source => source.id === sourceId) ?? sources[0];
+  // The procedure the research agent handed over is the one to follow, so it is the default; the
+  // dropdown still lets a person choose any other source.
+  const agentProtocol = sources
+    .filter(source => source.origin === 'agent' && source.metadata?.parser === 'agent_protocol_v1')
+    .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))[0];
+  const selectedSource = sources.find(source => source.id === sourceId) ?? agentProtocol ?? sources[0];
   const sample = !!selectedSource && isLabSample(selectedSource.original_filename);
   const protocol = data?.protocols.find(p => p.source_id === selectedSource?.id && p.current);
   const run = data?.runs.find(r => r.id === runId) ?? data?.runs[0];

@@ -7,7 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agent.runs import cancel_run, create_run
 from app.config import get_settings
 from app.database import get_session
-from app.models import AgentEvent, AgentRun, JudgeVerdict, ResearchGoal, Source
+from app.models import (
+    AgentEvent,
+    AgentRun,
+    ExperimentProtocol,
+    JudgeVerdict,
+    ResearchGoal,
+    Source,
+)
 from app.routes.workspaces import require_workspace
 from app.schemas import (
     AgentEventResponse,
@@ -66,6 +73,16 @@ async def _protocols(session: AsyncSession, run_ids: list[uuid.UUID]) -> dict[st
             basis=meta.get("basis", ""),
             steps=meta.get("steps", []),
         )
+    prepared = {
+        row.source_id: row.id
+        for row in await session.scalars(
+            select(ExperimentProtocol)
+            .where(ExperimentProtocol.source_id.in_([p.source_id for p in found.values()]))
+            .order_by(ExperimentProtocol.created_at)
+        )
+    }
+    for protocol in found.values():
+        protocol.experiment_protocol_id = prepared.get(protocol.source_id)
     return found
 
 

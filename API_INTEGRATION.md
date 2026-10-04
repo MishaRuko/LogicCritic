@@ -129,6 +129,7 @@ Every event has `seq`, `type`, `payload` and `created_at`. Payload types are in 
 | `assurance` | the assurance object | Move the uncertainty bar. |
 | `check` | `result`: the verifier's packet | Obligations and what the conclusion rests on. |
 | `protocol` | `source_id`, `title`, `basis`, `steps[{n, action, excerpt_ids}]` | The procedure the agent handed over. |
+| `experiment_ready` / `experiment_not_ready` | `protocol_id`, `source_id`, `steps`; or `source_id`, `reason` | The protocol is prepared for the experiment tools, or why it is not. |
 | `finalization` | `result`: `accepted`, `certainty`, `caveats` or `reason` and `obligations` | The attempt to conclude; a refusal is shown too. |
 | `nudge` | `reason`, `count` | The agent was prompted to continue. |
 | `server_block` | `block` | Any other server-side tool output, as recorded. |
@@ -171,7 +172,9 @@ When the evidence the agent relied on describes a procedure someone could carry 
 - **Where it appears.** `AgentRun.protocol` (`source_id`, `title`, `basis`, `steps[{n, action, excerpt_ids}]`, or `null` if none), a `protocol` event in the trace, and a source in the workspace (`origin: "agent"`, title `Protocol: ...`, a `# Methods` section of numbered steps, step citations in `metadata.steps`). Each step's `excerpt_ids` point at the paper passages it came from, so show provenance from there.
 - **How it is enforced.** `finalize_conclusion` makes the agent state `protocol`: `recorded` or `none`. Claiming `recorded` without having recorded one is refused. Saying `none` after reading a source with a Methods section is pushed back once (never a loop); the agent can then record a protocol or finalize again.
 - **Retractions.** A protocol cannot cite a retracted source or experiment results.
-- **Into the experiment tools.** Because it is an ordinary source with a Methods section of numbered steps, it appears in the experiment tools' research-source list and extracts verbatim with no model call: `POST /workspaces/{id}/protocols {source_id}`. Run Checks first. Volume and temperature checks are created for steps that name the value and, for volumes, a pipette.
+- **Into the experiment tools, automatically.** When a run concludes with a protocol, the backend runs the deterministic verifier once more (recording the protocol changed the research) and prepares the protocol for the experiment tools. It is an ordinary source with a numbered Methods section, so it extracts verbatim with no model call. The trace gets `experiment_ready` (`protocol_id`, `source_id`, `steps`) or, if it could not be prepared, `experiment_not_ready` with a `reason`; the run itself never fails because of this. `AgentRun.protocol.experiment_protocol_id` is the prepared protocol. Only the recording is left for a person to supply.
+- **Starting the experiment.** `POST /workspaces/{id}/experiment-runs` with `mode` and the recording, and **no** `protocol_id` or `source_id`, uses the agent's prepared protocol as long as it is still current (the research has not changed since). If it is stale, or there is none, the call returns 422 asking for a source. Send `protocol_id` (or `source_id`) to choose explicitly; a client that always sends the selected `source_id` will use that source instead, so make the agent's protocol the default selection.
+- **Preparing one by hand.** `POST /workspaces/{id}/protocols {source_id}` still works for any source. Run Checks first. Volume and temperature checks are created for steps that give a single value and, for volumes, name a pipette; ranges ("1–5 µl") and negatives are left as instructions.
 
 ### Rendering a run
 
