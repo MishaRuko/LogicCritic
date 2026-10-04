@@ -48,9 +48,16 @@ answering. It returns open obligations: what must be established before the conc
 justified. It does not tell you what to do. You may fetch more evidence, record and weigh \
 opposing evidence, narrow the conclusion, or finalize with honest caveats. An obligation you \
 cannot meet is a reason to state a weaker conclusion, not to hide it.
-6. Call finalize_conclusion with the certainty the evidence supports and your verdict: the \
-direct answer to exactly what was asked (the label the question requests, if it requests one). \
-If the evidence supports no conclusion, abstain.
+6. If the evidence you relied on describes a laboratory or experimental procedure that someone \
+could carry out to reproduce or test the finding, record it with record_protocol before you \
+finalize, whether or not the question asked for one. Give the physical bench steps the sources \
+report, in order (not the data analysis), each citing the excerpts that state it, with exact \
+values and the instrument used. Where sources differ, follow one source's procedure and say in \
+the basis which and why. Never invent or fill in a step the sources do not state. A question \
+with no procedure needs none. Then call finalize_conclusion with the certainty the evidence \
+supports, your verdict (the direct answer to exactly what was asked, in the label the question \
+requests if it requests one), and whether you recorded a protocol. If the evidence supports no \
+conclusion, abstain.
 7. Finalization submits that recorded conclusion as the answer. Do not rely on a later opportunity \
 to expand it.
 

@@ -448,8 +448,24 @@ class AgentVerdictResponse(BaseModel):
     searches: list[str]
 
 
+class AgentProtocolStep(BaseModel):
+    n: int
+    action: str
+    excerpt_ids: list[str]
+
+
+class AgentProtocol(BaseModel):
+    """The procedure the agent found, as a source the experiment tools can follow."""
+
+    source_id: uuid.UUID
+    title: str | None
+    basis: str
+    steps: list[AgentProtocolStep]
+
+
 class AgentRunResponse(APIModel):
     goal: AgentGoalResponse | None = None
+    protocol: AgentProtocol | None = None
     id: uuid.UUID
     workspace_id: uuid.UUID
     goal_id: uuid.UUID

@@ -44,6 +44,20 @@ MAX_NUDGES = 2
 TERMINAL_TOOLS = {"finalize_conclusion", "abstain"}
 
 
+# Strict mode compiles every strict tool's schema into one grammar, and the API refuses a request
+# whose grammar is too large. It earns its place on the tools with nested arguments, where the
+# model otherwise returns arrays as strings or leaves fields out. The plain string and number
+# tools are checked against the same closed schema on our side, and a bad call comes back as a
+# readable error.
+STRICT_TOOLS = {
+    "record_claim",
+    "record_reasoning",
+    "record_protocol",
+    "revise_claim",
+    "finalize_conclusion",
+}
+
+
 def build_tools(mode: str, max_web_searches: int) -> list[dict]:
     # The basic web search tool: the newer version lets the model call search from inside a code
     # cell, where it mis-shaped the arguments and every search failed.
@@ -51,7 +65,8 @@ def build_tools(mode: str, max_web_searches: int) -> list[dict]:
     if mode == "guarded":
         specs |= RECORDING_TOOLS | GUARD_TOOLS
     tools: list[dict[str, Any]] = [
-        strict_tool(name, desc, model) for name, (desc, model) in specs.items()
+        strict_tool(name, desc, model, strict=name in STRICT_TOOLS)
+        for name, (desc, model) in specs.items()
     ]
     if max_web_searches > 0:
         tools.append(
@@ -258,7 +273,8 @@ async def _drive(state: _State, client: Any, goal: ResearchGoal) -> None:
             "role": "user",
             "content": prompts.opening_message(
                 goal, state.mode, budgets["max_turns"], budgets["max_web_searches"]
-            ) + context,
+            )
+            + context,
         }
     )
     tools = build_tools(state.mode, budgets["max_web_searches"])
@@ -379,6 +395,8 @@ async def _run_tools(state: _State, response: Any) -> tuple[list[dict], bool]:
             await state.events.add("graph_change", change)
         if not is_error:
             await _update_assurance(state, block.name, dict(block.input), result)
+            if block.name == "record_protocol":
+                await state.events.add("protocol", _protocol_event(dict(block.input), result))
         if block.name in TERMINAL_TOOLS and result.get("accepted"):
             concluded = True
     return results, concluded
@@ -393,6 +411,19 @@ async def _update_assurance(state: _State, tool: str, args: dict, result: dict) 
     elif tool == "finalize_conclusion" and result.get("accepted"):
         if result.get("certainty") == "established":
             await state.set_assurance(assurance.Assurance("settled", []).as_dict())
+
+
+def _protocol_event(args: dict, result: dict) -> dict:
+    """The procedure the agent handed over, for a trace view and for the experiment tools."""
+    return {
+        "source_id": result["source_id"],
+        "title": args.get("title"),
+        "basis": args.get("basis"),
+        "steps": [
+            {"n": n, "action": step.get("action"), "excerpt_ids": step.get("excerpt_ids", [])}
+            for n, step in enumerate(args.get("steps", []), 1)
+        ],
+    }
 
 
 def _graph_change(tool: str, args: dict, result: dict) -> dict | None:

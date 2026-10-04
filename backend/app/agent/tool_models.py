@@ -157,6 +157,31 @@ class ReviseClaimInput(BaseModel):
     )
 
 
+class ProtocolStepInput(BaseModel):
+    action: str = Field(
+        description="One action a person performs, as the source reports it, with the exact "
+        "volumes, temperatures and times and the instrument used. Pick the value the source's "
+        "own procedure uses; do not write ranges or alternatives. Never add a step the sources "
+        "do not state."
+    )
+    excerpt_ids: list[str] = Field(
+        description="excerpt_ids you have read that state this step (at least one)."
+    )
+
+
+class RecordProtocolInput(BaseModel):
+    title: str = Field(description="What the procedure does, e.g. 'Heat-shock transformation'.")
+    steps: list[ProtocolStepInput] = Field(
+        description="The physical steps performed at the bench, in order, one action per step. "
+        "Leave out data analysis and statistics: the steps are followed by a person and "
+        "watched on video."
+    )
+    basis: str = Field(
+        description="Which source(s) this follows and, where sources differ, which you chose "
+        "and why."
+    )
+
+
 class CheckConclusionInput(BaseModel):
     statement_id: str = Field(description="The statement_id of the conclusion you intend to give.")
 
@@ -176,6 +201,14 @@ class FinalizeConclusionInput(BaseModel):
             "Your direct answer to exactly what the question asks, in one short sentence (for "
             "example the verdict label it requests). It must agree with the conclusion; the "
             "conclusion carries the evidence and deductions."
+        ),
+    )
+    protocol: Literal["recorded", "none"] = Field(
+        default="none",
+        description=(
+            "'recorded' if you called record_protocol for a procedure your evidence describes; "
+            "'none' only if your question involves no procedure someone could carry out. Decide "
+            "deliberately: a procedure in the evidence you read should be handed over."
         ),
     )
 
@@ -220,8 +253,18 @@ RECORDING_TOOLS: dict[str, tuple[str, type[BaseModel]]] = {
         "have already recorded. Use it when later evidence shows a claim is wrong, rests on a "
         "retracted or unreliable source, or is worded too strongly. A withdrawn claim leaves your "
         "argument: reasoning that used it must then be re-recorded with record_reasoning "
-        "(revises_step_id). You can only withdraw claims from this run.",
+        "(revises_step_id). You can only withdraw claims the research agent recorded, not "
+        "uploaded or extracted ones.",
         ReviseClaimInput,
+    ),
+    "record_protocol": (
+        "Record the laboratory or experimental procedure behind your answer as ordered steps, "
+        "each citing the excerpts that state it. Call it whenever the evidence you relied on "
+        "describes a procedure someone could carry out to reproduce or test the finding, whether "
+        "or not the question asked for one. It becomes a source a lab-monitoring system can "
+        "follow, so report only what the sources state and never invent a step. Skip it only if "
+        "the question involves no procedure.",
+        RecordProtocolInput,
     ),
     "record_reasoning": (
         "Record that a conclusion follows from premises, and why. Use scope_change whenever the "

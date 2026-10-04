@@ -1,7 +1,7 @@
 """persist absolute per-answer evaluation scores
 
-Revision ID: 0012_evaluation_scores
-Revises: 0011_evaluation_runs
+Revision ID: 0014_evaluation_scores
+Revises: 0013_experiment_records
 Create Date: 2026-10-05
 """
 
@@ -10,8 +10,8 @@ from sqlalchemy.dialects import postgresql
 
 from alembic import op
 
-revision = "0012_evaluation_scores"
-down_revision = "0011_evaluation_runs"
+revision = "0014_evaluation_scores"
+down_revision = "0013_experiment_records"
 branch_labels = None
 depends_on = None
 

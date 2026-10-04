@@ -128,6 +128,7 @@ Every event has `seq`, `type`, `payload` and `created_at`. Payload types are in 
 | `graph_change` | see below | Animate the graph as it is built. |
 | `assurance` | the assurance object | Move the uncertainty bar. |
 | `check` | `result`: the verifier's packet | Obligations and what the conclusion rests on. |
+| `protocol` | `source_id`, `title`, `basis`, `steps[{n, action, excerpt_ids}]` | The procedure the agent handed over. |
 | `finalization` | `result`: `accepted`, `certainty`, `caveats` or `reason` and `obligations` | The attempt to conclude; a refusal is shown too. |
 | `nudge` | `reason`, `count` | The agent was prompted to continue. |
 | `server_block` | `block` | Any other server-side tool output, as recorded. |
@@ -162,6 +163,15 @@ Before answering, the agent calls `check_conclusion`, which returns the open obl
 | `possible_conflict` | advisory | A possible conflict whose link the audit doubts. |
 
 Agent-raised obligations also appear as proof obligations on the claim, so the existing obligation views show them.
+
+### The protocol hand-off
+
+When the evidence the agent relied on describes a procedure someone could carry out to reproduce or test the finding, the agent hands it over, whether or not the question asked for one. It calls `record_protocol` with the physical bench steps in order, each citing the excerpts that state it, plus a `basis` saying which source(s) it follows and why where sources differ. It reports only what the sources state: if the details are not in the text it read, the protocol is short and the basis says so. It never invents a step.
+
+- **Where it appears.** `AgentRun.protocol` (`source_id`, `title`, `basis`, `steps[{n, action, excerpt_ids}]`, or `null` if none), a `protocol` event in the trace, and a source in the workspace (`origin: "agent"`, title `Protocol: ...`, a `# Methods` section of numbered steps, step citations in `metadata.steps`). Each step's `excerpt_ids` point at the paper passages it came from, so show provenance from there.
+- **How it is enforced.** `finalize_conclusion` makes the agent state `protocol`: `recorded` or `none`. Claiming `recorded` without having recorded one is refused. Saying `none` after reading a source with a Methods section is pushed back once (never a loop); the agent can then record a protocol or finalize again.
+- **Retractions.** A protocol cannot cite a retracted source or experiment results.
+- **Into the experiment tools.** Because it is an ordinary source with a Methods section of numbered steps, it appears in the experiment tools' research-source list and extracts verbatim with no model call: `POST /workspaces/{id}/protocols {source_id}`. Run Checks first. Volume and temperature checks are created for steps that name the value and, for volumes, a pipette.
 
 ### Rendering a run
 
