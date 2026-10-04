@@ -46,12 +46,14 @@ make backend && make frontend   # dev: API in Docker, frontend on :5173
 Backend tests (run inside the API image; install dev extras first):
 
 ```sh
-AMASS_API_KEY= CLAUDE_API_KEY= docker compose run --rm --no-deps --user root \
+DEMO_PROTOCOL=false AMASS_API_KEY= CLAUDE_API_KEY= docker compose run --rm --no-deps --user root \
   -v "$PWD/backend:/app" api sh -c "pip install -e '.[dev]' >/dev/null && python -m pytest -q"
 ```
 
 - Blank both API keys. With real keys in the environment some tests make live calls and fail
   (the critic flags steps, Amass answers searches).
+- Set `DEMO_PROTOCOL=false`. Compose turns the demo protocol on by default, and the experiment
+  tests expect the protocol to come from the source.
 - Do not run pytest in parallel (`-n`): tests share one database and interfere.
 - Schema check: `docker compose run --rm --no-deps -v "$PWD/backend:/app" api alembic check`.
 
