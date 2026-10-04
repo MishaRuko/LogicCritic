@@ -1,0 +1,3501 @@
+{
+  "DJI_18": {
+    "method": {
+      "schemaVersion": 1,
+      "title": "E. coli Transformation with Plasmid DNA (Mock Protocol)",
+      "version": "1.0",
+      "source": "Mock-Transformation.pdf",
+      "summary": "Competent E. coli cells are mixed with plasmid DNA, held on ice, heat-shocked at 42°C, returned to ice, then spread on a selective LB agar plate, which is inverted.",
+      "requirements": [
+        {
+          "id": "step-01",
+          "title": "Add plasmid DNA to cells",
+          "description": "Add 5 μL of plasmid DNA to the competent E. coli cells.",
+          "order": 1,
+          "checks": [
+            "Pipette is used to transfer liquid into the tube of competent cells",
+            "Pipette tip is dispensed into the cell tube rather than another vessel",
+            "This addition happens before any flicking, ice incubation or heat shock"
+          ],
+          "caveats": [
+            "Volume (5 μL) cannot be verified from video",
+            "Identity of the plasmid DNA and of the competent E. coli cells depends on labels/contents",
+            "Use of a fresh sterile tip and aseptic handling cannot be confirmed"
+          ],
+          "criticality": "critical",
+          "category": "action"
+        },
+        {
+          "id": "step-02",
+          "title": "Mix by flicking the tube",
+          "description": "Mix gently by flicking the tube 4-5 times.",
+          "order": 2,
+          "checks": [
+            "Tube is flicked with a finger rather than vortexed or pipetted",
+            "Mixing occurs after DNA addition and before the ice incubation"
+          ],
+          "caveats": [
+            "Exact number of flicks (4-5) may not be reliably countable",
+            "Gentleness of mixing is not clearly measurable on video"
+          ],
+          "criticality": "important",
+          "category": "action"
+        },
+        {
+          "id": "step-03",
+          "title": "Incubate mixture on ice",
+          "description": "Incubate the DNA-cell mixture on ice for 5 seconds.",
+          "order": 3,
+          "checks": [
+            "Tube is placed into the ice bucket (green container with ice)",
+            "Tube is left in the ice rather than moved on straight away"
+          ],
+          "caveats": [
+            "Exact duration (5 seconds) cannot be confirmed precisely from video",
+            "Whether the tube is in good contact with the ice may not be visible"
+          ],
+          "criticality": "important",
+          "category": "timing"
+        },
+        {
+          "id": "step-04",
+          "title": "Heat shock at 42°C",
+          "description": "Rapidly transfer the tube to a pre-heated 42°C water bath for exactly 5 seconds.",
+          "order": 4,
+          "checks": [
+            "Tube is moved directly from the ice bucket to the heating apparatus",
+            "Transfer is rapid, without intervening handling",
+            "Tube is removed from the heat after a brief period rather than left in place"
+          ],
+          "caveats": [
+            "Temperature (42°C) and pre-heated state cannot be verified from video",
+            "Exact duration (5 seconds) cannot be confirmed precisely",
+            "Document is inconsistent: procedure says water bath but equipment list names a thermal cycler for heat shock; either apparatus may appear"
+          ],
+          "criticality": "critical",
+          "category": "timing"
+        },
+        {
+          "id": "step-05",
+          "title": "Return tube to ice",
+          "description": "Immediately return the tube to ice for 5 seconds.",
+          "order": 5,
+          "checks": [
+            "Tube is placed back into the ice bucket immediately after heat shock",
+            "Tube is left in the ice briefly rather than moved on straight away"
+          ],
+          "caveats": [
+            "Exact duration (5 seconds) cannot be confirmed precisely",
+            "'Immediately' can only be judged qualitatively"
+          ],
+          "criticality": "important",
+          "category": "ordering"
+        },
+        {
+          "id": "step-06",
+          "title": "Spread culture on agar plate",
+          "description": "Spread 50μL of culture onto an LB agar plate containing the appropriate selective antibiotic.",
+          "order": 6,
+          "checks": [
+            "Liquid is pipetted from the tube onto the surface of an agar plate",
+            "Liquid is spread across the agar surface",
+            "Plating occurs after the post-heat-shock ice step"
+          ],
+          "caveats": [
+            "Volume (50 μL) cannot be verified from video",
+            "Presence and identity of the selective antibiotic in the LB agar requires reading labels",
+            "Sterility of spreading cannot be confirmed"
+          ],
+          "criticality": "critical",
+          "category": "action"
+        },
+        {
+          "id": "step-07",
+          "title": "Invert the plates",
+          "description": "Invert the plates.",
+          "order": 7,
+          "checks": [
+            "Plate is turned upside down so the agar side faces up",
+            "Inversion occurs after spreading the culture"
+          ],
+          "caveats": [],
+          "criticality": "informational",
+          "category": "action"
+        }
+      ]
+    },
+    "observations": [
+      {
+        "id": "step-01-agent",
+        "stepId": "step-01",
+        "timestampStart": 5,
+        "timestampEnd": 21,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Which pipetting event is the aspiration and which is the dispense into the cells cannot be told apart for certain",
+          "Tube identities are not legible",
+          "Not establishable from video: Volume (5 μL) cannot be verified from video",
+          "Not establishable from video: Identity of the plasmid DNA and of the competent E. coli cells depends on labels/contents",
+          "Not establishable from video: Use of a fresh sterile tip and aseptic handling cannot be confirmed"
+        ],
+        "confidence": 0.6,
+        "provenance": "claude_agent",
+        "summary": "At about 5–11 s a pipette with a tip goes into a tube taken from the orange rack, likely the DNA being drawn up. A tube is then taken from the ice bucket (about 13.8 s), and at 18–20 s the pipette tip is put into a tube held in the left hand to dispense.",
+        "checkResults": [
+          {
+            "check": "Pipette is used to transfer liquid into the tube of competent cells",
+            "result": "confirmed",
+            "note": "At 18–20 s the pipette tip is inserted into a tube held in the left hand, consistent with transferring liquid."
+          },
+          {
+            "check": "Pipette tip is dispensed into the cell tube rather than another vessel",
+            "result": "not_visible",
+            "note": "No tube labels are legible. The receiving tube seems to be the one taken from the ice, which would fit competent cells, but I can't establish its identity from the video."
+          },
+          {
+            "check": "This addition happens before any flicking, ice incubation or heat shock",
+            "result": "confirmed",
+            "note": "The pipetting happens before the flicking at about 26–32 s, the ice at about 34 s and the thermal cycler at about 45 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-01-e0",
+            "timestamp": 9.8,
+            "end": 10.8,
+            "description": "Pipette tip inside a tube held in the left hand (first pipetting event).",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e1",
+            "timestamp": 13.8,
+            "end": 14.8,
+            "description": "Hand reaches into the green ice bucket to pick up a tube.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e2",
+            "timestamp": 19.8,
+            "end": 20.8,
+            "description": "Pipette tip inserted into a tube held in the left hand.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-02-agent",
+        "stepId": "step-02",
+        "timestampStart": 25,
+        "timestampEnd": 33,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Number of flicks not countable",
+          "Not establishable from video: Exact number of flicks (4-5) may not be reliably countable",
+          "Not establishable from video: Gentleness of mixing is not clearly measurable on video"
+        ],
+        "confidence": 0.75,
+        "provenance": "claude_agent",
+        "summary": "The tube is held up between both hands and flicked with the fingers, with no vortex and no pipette.",
+        "checkResults": [
+          {
+            "check": "Tube is flicked with a finger rather than vortexed or pipetted",
+            "result": "confirmed",
+            "note": "Between 28 and 32 s the right-hand fingers flick the tube held in the left hand. No vortex is in use."
+          },
+          {
+            "check": "Mixing occurs after DNA addition and before the ice incubation",
+            "result": "confirmed",
+            "note": "The flicking comes after the pipetting (about 20 s) and before the tube goes into the ice (about 34 s)."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-02-e0",
+            "timestamp": 30,
+            "end": 31,
+            "description": "Tube held in the left hand with the right finger positioned to flick it.",
+            "kind": "video"
+          },
+          {
+            "id": "step-02-e1",
+            "timestamp": 32,
+            "end": 33,
+            "description": "Flicking motion continuing.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-03-agent",
+        "stepId": "step-03",
+        "timestampStart": 33.5,
+        "timestampEnd": 41.5,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Exact duration not measurable",
+          "Not establishable from video: Exact duration (5 seconds) cannot be confirmed precisely from video",
+          "Not establishable from video: Whether the tube is in good contact with the ice may not be visible"
+        ],
+        "confidence": 0.8,
+        "provenance": "claude_agent",
+        "summary": "The tube is pushed into the ice in the green bucket. Hands are off it at about 36–38 s, and it is taken out at about 40–41 s.",
+        "checkResults": [
+          {
+            "check": "Tube is placed into the ice bucket (green container with ice)",
+            "result": "confirmed",
+            "note": "At 34 s the hand places the tube into the ice in the green bucket."
+          },
+          {
+            "check": "Tube is left in the ice rather than moved on straight away",
+            "result": "confirmed",
+            "note": "At 36–38 s both hands rest on the bucket edges while the tube stays in the ice."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-03-e0",
+            "timestamp": 34,
+            "end": 35,
+            "description": "Tube being placed into the ice.",
+            "kind": "video"
+          },
+          {
+            "id": "step-03-e1",
+            "timestamp": 38,
+            "end": 39,
+            "description": "Hands away from the tube while it sits in the ice.",
+            "kind": "video"
+          },
+          {
+            "id": "step-03-e2",
+            "timestamp": 40,
+            "end": 41,
+            "description": "Hand reaching into the ice to take the tube out.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-04-agent",
+        "stepId": "step-04",
+        "timestampStart": 41.5,
+        "timestampEnd": 52,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Temperature and exact duration not verifiable; the apparatus is a thermal cycler, not a water bath",
+          "Not establishable from video: Temperature (42°C) and pre-heated state cannot be verified from video",
+          "Not establishable from video: Exact duration (5 seconds) cannot be confirmed precisely",
+          "Not establishable from video: Document is inconsistent: procedure says water bath but equipment list names a thermal cycler for heat shock; either apparatus may appear"
+        ],
+        "confidence": 0.75,
+        "provenance": "claude_agent",
+        "summary": "The tube is taken from the ice and carried to the thermal cycler, whose lid is opened and the tube put inside. A few seconds later the lid is opened again and the tube taken out.",
+        "checkResults": [
+          {
+            "check": "Tube is moved directly from the ice bucket to the heating apparatus",
+            "result": "confirmed",
+            "note": "From 41.5 s (tube taken out of the ice) the hand goes straight to the thermal cycler, whose lid is open by about 44–45 s."
+          },
+          {
+            "check": "Transfer is rapid, without intervening handling",
+            "result": "confirmed",
+            "note": "Nothing else is handled between leaving the ice and reaching the cycler."
+          },
+          {
+            "check": "Tube is removed from the heat after a brief period rather than left in place",
+            "result": "confirmed",
+            "note": "At about 51 s the lid is opened again and the tube taken out, then it goes to the ice at about 53 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-04-e0",
+            "timestamp": 41.5,
+            "end": 42.5,
+            "description": "Tube taken out of the ice.",
+            "kind": "video"
+          },
+          {
+            "id": "step-04-e1",
+            "timestamp": 45.3,
+            "end": 46.3,
+            "description": "Thermal cycler lid open, with the hand inserting the tube.",
+            "kind": "video"
+          },
+          {
+            "id": "step-04-e2",
+            "timestamp": 51.2,
+            "end": 52.2,
+            "description": "Hand at the open cycler lid, taking the tube out.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-05-agent",
+        "stepId": "step-05",
+        "timestampStart": 52,
+        "timestampEnd": 60,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Exact duration not measurable",
+          "Not establishable from video: Exact duration (5 seconds) cannot be confirmed precisely",
+          "Not establishable from video: 'Immediately' can only be judged qualitatively"
+        ],
+        "confidence": 0.8,
+        "provenance": "claude_agent",
+        "summary": "Right after leaving the thermal cycler the tube is put into the ice. Hands are off it at about 55–58 s, and it is taken out at about 60 s.",
+        "checkResults": [
+          {
+            "check": "Tube is placed back into the ice bucket immediately after heat shock",
+            "result": "confirmed",
+            "note": "At 53 s the tube is being placed into the ice, straight after removal from the cycler at about 51 s."
+          },
+          {
+            "check": "Tube is left in the ice briefly rather than moved on straight away",
+            "result": "confirmed",
+            "note": "At 55–58 s the hands rest in the operator's lap while the tube stays in the ice."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-05-e0",
+            "timestamp": 53.1,
+            "end": 54.1,
+            "description": "Tube placed into the ice bucket.",
+            "kind": "video"
+          },
+          {
+            "id": "step-05-e1",
+            "timestamp": 55,
+            "end": 56,
+            "description": "Hands away from the bucket while the tube sits in the ice.",
+            "kind": "video"
+          },
+          {
+            "id": "step-05-e2",
+            "timestamp": 60,
+            "end": 61,
+            "description": "Tube taken out of the ice.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-06-agent",
+        "stepId": "step-06",
+        "timestampStart": 60,
+        "timestampEnd": 86,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Whether the culture was actually spread rather than just dispensed",
+          "The plate is held vertically at an angle, which is unusual",
+          "Not establishable from video: Volume (50 μL) cannot be verified from video",
+          "Not establishable from video: Presence and identity of the selective antibiotic in the LB agar requires reading labels",
+          "Not establishable from video: Sterility of spreading cannot be confirmed"
+        ],
+        "confidence": 0.55,
+        "provenance": "claude_agent",
+        "summary": "After the ice step, liquid is drawn up from the tube with a pipette (about 62–65 s) and a plate is picked up. Between 70 and 84 s the pipette tip is held against the agar surface of the hand-held plate at changing positions. No spreader is clearly seen.",
+        "checkResults": [
+          {
+            "check": "Liquid is pipetted from the tube onto the surface of an agar plate",
+            "result": "confirmed",
+            "note": "Between 70 and 84 s the pipette tip is at the agar surface of the plate held in the left hand, after drawing up from the tube."
+          },
+          {
+            "check": "Liquid is spread across the agar surface",
+            "result": "not_visible",
+            "note": "The tip's position on the plate changes between frames, but no spreading tool or clear spreading motion can be confirmed."
+          },
+          {
+            "check": "Plating occurs after the post-heat-shock ice step",
+            "result": "confirmed",
+            "note": "Plating happens after the post-heat-shock ice step (53–60 s)."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-06-e0",
+            "timestamp": 64,
+            "end": 65,
+            "description": "Pipette drawing up from the tube held in the hand.",
+            "kind": "video"
+          },
+          {
+            "id": "step-06-e1",
+            "timestamp": 70,
+            "end": 71,
+            "description": "Plate held up with the pipette tip at the agar.",
+            "kind": "video"
+          },
+          {
+            "id": "step-06-e2",
+            "timestamp": 81.5,
+            "end": 82.5,
+            "description": "Pipette tip at a different spot on the agar surface.",
+            "kind": "video"
+          }
+        ]
+      }
+    ],
+    "absences": [
+      {
+        "stepId": "step-07",
+        "reason": "not_visible",
+        "confidence": 0.6,
+        "note": "The recording ends at 88 s as the plate is being put on the bench, so no inversion of the plate is seen."
+      }
+    ],
+    "log": [
+      "Reviewed 29 overview frames",
+      "I'm scanning through the key timestamps: picking a tube from the orange rack and pipetting around 0-12s, holding the tube at 7.6s, then placing it in ice at 13.7s before returning to the rack. There's more activity around 19-38s that looks like handling the tube with a pipette and possibly flicking it with two hands, followed by placing it in ice again at 41s and opening the thermal cycler at 44s, with a final ice placement around 53s.\n\nNow I'm looking at 59-65s where there's pipetting from the tube, then 68-83s showing pipetting onto a plate, and possibly spreading at 86s. Let me go back and check the 0-14s window more closely.",
+      "Inspected 00:03.0–00:15.0 (8 frames)",
+      "I'm tracking the sequence around 8-20 seconds: pipetting with a tube in the left hand, returning the tube to the orange rack, a hand movement into ice, then back to the rack and another pipetting action with the tube. I want to zoom into the 13-24 window to pin down exactly what's happening there.",
+      "Inspected 00:13.0–00:25.0 (8 frames)",
+      "I'm piecing together the sequence of actions: a tube picked from the orange rack, pipetting with a tip around 8-10, then the tube returned to the rack by 11. After that, a hand reaches into ice around 13.8, possibly grabbing a tube with cells, followed by activity at the yellow rack and more pipetting into another tube around 18-20—likely aspirating DNA before returning the tube.",
+      "Inspected 00:25.0–00:41.0 (8 frames)",
+      "I'm tracking the hand movements around the tube: it's held between both hands with flicking motion, then placed into ice, hands step away, later retrieved, and then the thermal cycler opens. I should keep checking the frames from 40-56 to confirm this sequence.",
+      "Inspected 00:40.5–00:56.0 (8 frames)",
+      "I'm tracking the timing of tube retrieval and placement around the thermal cycler, then hands off from 55 onward before moving into the plating step from 59-88.",
+      "Inspected 00:57.0–01:11.0 (7 frames)",
+      "Inspected 01:15.0–01:28.0 (7 frames)",
+      "I'm tracking the plating sequence—retrieving the tube from ice, pipetting from it, then picking up the plate and dispensing onto the agar surface while it's tilted. I'm trying to figure out whether the tip is actually spreading liquid across the agar or just touching down at one point.\n\nThe tip moves to different spots on the plate between 70-83 seconds, which could mean spreading motion or just multiple dispensing points—I'll mark this step as uncertain rather than confirmed. The recording ends with the plate being set down around 87-88 seconds, so I can't verify whether an inversion step happens afterward, and I'm going back to check which tube held the cells based on the pickup from ice around 13.8 seconds.",
+      "Submitted findings for 7 steps"
+    ],
+    "usage": {
+      "input": 14,
+      "cacheWrite": 33898,
+      "cacheRead": 97246,
+      "output": 4713
+    },
+    "generatedAt": "2026-10-03T22:44:40.829Z"
+  },
+  "DJI_19": {
+    "method": {
+      "schemaVersion": 1,
+      "title": "E. coli Transformation with Plasmid DNA (Heat Shock and Plating)",
+      "version": "1.0",
+      "source": "Mock-Transformation.pdf",
+      "summary": "Competent E. coli cells are mixed with plasmid DNA by flicking, briefly chilled on ice, heat-shocked at 42°C, returned to ice, then spread onto a selective LB agar plate, which is inverted. The equipment list names a thermal cycler for the heat shock, while step 4 names a pre-heated 42°C water bath. The video should show which apparatus is used.",
+      "requirements": [
+        {
+          "id": "step-01",
+          "title": "Add plasmid DNA to cells",
+          "description": "Add 5 μL of plasmid DNA to the competent E. coli cells.",
+          "order": 1,
+          "checks": [
+            "A pipette is used to transfer liquid into the tube of competent cells",
+            "The pipette tip enters the cell tube and liquid is dispensed",
+            "This occurs before any flicking, ice incubation or heat shock"
+          ],
+          "caveats": [
+            "The 5 μL volume cannot be verified from video (pipette setting not readable)",
+            "That the liquid is plasmid DNA and the tube holds competent E. coli depends on labels or knowing the contents",
+            "Whether a fresh sterile tip is used cannot be confirmed"
+          ],
+          "criticality": "critical",
+          "category": "action"
+        },
+        {
+          "id": "step-02",
+          "title": "Flick tube to mix",
+          "description": "Mix gently by flicking the tube 4-5 times.",
+          "order": 2,
+          "checks": [
+            "The operator flicks the tube with a finger rather than vortexing or pipetting vigorously",
+            "Flicking happens after DNA addition and before the tube goes onto ice"
+          ],
+          "caveats": [
+            "The exact count of 4-5 flicks may not be reliably countable on video",
+            "How gentle the mixing is cannot be judged from video"
+          ],
+          "criticality": "important",
+          "category": "action"
+        },
+        {
+          "id": "step-03",
+          "title": "Incubate mixture on ice",
+          "description": "Incubate the DNA-cell mixture on ice for 5 seconds.",
+          "order": 3,
+          "checks": [
+            "The tube is placed into the ice bucket (green container with ice)",
+            "The tube is left in the ice for a period rather than moved on straight away"
+          ],
+          "caveats": [
+            "The 5-second duration cannot be precisely confirmed from video",
+            "Whether the tube is properly seated in ice rather than resting on top may be unclear"
+          ],
+          "criticality": "important",
+          "category": "timing"
+        },
+        {
+          "id": "step-04",
+          "title": "Heat shock at 42°C",
+          "description": "Rapidly transfer the tube to a pre-heated 42°C water bath for exactly 5 seconds.",
+          "order": 4,
+          "checks": [
+            "The tube is moved quickly from the ice bucket to the heating apparatus",
+            "The tube is placed in the heating apparatus (water bath per step 4, or thermal cycler per equipment list)",
+            "The tube stays in the heater only briefly before being removed"
+          ],
+          "caveats": [
+            "The 42°C temperature and pre-heating cannot be verified from video",
+            "The exact 5-second duration cannot be confirmed precisely",
+            "Step 4 specifies a water bath but the equipment list names a thermal cycler for heat shock, so either apparatus may appear"
+          ],
+          "criticality": "critical",
+          "category": "timing"
+        },
+        {
+          "id": "step-05",
+          "title": "Return tube to ice",
+          "description": "Immediately return the tube to ice for 5 seconds.",
+          "order": 5,
+          "checks": [
+            "The tube goes directly from the heating apparatus back into the ice bucket with no intervening step",
+            "The tube is left in the ice briefly rather than removed straight away"
+          ],
+          "caveats": [
+            "The 5-second duration cannot be precisely confirmed from video",
+            "How immediate the transfer is can only be judged qualitatively"
+          ],
+          "criticality": "important",
+          "category": "ordering"
+        },
+        {
+          "id": "step-06",
+          "title": "Spread culture on LB plate",
+          "description": "Spread 50μL of culture onto an LB agar plate containing the appropriate selective antibiotic.",
+          "order": 6,
+          "checks": [
+            "Liquid from the tube is pipetted onto the surface of an agar plate",
+            "The liquid is spread across the agar surface (e.g., with a spreader or beads)",
+            "Plating happens after the tube has been returned to ice"
+          ],
+          "caveats": [
+            "The 50 μL volume cannot be verified from video",
+            "That the plate is LB agar with the correct selective antibiotic depends on labels or knowledge of contents",
+            "Sterile technique cannot be confirmed from video"
+          ],
+          "criticality": "critical",
+          "category": "action"
+        },
+        {
+          "id": "step-07",
+          "title": "Invert the plates",
+          "description": "Invert the plates.",
+          "order": 7,
+          "checks": [
+            "The agar plate is turned upside down (agar side up)",
+            "Inversion happens after the culture has been spread"
+          ],
+          "caveats": [
+            "Whether the liquid had been absorbed before inversion may not be visible"
+          ],
+          "criticality": "informational",
+          "category": "action"
+        }
+      ]
+    },
+    "observations": [
+      {
+        "id": "step-01-agent",
+        "stepId": "step-01",
+        "timestampStart": 20,
+        "timestampEnd": 22.5,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "There are two pipetting events into tubes before the flick (about 4–8 s and about 21 s), so it is unclear which one is the DNA addition. The second is chosen because it comes right before the flicking.",
+          "The contents and volume cannot be verified.",
+          "Not establishable from video: The 5 μL volume cannot be verified from video (pipette setting not readable)",
+          "Not establishable from video: That the liquid is plasmid DNA and the tube holds competent E. coli depends on labels or knowing the contents",
+          "Not establishable from video: Whether a fresh sterile tip is used cannot be confirmed"
+        ],
+        "confidence": 0.6,
+        "provenance": "claude_agent",
+        "summary": "At about 20.9 s the operator holds a microtube in the left hand and puts a pipette tip into it, then sets the tube in the yellow rack. This is the pipetting that comes right before the flicking. An earlier transfer into a tube held over the ice (about 3.8–8 s, after which the tube goes onto the ice) may be a separate prep step.",
+        "checkResults": [
+          {
+            "check": "A pipette is used to transfer liquid into the tube of competent cells",
+            "result": "confirmed",
+            "note": "At 20.9 s a pipette is held over a tube in the gloved hand and is transferring liquid into it."
+          },
+          {
+            "check": "The pipette tip enters the cell tube and liquid is dispensed",
+            "result": "confirmed",
+            "note": "The pipette tip is inside the open tube at 20.9 s. Dispensing is inferred from the tip being inside the tube; the liquid itself is too small to see."
+          },
+          {
+            "check": "This occurs before any flicking, ice incubation or heat shock",
+            "result": "confirmed",
+            "note": "This happens before the flick (about 29.6 s), the ice step (31 s) and the heat shock (about 40 s). The tube had already sat on ice once earlier (about 10 s), after the first pipetting."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-01-e0",
+            "timestamp": 6.8,
+            "end": 7.8,
+            "description": "Earlier transfer: pipette tip in a tube held over the ice bucket.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e1",
+            "timestamp": 9.8,
+            "end": 10.8,
+            "description": "That tube is placed into the ice.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e2",
+            "timestamp": 20.9,
+            "end": 21.9,
+            "description": "Pipette tip enters the tube held in the hand.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e3",
+            "timestamp": 22.6,
+            "end": 23.6,
+            "description": "Tube set down in the yellow rack after the addition.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-02-agent",
+        "stepId": "step-02",
+        "timestampStart": 28.5,
+        "timestampEnd": 30.5,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Individual flicks cannot be counted from sampled frames.",
+          "Not establishable from video: The exact count of 4-5 flicks may not be reliably countable on video",
+          "Not establishable from video: How gentle the mixing is cannot be judged from video"
+        ],
+        "confidence": 0.65,
+        "provenance": "claude_agent",
+        "summary": "The operator picks the tube up from the rack, holds it at eye level in the left hand and flicks it with the other hand. The tube then goes onto the ice.",
+        "checkResults": [
+          {
+            "check": "The operator flicks the tube with a finger rather than vortexing or pipetting vigorously",
+            "result": "confirmed",
+            "note": "At 29.6 s the tube is held in one hand while fingers of the other hand are raised close to it, the posture of flicking. No vortex or pipette is involved."
+          },
+          {
+            "check": "Flicking happens after DNA addition and before the tube goes onto ice",
+            "result": "confirmed",
+            "note": "This comes after the pipetting at 20.9 s and before the tube is placed in the ice at 31.4 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-02-e0",
+            "timestamp": 28.3,
+            "end": 29.3,
+            "description": "Tube lifted from the rack, other hand raised.",
+            "kind": "video"
+          },
+          {
+            "id": "step-02-e1",
+            "timestamp": 29.6,
+            "end": 30.6,
+            "description": "Tube held up with the other hand's fingers next to it, flicking motion.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-03-agent",
+        "stepId": "step-03",
+        "timestampStart": 31,
+        "timestampEnd": 38.2,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The ice period lasts about 5–7 s; the exact time cannot be measured.",
+          "Not establishable from video: The 5-second duration cannot be precisely confirmed from video",
+          "Not establishable from video: Whether the tube is properly seated in ice rather than resting on top may be unclear"
+        ],
+        "confidence": 0.8,
+        "provenance": "claude_agent",
+        "summary": "The tube is pushed into the ice in the green bucket at about 31 s. It stays there, with the hands away, until it is taken out at about 38 s.",
+        "checkResults": [
+          {
+            "check": "The tube is placed into the ice bucket (green container with ice)",
+            "result": "confirmed",
+            "note": "At 31.4 s the hand pushes the tube into the ice in the green bucket."
+          },
+          {
+            "check": "The tube is left in the ice for a period rather than moved on straight away",
+            "result": "confirmed",
+            "note": "From 33 to 36 s the hands are off the tube. It is taken out at about 38 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-03-e0",
+            "timestamp": 31.4,
+            "end": 32.4,
+            "description": "Tube placed into the ice.",
+            "kind": "video"
+          },
+          {
+            "id": "step-03-e1",
+            "timestamp": 34.3,
+            "end": 35.3,
+            "description": "Hands resting away while the tube sits in the ice.",
+            "kind": "video"
+          },
+          {
+            "id": "step-03-e2",
+            "timestamp": 38.2,
+            "end": 39.2,
+            "description": "Hand picks the tube out of the ice.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-04-agent",
+        "stepId": "step-04",
+        "timestampStart": 38,
+        "timestampEnd": 47.4,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The tube is hidden by the hand inside the cycler.",
+          "The temperature cannot be verified.",
+          "Not establishable from video: The 42°C temperature and pre-heating cannot be verified from video",
+          "Not establishable from video: The exact 5-second duration cannot be confirmed precisely",
+          "Not establishable from video: Step 4 specifies a water bath but the equipment list names a thermal cycler for heat shock, so either apparatus may appear"
+        ],
+        "confidence": 0.75,
+        "provenance": "claude_agent",
+        "summary": "The tube is taken from the ice and right away put into the thermal cycler next to it (lid opened at about 40 s). The operator waits a few seconds, opens the lid again at about 46.8 s and takes the tube out.",
+        "checkResults": [
+          {
+            "check": "The tube is moved quickly from the ice bucket to the heating apparatus",
+            "result": "confirmed",
+            "note": "Tube picked from the ice at 38.2 s and the hand is at the open thermal cycler by 40.3 s."
+          },
+          {
+            "check": "The tube is placed in the heating apparatus (water bath per step 4, or thermal cycler per equipment list)",
+            "result": "confirmed",
+            "note": "At 40.3 s the hand is inside the opened thermal cycler lid. The tube itself is hidden by the hand."
+          },
+          {
+            "check": "The tube stays in the heater only briefly before being removed",
+            "result": "confirmed",
+            "note": "The lid is reopened at about 46.8 s and the tube is removed by 47.4 s, roughly 5–6 s in the cycler."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-04-e0",
+            "timestamp": 38.2,
+            "end": 39.2,
+            "description": "Tube taken from the ice.",
+            "kind": "video"
+          },
+          {
+            "id": "step-04-e1",
+            "timestamp": 40.3,
+            "end": 41.3,
+            "description": "Hand placing the tube in the opened thermal cycler.",
+            "kind": "video"
+          },
+          {
+            "id": "step-04-e2",
+            "timestamp": 44.6,
+            "end": 45.6,
+            "description": "Operator waits with the lid closed.",
+            "kind": "video"
+          },
+          {
+            "id": "step-04-e3",
+            "timestamp": 46.8,
+            "end": 47.8,
+            "description": "Lid opened to take the tube out.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-05-agent",
+        "stepId": "step-05",
+        "timestampStart": 47.4,
+        "timestampEnd": 55.8,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The ice time is a bit longer than 5 s; it is estimated from frame times.",
+          "Not establishable from video: The 5-second duration cannot be precisely confirmed from video",
+          "Not establishable from video: How immediate the transfer is can only be judged qualitatively"
+        ],
+        "confidence": 0.8,
+        "provenance": "claude_agent",
+        "summary": "The tube goes straight from the thermal cycler into the ice (by about 48 s). It stays there until it is picked up again at about 55.8 s.",
+        "checkResults": [
+          {
+            "check": "The tube goes directly from the heating apparatus back into the ice bucket with no intervening step",
+            "result": "confirmed",
+            "note": "At 47.4 s the cycler lid is open and the hand is heading to the ice. By 48.1 s the hand is pushing the tube into the ice, with no step in between."
+          },
+          {
+            "check": "The tube is left in the ice briefly rather than removed straight away",
+            "result": "confirmed",
+            "note": "From 49 to 52 s the hands are away from the bucket. The tube is taken out at about 55.8 s, so it sat in ice for about 7 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-05-e0",
+            "timestamp": 47.4,
+            "end": 48.4,
+            "description": "Lid open, hand moving toward the ice.",
+            "kind": "video"
+          },
+          {
+            "id": "step-05-e1",
+            "timestamp": 48.1,
+            "end": 49.1,
+            "description": "Tube pushed into the ice.",
+            "kind": "video"
+          },
+          {
+            "id": "step-05-e2",
+            "timestamp": 50.9,
+            "end": 51.9,
+            "description": "Tube left in the ice while the hands are away.",
+            "kind": "video"
+          },
+          {
+            "id": "step-05-e3",
+            "timestamp": 55.8,
+            "end": 56.8,
+            "description": "Tube taken back out of the ice.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-06-agent",
+        "stepId": "step-06",
+        "timestampStart": 57,
+        "timestampEnd": 84.2,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Spreading technique is unclear: no spreader is seen.",
+          "Plate type and antibiotic are not verifiable.",
+          "Not establishable from video: The 50 μL volume cannot be verified from video",
+          "Not establishable from video: That the plate is LB agar with the correct selective antibiotic depends on labels or knowledge of contents",
+          "Not establishable from video: Sterile technique cannot be confirmed from video"
+        ],
+        "confidence": 0.6,
+        "provenance": "claude_agent",
+        "summary": "After the ice, the tube goes to the rack. Liquid is drawn from it with a pipette (about 61 s) and dispensed onto an agar plate held in the hand (about 67–83 s), with the tip touching the agar at several spots. No separate spreader or beads are seen.",
+        "checkResults": [
+          {
+            "check": "Liquid from the tube is pipetted onto the surface of an agar plate",
+            "result": "confirmed",
+            "note": "At 61.4 s the pipette tip is in the tube. At 67.1 s and 78.3 s the tip is dispensing onto the agar surface of the plate held in the hand."
+          },
+          {
+            "check": "The liquid is spread across the agar surface (e.g., with a spreader or beads)",
+            "result": "not_visible",
+            "note": "No spreader or beads are seen. The pipette tip touches the agar at several places (76–82 s), which may be spreading with the tip, but even spreading across the surface cannot be confirmed."
+          },
+          {
+            "check": "Plating happens after the tube has been returned to ice",
+            "result": "confirmed",
+            "note": "Plating starts after the tube came back from the cycler into the ice (48 s) and was taken out (55.8 s)."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-06-e0",
+            "timestamp": 61.4,
+            "end": 62.4,
+            "description": "Pipette draws liquid from the tube.",
+            "kind": "video"
+          },
+          {
+            "id": "step-06-e1",
+            "timestamp": 67.1,
+            "end": 68.1,
+            "description": "Pipette tip over the agar plate held in the hand.",
+            "kind": "video"
+          },
+          {
+            "id": "step-06-e2",
+            "timestamp": 78.3,
+            "end": 79.3,
+            "description": "Pipette tip touching the agar surface.",
+            "kind": "video"
+          },
+          {
+            "id": "step-06-e3",
+            "timestamp": 82.9,
+            "end": 83.9,
+            "description": "Plate tilted after dispensing.",
+            "kind": "video"
+          }
+        ]
+      }
+    ],
+    "absences": [
+      {
+        "stepId": "step-07",
+        "reason": "not_visible",
+        "confidence": 0.45,
+        "note": "At about 84 s the plate is set down on the bench to the right, and the recording ends at 86.4 s. Whether the plate was turned upside down cannot be seen."
+      }
+    ],
+    "log": [
+      "Reviewed 29 overview frames",
+      "I'm scanning through key frames across the 48-frame budget, tracking the sequence: pipetting, holding tubes over ice, placing tubes in a rack, handling steps, flicking, more ice time, then loading into the thermal cycler and closing its lid toward the end.\n\nI'm planning to go back and look more closely at specific frame ranges to verify the sequence of steps—covering early handling, the rack and pipetting stages, ice and thermal cycler transitions, and the final plate pipetting before the clip ends.",
+      "Inspected 00:03.0–00:12.0 (6 frames)",
+      "Inspected 00:20.0–00:34.0 (8 frames)",
+      "I'm tracing what looks like a repeated protocol sequence: pipetting into a tube, then placing it on ice, followed by rack handling, a possible DNA addition step, flicking to mix, and more ice time. Then I see the tube moving out of ice into a thermal cycler, closing the lid, back to ice, and another pipetting step over a tube.",
+      "Inspected 00:35.0–00:52.0 (8 frames)",
+      "I'm tracking the heat shock sequence: the tube leaves the ice at 38, goes into the thermal cycler around 40, sits through 42-44, then comes back out around 46.7 and appears near the ice again at 48.8. I want to pull a closer look at frames 46-50 and also check 53-68 to confirm exactly when it's placed back in the ice.",
+      "Inspected 00:46.5–00:49.0 (4 frames)",
+      "Inspected 00:53.0–01:08.0 (8 frames)",
+      "After the heat shock and ice step, I'm tracking the tube and pipette movements closely: the tube comes off ice, goes into the rack, and then the pipette draws culture from it before dispensing onto a plate held in hand. I'm watching the 70-82 second window where the pipette tip seems to be touching the plate, possibly spreading the culture across the surface.",
+      "Inspected 01:08.0–01:26.4 (8 frames)",
+      "I'm watching the pipette touch the agar surface repeatedly at several points, dispensing droplets rather than spreading evenly, while the plate seems to be held at an angle toward the camera rather than flat on the bench.\n\nI need to pin down whether the plate near the ice gets inverted around frame 85, but the view is ambiguous, so I'll sample a few frames there. I'm also trying to sort out the two pipetting-into-tube events — one around frames 3-8 before the tube goes on ice, and another around 20.9 followed by flicking and more ice time — to figure out which one represents the actual DNA addition step versus handling competent cells, so I'll grab a few frames from each window to clarify the sequence.",
+      "Inspected 00:12.0–00:20.0 (3 frames)",
+      "Inspected 01:23.8–01:26.4 (3 frames)",
+      "Looking at the plate placement around 84-85, I can't clearly determine if it was inverted, so I'll mark step-07 as not visible with low-moderate confidence. Step-06, the liquid pipetted onto the agar plate, is confirmed visible.\n\nNow checking spreading technique at 76-82 — the pipette tip seems to touch the agar surface in several spots, which could be spreading, but without a proper spreader tool visible I'll mark this check as not_visible.\n\nFor step-01, I'm trying to pin down which pipetting event is the DNA addition — there's one at 20.9 and an earlier one at 3.8-6.8, followed by ice at 9.8-11. Given the later sequence (flick at 29.6, ice 31-37, heat shock 38-47, ice 48-55, plating 59-83) fits steps 1-6 starting around 20.9, the earlier event at 3-11 was likely a preceding prep step like cell aliquoting rather than the actual DNA addition, though I'm not fully certain. This raises a question for check 2 about whether cells were already on ice before any flicking occurred, since if it's the same tube from the first event, that timing matters.\n\nContinuing through the sequence: step-03 (tube into ice at 31.4, hands removed by ~38) looks confirmed; step-04 (picking up at 38.2, placing into thermal cycler around 40.3, removed by 47.4) is confirmed though the tube itself is partly occluded during placement; step-05 (carried to ice at 47.4, settled by 48.1, remains until ~55.8) is confirmed; and step-02 (flicking at 29.6 with one hand holding the tube and the other finger nearby) is moderately confirmed.",
+      "Submitted findings for 7 steps"
+    ],
+    "usage": {
+      "input": 14,
+      "cacheWrite": 35931,
+      "cacheRead": 113697,
+      "output": 6160
+    },
+    "generatedAt": "2026-10-03T22:46:11.911Z"
+  },
+  "DJI_20": {
+    "method": {
+      "schemaVersion": 1,
+      "title": "E. coli Transformation with Plasmid DNA (Mock Protocol)",
+      "version": "1.0",
+      "source": "Mock-Transformation.pdf",
+      "summary": "Competent E. coli cells are mixed with plasmid DNA by gentle flicking, briefly chilled on ice, heat-shocked at 42°C, returned to ice, then spread onto a selective LB agar plate, which is inverted.",
+      "requirements": [
+        {
+          "id": "step-01",
+          "title": "Add plasmid DNA to cells",
+          "description": "Add 5 μL of plasmid DNA to the competent E. coli cells.",
+          "order": 1,
+          "checks": [
+            "Pipette is used to transfer liquid from one tube into the tube of competent cells",
+            "The pipette tip is dispensed into the cell-containing tube",
+            "This happens before any flicking, ice incubation or heat shock"
+          ],
+          "caveats": [
+            "The 5 μL volume cannot be verified from video",
+            "Identity of the plasmid DNA and the competent E. coli cells depends on labels and cannot be confirmed visually",
+            "Whether the cells are competent cannot be seen"
+          ],
+          "criticality": "critical",
+          "category": "action"
+        },
+        {
+          "id": "step-02",
+          "title": "Mix by gentle flicking",
+          "description": "Mix gently by flicking the tube 4-5 times.",
+          "order": 2,
+          "checks": [
+            "Tube containing the DNA-cell mixture is flicked with a finger",
+            "Mixing is by flicking, not by vortexing or vigorous pipetting",
+            "Flicking occurs after DNA addition and before ice incubation"
+          ],
+          "caveats": [
+            "The exact count of 4-5 flicks may not be reliably countable on video",
+            "Gentleness of mixing is only qualitatively assessable"
+          ],
+          "criticality": "important",
+          "category": "action"
+        },
+        {
+          "id": "step-03",
+          "title": "Incubate mixture on ice",
+          "description": "Incubate the DNA-cell mixture on ice for 5 seconds.",
+          "order": 3,
+          "checks": [
+            "Tube is placed into the ice bucket (green container with ice)",
+            "Tube is left in the ice rather than moved on straight away",
+            "This occurs after mixing and before the heat shock"
+          ],
+          "caveats": [
+            "The 5-second duration cannot be precisely verified from video",
+            "Temperature of the ice bath is not visible"
+          ],
+          "criticality": "important",
+          "category": "timing"
+        },
+        {
+          "id": "step-04",
+          "title": "Heat shock at 42°C",
+          "description": "Rapidly transfer the tube to a pre-heated 42°C water bath for exactly 5 seconds.",
+          "order": 4,
+          "checks": [
+            "Tube is moved quickly from the ice bucket to the heating apparatus",
+            "Tube is placed in the heating apparatus and held there briefly before removal",
+            "Heat shock follows the ice incubation directly"
+          ],
+          "caveats": [
+            "The 42°C temperature and that the apparatus was pre-heated cannot be verified visually",
+            "The exact 5-second duration cannot be precisely confirmed",
+            "The document is inconsistent: the equipment list names a thermal cycler for heat shock, while the procedure specifies a water bath; either apparatus may appear on video"
+          ],
+          "criticality": "critical",
+          "category": "timing"
+        },
+        {
+          "id": "step-05",
+          "title": "Return tube to ice",
+          "description": "Immediately return the tube to ice for 5 seconds.",
+          "order": 5,
+          "checks": [
+            "Tube is moved from the heating apparatus back to the ice bucket (green container with ice) without delay",
+            "Tube is left in the ice briefly rather than moved on straight away",
+            "This occurs after heat shock and before plating"
+          ],
+          "caveats": [
+            "The 5-second duration cannot be precisely verified",
+            "Immediacy is only qualitatively assessable"
+          ],
+          "criticality": "important",
+          "category": "ordering"
+        },
+        {
+          "id": "step-06",
+          "title": "Spread culture on plate",
+          "description": "Spread 50μL of culture onto an LB agar plate containing the appropriate selective antibiotic.",
+          "order": 6,
+          "checks": [
+            "Pipette is used to dispense liquid from the tube onto an agar plate",
+            "The liquid is spread across the agar surface",
+            "Plating occurs after the final ice step"
+          ],
+          "caveats": [
+            "The 50 μL volume cannot be verified from video",
+            "That the plate is LB agar containing the appropriate selective antibiotic depends on labelling and cannot be confirmed visually",
+            "Sterility of spreading technique is not verifiable"
+          ],
+          "criticality": "critical",
+          "category": "action"
+        },
+        {
+          "id": "step-07",
+          "title": "Invert the plates",
+          "description": "Invert the plates.",
+          "order": 7,
+          "checks": [
+            "The agar plate is turned upside down (lid facing down)",
+            "Inversion occurs after spreading the culture"
+          ],
+          "caveats": [
+            "No incubation conditions are specified in the document, so none can be checked"
+          ],
+          "criticality": "informational",
+          "category": "action"
+        }
+      ]
+    },
+    "observations": [
+      {
+        "id": "step-01-agent",
+        "stepId": "step-01",
+        "timestampStart": 1,
+        "timestampEnd": 6,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The tube contents (plasmid, competent cells) cannot be identified.",
+          "A second pipetting at about 14 s may be a second tube or a second addition.",
+          "Not establishable from video: The 5 μL volume cannot be verified from video",
+          "Not establishable from video: Identity of the plasmid DNA and the competent E. coli cells depends on labels and cannot be confirmed visually",
+          "Not establishable from video: Whether the cells are competent cannot be seen"
+        ],
+        "confidence": 0.7,
+        "provenance": "claude_agent",
+        "summary": "The operator draws liquid with a micropipette from the tube-rack area (1.5 s). At 3.5–5.5 s they dispense it into a microcentrifuge tube held in the gloved hand over the green ice bucket. A second pipetting into a hand-held tube is also visible at about 14 s.",
+        "checkResults": [
+          {
+            "check": "Pipette is used to transfer liquid from one tube into the tube of competent cells",
+            "result": "confirmed",
+            "note": "The pipette draws from a tube at the racks at 1.5 s and then dispenses into a hand-held tube at 3.5–5.5 s."
+          },
+          {
+            "check": "The pipette tip is dispensed into the cell-containing tube",
+            "result": "confirmed",
+            "note": "At 4.5 s the pipette tip is visibly inside the hand-held tube. Whether that tube holds cells cannot be told from labels."
+          },
+          {
+            "check": "This happens before any flicking, ice incubation or heat shock",
+            "result": "confirmed",
+            "note": "The addition comes before the first placement in ice (about 7.5 s) and before the heat shock (about 28 s)."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-01-e0",
+            "timestamp": 1.5,
+            "end": 2.5,
+            "description": "The pipette draws liquid at the tube racks.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e1",
+            "timestamp": 4.5,
+            "end": 5.5,
+            "description": "The pipette tip is inside the hand-held microtube above the ice bucket.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e2",
+            "timestamp": 14.1,
+            "end": 15.1,
+            "description": "A second pipette dispense into a hand-held tube.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-03-agent",
+        "stepId": "step-03",
+        "timestampStart": 7.3,
+        "timestampEnd": 26.5,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "A second tube may also have been put on ice at about 20 s.",
+          "Not establishable from video: The 5-second duration cannot be precisely verified from video",
+          "Not establishable from video: Temperature of the ice bath is not visible"
+        ],
+        "confidence": 0.75,
+        "provenance": "claude_agent",
+        "summary": "The tube is pushed into the ice in the green bucket at about 7.5 s. It stays there while the operator works at the racks, and is taken out at about 26.5 s to go to the thermal cycler.",
+        "checkResults": [
+          {
+            "check": "Tube is placed into the ice bucket (green container with ice)",
+            "result": "confirmed",
+            "note": "At 7.3–7.8 s the hand presses the tube down into the ice in the green bucket."
+          },
+          {
+            "check": "Tube is left in the ice rather than moved on straight away",
+            "result": "confirmed",
+            "note": "The tube stays in the ice for about 19 s, while the hands are busy elsewhere."
+          },
+          {
+            "check": "This occurs after mixing and before the heat shock",
+            "result": "confirmed",
+            "note": "This comes after the addition and before the heat shock. No mixing was seen before it."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-03-e0",
+            "timestamp": 7.8,
+            "end": 8.8,
+            "description": "The hand pushes the tube into the ice in the green bucket.",
+            "kind": "video"
+          },
+          {
+            "id": "step-03-e1",
+            "timestamp": 22.5,
+            "end": 23.5,
+            "description": "The ice bucket is undisturbed while the hands are away.",
+            "kind": "video"
+          },
+          {
+            "id": "step-03-e2",
+            "timestamp": 26.5,
+            "end": 27.5,
+            "description": "The hand reaches into the ice to take the tube out.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-04-agent",
+        "stepId": "step-04",
+        "timestampStart": 26.5,
+        "timestampEnd": 35.5,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The temperature and exact duration cannot be seen.",
+          "Not establishable from video: The 42°C temperature and that the apparatus was pre-heated cannot be verified visually",
+          "Not establishable from video: The exact 5-second duration cannot be precisely confirmed",
+          "Not establishable from video: The document is inconsistent: the equipment list names a thermal cycler for heat shock, while the procedure specifies a water bath; either apparatus may appear on video"
+        ],
+        "confidence": 0.75,
+        "provenance": "claude_agent",
+        "summary": "The tube goes straight from the ice into the thermal cycler (lid opened about 27.5 s, lid closed about 29.5 s). The cycler is reopened and the tube removed at about 34.8–35.3 s. The heat shock was done in a thermal cycler, not a water bath.",
+        "checkResults": [
+          {
+            "check": "Tube is moved quickly from the ice bucket to the heating apparatus",
+            "result": "confirmed",
+            "note": "The tube is taken from the ice at 26.5 s and the cycler lid is open by 27.5 s."
+          },
+          {
+            "check": "Tube is placed in the heating apparatus and held there briefly before removal",
+            "result": "confirmed",
+            "note": "The lid is closed from about 29.5 s to 34.8 s and then reopened to take the tube out."
+          },
+          {
+            "check": "Heat shock follows the ice incubation directly",
+            "result": "confirmed",
+            "note": "The heat shock directly follows the ice incubation."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-04-e0",
+            "timestamp": 27.5,
+            "end": 28.5,
+            "description": "The thermal cycler lid is being opened right after the tube leaves the ice.",
+            "kind": "video"
+          },
+          {
+            "id": "step-04-e1",
+            "timestamp": 29.5,
+            "end": 30.5,
+            "description": "The lid is being closed over the tube.",
+            "kind": "video"
+          },
+          {
+            "id": "step-04-e2",
+            "timestamp": 34.8,
+            "end": 35.8,
+            "description": "The operator reopens the cycler to take the tube out.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-06-agent",
+        "stepId": "step-06",
+        "timestampStart": 42,
+        "timestampEnd": 61,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Spreading was done with the pipette tip. Whether a spreader was used, and how much of the surface was covered, cannot be confirmed.",
+          "The volume and the plate contents cannot be verified.",
+          "Not establishable from video: The 50 μL volume cannot be verified from video",
+          "Not establishable from video: That the plate is LB agar containing the appropriate selective antibiotic depends on labelling and cannot be confirmed visually",
+          "Not establishable from video: Sterility of spreading technique is not verifiable"
+        ],
+        "confidence": 0.6,
+        "provenance": "claude_agent",
+        "summary": "Culture is drawn from the tube (42–44 s). The operator then picks up an agar plate and holds it in one hand while the pipette tip dispenses onto it. The tip moves across the agar surface for several seconds (47–60 s).",
+        "checkResults": [
+          {
+            "check": "Pipette is used to dispense liquid from the tube onto an agar plate",
+            "result": "confirmed",
+            "note": "The pipette tip is lowered onto the agar plate held in the hand at 47.4 s."
+          },
+          {
+            "check": "The liquid is spread across the agar surface",
+            "result": "confirmed",
+            "note": "From 50 to 59.6 s the pipette tip moves to different spots across the agar surface, which looks like spreading."
+          },
+          {
+            "check": "Plating occurs after the final ice step",
+            "result": "not_visible",
+            "note": "No clear final ice step was seen before plating."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-06-e0",
+            "timestamp": 42.8,
+            "end": 43.8,
+            "description": "Culture is drawn from the tube.",
+            "kind": "video"
+          },
+          {
+            "id": "step-06-e1",
+            "timestamp": 47.4,
+            "end": 48.4,
+            "description": "The pipette tip is lowered onto the hand-held agar plate.",
+            "kind": "video"
+          },
+          {
+            "id": "step-06-e2",
+            "timestamp": 56.5,
+            "end": 57.5,
+            "description": "The tip moves across the agar surface.",
+            "kind": "video"
+          }
+        ]
+      }
+    ],
+    "absences": [
+      {
+        "stepId": "step-02",
+        "reason": "not_visible",
+        "confidence": 0.45,
+        "note": "I saw no flicking of the tube between the DNA addition (about 5.5 s) and placing the tube in ice (about 7.3 s). The tube is only briefly carried past the orange rack. A few quick flicks could fall between the sampled frames, which are about 0.5 s apart."
+      },
+      {
+        "stepId": "step-05",
+        "reason": "not_performed",
+        "confidence": 0.5,
+        "note": "After the tube leaves the cycler (about 35.5 s), the operator opens it above the ice bucket (37–38 s) and keeps it in the hand above the ice while drawing culture with the pipette (39–44 s). It is not placed into the ice in this stretch. At about 45 s a hand goes into the ice, possibly to set the tube down, but only after the culture was already drawn."
+      },
+      {
+        "stepId": "step-07",
+        "reason": "not_visible",
+        "confidence": 0.45,
+        "note": "The plate appears on the bench near the end (about 62.6 s), but no frame shows it being turned lid-down. The recording ends at 64.2 s."
+      }
+    ],
+    "log": [
+      "Reviewed 21 overview frames",
+      "I'm planning to look through the key frames with a 48-frame budget, starting with the first window covering DNA addition, flicking, and ice.",
+      "Inspected 00:00.0–00:08.0 (8 frames)",
+      "I'm tracking the pipetting sequence — aspirating from the blue box tube, dispensing into a tube held over ice, then checking the hand movements near the orange rack and back to the ice to see where the flicking step occurs around frames 8-20.",
+      "Inspected 00:08.0–00:22.0 (8 frames)",
+      "There's another pipetting moment around 13.7-14.1, so maybe step-01 repeats or the earlier one was something different—I'll need to check that window along with 19-22 more carefully. I'm not sure yet where the flicking action is, possibly near 19.9 with a hand at the ice, or somewhere in 24-28, so let me scan 22-30 next.",
+      "Inspected 00:22.0–00:30.0 (8 frames)",
+      "I'm tracking the heat shock timing in the thermal cycler, with the tube going from ice at ~26.5 into the cycler around 27.5-29.5 while the lid closes, then reopening near 35 before transferring back to ice at ~38 — I need to double check the 30-40 window.",
+      "Inspected 00:30.0–00:41.0 (8 frames)",
+      "I'm tracing the timestamps to figure out when the tube goes from heat shock to ice and when pipetting starts, but it's hard to tell exactly when the tube was placed on ice since the hand positions aren't always visible in frame.\n\nThere also seems to be an earlier sequence around 3.5-21 seconds involving a second tube, flicking, and switching between ice and a rack, which I need to look at more densely frame-by-frame to sort out the order of actions.",
+      "Inspected 00:05.5–00:08.0 (5 frames)",
+      "Inspected 00:35.0–00:38.0 (5 frames)",
+      "I don't see the tube clearly placed into ice after the heat shock step—at 35.9 the hands are busy with the cycler lid and pipette instead. I was about to mark this step as not performed, but then I notice around 38.9-41.2 there's a hand holding the tube over the ice, so I need to look closer before finalizing that call.",
+      "Inspected 00:41.0–00:48.0 (6 frames)",
+      "At 45.1 the hand reaches into the ice — likely placing the tube back after heat shock, then grabbing the plate sitting to the right. This seems to align with returning the tube to ice following the cycler/pipetting step, though I'm not fully certain this maps cleanly to step 5.\n\nGiven the ambiguity, I'll mark that step as not_performed with moderate confidence around 0.5, noting the tube seemed to be placed around the 45 second mark after aspiration, even though it wasn't held continuously on ice before that.\n\nFor plating, frames 46-60 show the pipette dispensing onto a plate held in hand, with possible spreading motion in frames 53-59 as the tip moves across the surface. For plate inversion, the plate appears back on the bench around 62.6 but its orientation is unclear, and the recording ends at 64.2 before I can confirm whether it was inverted — I'll mark that as not_visible.\n\nNow I'm working through the first step: aspiration at 1.5 from a tube in the blue rack area, dispensing into another tube held over ice between 3.5-5.5, though the source of that tube is unclear since the hand was at the orange rack at 0.5. There's a second pipetting event at 14.1 that might involve a different tube, and I'm tracking the sequence of rack visits and ice placements between 6.3 and 26.5, but I never clearly observe a flicking motion despite dense 0.5s sampling, so I'll mark that absence as not_visible with conf 0.5 given how brief such an action could be.\n\nFor step 3, the tube stays in ice from roughly 7.3 to 26.5, placed at 7.5 and removed at 26.5, though I'm uncertain whether the second tube from 14.1 was also placed in ice given the hand returns there at 19.9. Step 4 covers 26.5-35.5 at the thermal cycler, with the tube inside and the lid closed for about 5 seconds between 29.5-34.8, which checks out with the confirmed timing.",
+      "Submitted findings for 7 steps"
+    ],
+    "usage": {
+      "input": 16,
+      "cacheWrite": 33080,
+      "cacheRead": 115375,
+      "output": 5875
+    },
+    "generatedAt": "2026-10-03T22:47:47.093Z"
+  },
+  "DJI_21": {
+    "method": {
+      "schemaVersion": 1,
+      "title": "E. coli Transformation with Plasmid DNA (Heat Shock and Selective Plating)",
+      "version": "1.0",
+      "source": "Mock-Transformation.pdf",
+      "summary": "Competent E. coli cells are mixed with plasmid DNA by flicking, held briefly on ice, heat shocked at 42°C, returned to ice, then spread onto an LB agar plate with selective antibiotic. The plate is then inverted. This document is a mock protocol: all incubation times are 5 seconds. The equipment list names a thermal cycler for the heat shock, but step 4 specifies a water bath.",
+      "requirements": [
+        {
+          "id": "step-01",
+          "title": "Add plasmid DNA to cells",
+          "description": "Add 5 μL of plasmid DNA to the competent E. coli cells.",
+          "order": 1,
+          "checks": [
+            "A pipette is used to transfer liquid into the tube containing competent cells.",
+            "The pipette tip is dispensed into the cell tube rather than another vessel.",
+            "This addition happens before any flicking or ice incubation of the mixture."
+          ],
+          "caveats": [
+            "The volume (5 μL) cannot be confirmed from video.",
+            "That the liquid is plasmid DNA and the tube holds competent E. coli cells depends on labels or contents.",
+            "Whether the cells were kept cold or handled aseptically is not verifiable."
+          ],
+          "criticality": "critical",
+          "category": "identity"
+        },
+        {
+          "id": "step-02",
+          "title": "Mix by flicking tube",
+          "description": "Mix gently by flicking the tube 4-5 times.",
+          "order": 2,
+          "checks": [
+            "The tube is flicked with a finger rather than vortexed or pipetted up and down.",
+            "Flicking occurs after the DNA addition and before the tube is placed on ice."
+          ],
+          "caveats": [
+            "The exact number of flicks (4-5) may not be reliably countable.",
+            "Whether the mixing was 'gentle' is a subjective judgement."
+          ],
+          "criticality": "important",
+          "category": "action"
+        },
+        {
+          "id": "step-03",
+          "title": "Incubate mixture on ice",
+          "description": "Incubate the DNA-cell mixture on ice for 5 seconds.",
+          "order": 3,
+          "checks": [
+            "The tube is placed into the ice bucket (green container with ice).",
+            "The tube is left in the ice rather than removed immediately.",
+            "This occurs after mixing and before the heat shock."
+          ],
+          "caveats": [
+            "The duration (5 seconds) cannot be precisely confirmed.",
+            "Contact of the tube with ice, and the actual temperature, may not be fully visible."
+          ],
+          "criticality": "important",
+          "category": "timing"
+        },
+        {
+          "id": "step-04",
+          "title": "Heat shock at 42°C",
+          "description": "Rapidly transfer the tube to a pre-heated 42°C water bath for exactly 5 seconds.",
+          "order": 4,
+          "checks": [
+            "The tube is moved directly and quickly from the ice to the heating apparatus.",
+            "The tube is placed into the heating apparatus and then removed after a short interval.",
+            "The heat shock follows the ice incubation and precedes the return to ice."
+          ],
+          "caveats": [
+            "The temperature (42°C) and whether the apparatus was pre-heated cannot be confirmed visually.",
+            "The exact duration (5 seconds) cannot be precisely verified.",
+            "The document is inconsistent: step 4 says a water bath, but the equipment list says a thermal cycler is used for heat shock. Either apparatus may appear on video."
+          ],
+          "criticality": "critical",
+          "category": "timing"
+        },
+        {
+          "id": "step-05",
+          "title": "Return tube to ice",
+          "description": "Immediately return the tube to ice for 5 seconds.",
+          "order": 5,
+          "checks": [
+            "The tube goes back into the ice bucket directly after the heat shock, without intervening handling.",
+            "The tube is left on ice rather than removed straight away."
+          ],
+          "caveats": [
+            "The duration (5 seconds) cannot be precisely confirmed.",
+            "'Immediately' can only be judged qualitatively."
+          ],
+          "criticality": "important",
+          "category": "ordering"
+        },
+        {
+          "id": "step-06",
+          "title": "Spread culture on plate",
+          "description": "Spread 50μL of culture onto an LB agar plate containing the appropriate selective antibiotic.",
+          "order": 6,
+          "checks": [
+            "Liquid from the tube is pipetted onto the surface of an agar plate.",
+            "The liquid is spread across the agar surface.",
+            "Plating happens after the final ice incubation."
+          ],
+          "caveats": [
+            "The volume (50 μL) cannot be confirmed from video.",
+            "Whether the plate is LB agar containing the correct selective antibiotic depends on labels or contents.",
+            "The spreading tool is not specified in the document, and sterility of spreading cannot be verified."
+          ],
+          "criticality": "critical",
+          "category": "identity"
+        },
+        {
+          "id": "step-07",
+          "title": "Invert the plates",
+          "description": "Invert the plates.",
+          "order": 7,
+          "checks": [
+            "The agar plate is turned upside down (lid side down).",
+            "Inversion occurs after the culture has been spread."
+          ],
+          "caveats": [
+            "Subsequent incubation conditions are not specified in the document and are not part of this step."
+          ],
+          "criticality": "informational",
+          "category": "action"
+        }
+      ]
+    },
+    "observations": [
+      {
+        "id": "step-01-agent",
+        "stepId": "step-01",
+        "timestampStart": 12.5,
+        "timestampEnd": 16.5,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "There are two pipetting events (about 5 s and about 14 s). Which one is the DNA addition is not certain.",
+          "The tube contents cannot be verified.",
+          "Not establishable from video: The volume (5 μL) cannot be confirmed from video.",
+          "Not establishable from video: That the liquid is plasmid DNA and the tube holds competent E. coli cells depends on labels or contents.",
+          "Not establishable from video: Whether the cells were kept cold or handled aseptically is not verifiable."
+        ],
+        "confidence": 0.6,
+        "provenance": "claude_agent",
+        "summary": "A tube held over the ice bucket gets a pipette tip inserted and liquid dispensed into it. An earlier, similar pipetting into a tube happens at about 5 s. The video does not show what either tube or liquid contains.",
+        "checkResults": [
+          {
+            "check": "A pipette is used to transfer liquid into the tube containing competent cells.",
+            "result": "confirmed",
+            "note": "At 13.8–15.7 s a micropipette tip goes into a small tube held in the left hand."
+          },
+          {
+            "check": "The pipette tip is dispensed into the cell tube rather than another vessel.",
+            "result": "not_visible",
+            "note": "The tip enters the hand-held tube, but nothing visible (such as a label) shows that this tube holds the competent cells."
+          },
+          {
+            "check": "This addition happens before any flicking or ice incubation of the mixture.",
+            "result": "confirmed",
+            "note": "The addition happens before the tube goes near the ice or the heat block (about 24–28 s). No flicking is seen before it."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-01-e0",
+            "timestamp": 5.4,
+            "end": 6.4,
+            "description": "A pipette tip is inserted into a tube held above the ice bucket (possibly an earlier addition).",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e1",
+            "timestamp": 14.8,
+            "end": 15.8,
+            "description": "A pipette tip is inside the hand-held tube, dispensing.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e2",
+            "timestamp": 15.7,
+            "end": 16.7,
+            "description": "The tip is still in the tube as the pipette is withdrawn.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-03-agent",
+        "stepId": "step-03",
+        "timestampStart": 23.5,
+        "timestampEnd": 27.5,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The tube is never clearly seen sitting in the ice before the heat shock. Its presence there is inferred from the retrieval.",
+          "Not establishable from video: The duration (5 seconds) cannot be precisely confirmed.",
+          "Not establishable from video: Contact of the tube with ice, and the actual temperature, may not be fully visible."
+        ],
+        "confidence": 0.4,
+        "provenance": "claude_agent",
+        "summary": "At about 27 s the right hand picks something out of the green ice bucket just before the heat block is opened. This suggests the tube was in the ice. The moment it was put in is not clearly seen.",
+        "checkResults": [
+          {
+            "check": "The tube is placed into the ice bucket (green container with ice).",
+            "result": "not_visible",
+            "note": "The tube being placed into the ice is not clearly seen. Only the retrieval from the ice at about 27 s is visible."
+          },
+          {
+            "check": "The tube is left in the ice rather than removed immediately.",
+            "result": "not_visible",
+            "note": "How long the tube sat in the ice cannot be established."
+          },
+          {
+            "check": "This occurs after mixing and before the heat shock.",
+            "result": "confirmed",
+            "note": "Taking the tube from the ice (about 27 s) comes before the heat block is opened (about 28 s) and after the pipetting step."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-03-e0",
+            "timestamp": 24.3,
+            "end": 25.3,
+            "description": "The right hand is at the ice bucket.",
+            "kind": "video"
+          },
+          {
+            "id": "step-03-e1",
+            "timestamp": 27,
+            "end": 28,
+            "description": "The right hand reaches into the ice and grasps an item.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-04-agent",
+        "stepId": "step-04",
+        "timestampStart": 27.5,
+        "timestampEnd": 38.5,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The tube going into and out of the block is hidden by the sleeve.",
+          "The temperature and the exact duration cannot be verified.",
+          "Not establishable from video: The temperature (42°C) and whether the apparatus was pre-heated cannot be confirmed visually.",
+          "Not establishable from video: The exact duration (5 seconds) cannot be precisely verified.",
+          "Not establishable from video: The document is inconsistent: step 4 says a water bath, but the equipment list says a thermal cycler is used for heat shock. Either apparatus may appear on video."
+        ],
+        "confidence": 0.7,
+        "provenance": "claude_agent",
+        "summary": "The tube is taken from the ice to the thermal cycler on the left. The lid is opened (about 28 s), closed (about 30–31 s), and reopened (about 35–37 s) to take the tube out.",
+        "checkResults": [
+          {
+            "check": "The tube is moved directly and quickly from the ice to the heating apparatus.",
+            "result": "confirmed",
+            "note": "The tube is picked from the ice at 27 s, and the thermal cycler lid is opened at 28 s."
+          },
+          {
+            "check": "The tube is placed into the heating apparatus and then removed after a short interval.",
+            "result": "confirmed",
+            "note": "The lid is open at 28–29 s, closed by 30–31 s, and reopened at about 35–37 s, giving a short interval in the apparatus. The tube itself is hidden by the arm."
+          },
+          {
+            "check": "The heat shock follows the ice incubation and precedes the return to ice.",
+            "result": "confirmed",
+            "note": "The heat shock comes after the ice retrieval and before the tube goes back into the ice at about 38.8 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-04-e0",
+            "timestamp": 28.1,
+            "end": 29.1,
+            "description": "The thermal cycler lid is opened.",
+            "kind": "video"
+          },
+          {
+            "id": "step-04-e1",
+            "timestamp": 30.3,
+            "end": 31.3,
+            "description": "The lid is closing; the person turns away.",
+            "kind": "video"
+          },
+          {
+            "id": "step-04-e2",
+            "timestamp": 35.8,
+            "end": 36.8,
+            "description": "The person reaches back into the open thermal cycler.",
+            "kind": "video"
+          },
+          {
+            "id": "step-04-e3",
+            "timestamp": 37.3,
+            "end": 38.3,
+            "description": "The lid is open while the tube is being removed.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-05-agent",
+        "stepId": "step-05",
+        "timestampStart": 38.5,
+        "timestampEnd": 45,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The tube is small and partly hidden by the hand in the ice.",
+          "Not establishable from video: The duration (5 seconds) cannot be precisely confirmed.",
+          "Not establishable from video: 'Immediately' can only be judged qualitatively."
+        ],
+        "confidence": 0.75,
+        "provenance": "claude_agent",
+        "summary": "Right after the tube comes out of the thermal cycler, the right hand puts it into the ice. It stays there while the person holds the bucket, until it is picked up again at about 44.8 s.",
+        "checkResults": [
+          {
+            "check": "The tube goes back into the ice bucket directly after the heat shock, without intervening handling.",
+            "result": "confirmed",
+            "note": "At 38.8 s the right hand is in the ice, right after leaving the cycler at about 37 s."
+          },
+          {
+            "check": "The tube is left on ice rather than removed straight away.",
+            "result": "confirmed",
+            "note": "From 40 to 43 s both hands are on the bucket edges while the tube stays in the ice. It is picked out at 44.8 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-05-e0",
+            "timestamp": 38.8,
+            "end": 39.8,
+            "description": "The tube is being placed into the ice.",
+            "kind": "video"
+          },
+          {
+            "id": "step-05-e1",
+            "timestamp": 41.8,
+            "end": 42.8,
+            "description": "Hands hold the bucket; the tube is left in the ice.",
+            "kind": "video"
+          },
+          {
+            "id": "step-05-e2",
+            "timestamp": 44.8,
+            "end": 45.8,
+            "description": "The tube is taken back out of the ice.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-06-agent",
+        "stepId": "step-06",
+        "timestampStart": 46,
+        "timestampEnd": 61,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "How the liquid was spread is unclear. Tilting may or may not count as spreading.",
+          "The plate's medium and antibiotic cannot be identified.",
+          "Not establishable from video: The volume (50 μL) cannot be confirmed from video.",
+          "Not establishable from video: Whether the plate is LB agar containing the correct selective antibiotic depends on labels or contents.",
+          "Not establishable from video: The spreading tool is not specified in the document, and sterility of spreading cannot be verified."
+        ],
+        "confidence": 0.6,
+        "provenance": "claude_agent",
+        "summary": "The tube is opened, liquid is drawn up with a pipette (about 52–54 s), and dispensed onto a Petri dish held in the left hand (about 58–59 s). The plate is then tilted. No spreading tool is seen.",
+        "checkResults": [
+          {
+            "check": "Liquid from the tube is pipetted onto the surface of an agar plate.",
+            "result": "confirmed",
+            "note": "At 58.0–59.3 s the pipette tip dispenses onto the agar surface of the plate held up in the hand."
+          },
+          {
+            "check": "The liquid is spread across the agar surface.",
+            "result": "not_visible",
+            "note": "No spreader or beads are seen. The plate is only tilted or rotated (60.5–61.1 s), so it is unclear whether the liquid was spread."
+          },
+          {
+            "check": "Plating happens after the final ice incubation.",
+            "result": "confirmed",
+            "note": "Plating happens after the post-heat-shock ice incubation (38.8–44.8 s)."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-06-e0",
+            "timestamp": 48.4,
+            "end": 49.4,
+            "description": "Both hands are opening the tube.",
+            "kind": "video"
+          },
+          {
+            "id": "step-06-e1",
+            "timestamp": 53.6,
+            "end": 54.6,
+            "description": "A pipette tip is drawing liquid from the tube held above the ice.",
+            "kind": "video"
+          },
+          {
+            "id": "step-06-e2",
+            "timestamp": 59.3,
+            "end": 60.3,
+            "description": "The pipette tip dispenses onto the plate held in the left hand.",
+            "kind": "video"
+          },
+          {
+            "id": "step-06-e3",
+            "timestamp": 60.5,
+            "end": 61.5,
+            "description": "The plate is tilted, possibly to distribute the liquid.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-07-agent",
+        "stepId": "step-07",
+        "timestampStart": 61.5,
+        "timestampEnd": 63,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The recording ends right after the plate is put down. Inversion cannot be confirmed.",
+          "Not establishable from video: Subsequent incubation conditions are not specified in the document and are not part of this step."
+        ],
+        "confidence": 0.35,
+        "provenance": "claude_agent",
+        "summary": "At the very end the plate is turned on edge (about 61.9 s) and set down on the bench (about 62.5 s). Its final orientation cannot be clearly determined.",
+        "checkResults": [
+          {
+            "check": "The agar plate is turned upside down (lid side down).",
+            "result": "not_visible",
+            "note": "The plate is rotated vertically and laid down. Whether the lid ends up facing down cannot be seen at this resolution, and the recording ends right after."
+          },
+          {
+            "check": "Inversion occurs after the culture has been spread.",
+            "result": "confirmed",
+            "note": "The rotation comes after the liquid was dispensed onto the plate."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-07-e0",
+            "timestamp": 61.9,
+            "end": 62.9,
+            "description": "The plate is held on edge while being rotated.",
+            "kind": "video"
+          },
+          {
+            "id": "step-07-e1",
+            "timestamp": 62.5,
+            "end": 63.5,
+            "description": "The plate is placed flat on the bench.",
+            "kind": "video"
+          },
+          {
+            "id": "step-07-e2",
+            "timestamp": 63.3,
+            "end": 63.6636,
+            "description": "The plate rests on the bench next to the pipettes.",
+            "kind": "video"
+          }
+        ]
+      }
+    ],
+    "absences": [
+      {
+        "stepId": "step-02",
+        "reason": "not_visible",
+        "confidence": 0.45,
+        "note": "No clear flicking of the tube is seen between the DNA addition (about 15 s) and the move to ice and heat block (about 24–28 s). The tube is often hidden by the hand or rack, so flicking could have been missed."
+      }
+    ],
+    "log": [
+      "Reviewed 21 overview frames",
+      "I should focus on the key windows within a 48-frame budget, starting with the first 0-20 second segment covering DNA addition, flicking, and ice.",
+      "Inspected 00:02.0–00:20.0 (8 frames)",
+      "I'm seeing pipette tips going into tubes at both 5.4s and 14.4s over ice, so there may be two separate additions happening — maybe cells into one tube and DNA into another. I should look more closely at the 12-22 second range to confirm.",
+      "Inspected 00:12.5–00:17.0 (5 frames)",
+      "Inspected 00:19.0–00:28.0 (6 frames)",
+      "I'm not seeing clear flicking motion between those frames. The tube might be in a yellow rack, with the left hand near it around 22.8 and the right hand grabbing something from the ice at 27.3 — I should check 16-19 and 26-31 more closely to clarify the ice placement.",
+      "Inspected 00:26.5–00:33.0 (6 frames)",
+      "I'm tracking the sequence of hand movements around the thermal cycler and ice — the tube going in around 28s, coming back out near 37s, returning to ice, then some flicking and pipetting into a tube around 53-62s before placing it on the plate. I'm trying to pin down whether the tube was already in the ice before the 28s mark, noting a hand reaching into the ice around 27s.",
+      "Inspected 00:35.0–00:47.0 (8 frames)",
+      "I'm tracking the timeline: tube goes on ice right after the cycler at 38.8, then held in a bucket on ice through 40-43, picked up at 44.8, opened around 46-47, and plated afterward. I should double-check the 53-63 range for spreading and inversion steps.",
+      "Inspected 00:55.0–01:03.5 (7 frames)",
+      "I'm tracking the plate handling across frames—liquid being dispensed around 58-59, the plate tilted near 60.5 without a visible spreader, then placed down on the bench by 62.9. The inversion step isn't clearly visible, so I need to check the 61.7-63.5 range more closely given my limited frame budget.\n\nI should also look at 47-55 for flicking or pipetting actions, so I'll sample 4 frames there and 4 more around 60.5-63.7.",
+      "Inspected 01:00.8–01:03.6 (4 frames)",
+      "Inspected 00:47.5–00:54.5 (4 frames)",
+      "I'm not seeing a clear flicking motion in the pre-heat stretch, though there's hand movement near the rack between 16-19 seconds. The ice-before-heat-shock step is also uncertain—something happens around 22-27 seconds with a hand reaching into ice, but I can't confirm the sequence clearly enough to mark it as confidently found.\n\nFor step-01, I see the pipette entering the tube around 13-16 seconds, but I can't verify tube identity when it's held over ice, or confirm flicking happened before incubation since flicking itself isn't clearly visible. Step-02 remains unfound given the gaps, though there's two-handed tube manipulation around 46-49 seconds post-heat-shock that looks more like cap-opening than flicking.\n\nFor step-04, I trace the sequence from ice grab at 27 to cycler lid opening at 28, closing around 30, reopening 35-37, then tube returning to ice at 38.8 — this timing roughly confirms placement and removal after about 7 seconds, though the actual insertion is occluded while the lid is shut. Step-05 looks confirmed in the 38.8-44.8 window.\n\nFor step-06, I see pipetting from the tube at 53.6 and dispensing onto the plate at 58-59, with tilting/swirling at 60.5, but the spreading motion itself isn't clearly visible. Step-07 is trickier — the plate appears vertical around 61.9 before being placed down at 62.5, which suggests a flip occurred, so I'll mark it found but with low confidence since the inversion itself isn't directly confirmed.",
+      "Submitted findings for 7 steps"
+    ],
+    "usage": {
+      "input": 16,
+      "cacheWrite": 32952,
+      "cacheRead": 117275,
+      "output": 5491
+    },
+    "generatedAt": "2026-10-03T22:49:17.864Z"
+  },
+  "DJI_22": {
+    "method": {
+      "schemaVersion": 1,
+      "title": "Adding Cytokine into Cells",
+      "version": "1.0",
+      "source": "Add-cytokine-into-cells.pdf",
+      "summary": "Refresh the culture medium in a cell plate inside a tissue culture hood, add cytokine(s), check the cells under an inverted microscope, and return the plate to the CO2 incubator.",
+      "requirements": [
+        {
+          "id": "step-01",
+          "title": "Disinfect hands with ethanol",
+          "description": "Disinfect hands thoroughly with 70% ethanol.",
+          "order": 1,
+          "checks": [
+            "Operator applies liquid from a spray or squirt bottle to hands and rubs them together",
+            "Disinfection happens before the culture plate is handled"
+          ],
+          "caveats": [
+            "Ethanol concentration (70%) cannot be confirmed on video",
+            "Thoroughness of coverage may not be fully visible"
+          ],
+          "criticality": "important",
+          "category": "action"
+        },
+        {
+          "id": "step-02",
+          "title": "Transfer plate to TC hood",
+          "description": "Carefully remove the required cell culture plate from the incubator, and transport the plate into the TC hood.",
+          "order": 2,
+          "checks": [
+            "Operator opens the incubator and takes out a culture plate",
+            "Plate is carried carefully and kept level, without sloshing",
+            "Plate is placed inside the tissue culture hood"
+          ],
+          "caveats": [
+            "Whether this is the correct ('required') plate depends on labels or contents not readable on video",
+            "Sterility of the transfer cannot be verified"
+          ],
+          "criticality": "important",
+          "category": "identity"
+        },
+        {
+          "id": "step-03",
+          "title": "Aspirate old medium",
+          "description": "Inside the hood, gently aspirate and discard the old medium from the culture plate without disturbing the cells.",
+          "order": 3,
+          "checks": [
+            "Aspiration happens inside the hood using the vacuum line with a glass pipette",
+            "Liquid is visibly removed from the plate",
+            "Pipette tip is placed gently, e.g. at the edge or wall of the well, not scraped across the cell layer"
+          ],
+          "caveats": [
+            "Whether the cells were actually left undisturbed cannot be confirmed by camera",
+            "Sterility of the aspiration pipette cannot be verified"
+          ],
+          "criticality": "critical",
+          "category": "action"
+        },
+        {
+          "id": "step-04",
+          "title": "Add pre-warmed fresh medium",
+          "description": "Using a sterile pipette, add the appropriate volume of pre-warmed fresh medium to the plate.",
+          "order": 4,
+          "checks": [
+            "Operator uses a serological pipette on a pipette controller to dispense medium into the plate",
+            "Medium is added after the old medium has been aspirated",
+            "Liquid is visibly present in the plate after addition"
+          ],
+          "caveats": [
+            "Volume ('appropriate volume') cannot be confirmed on video",
+            "That the medium is pre-warmed and is the correct medium cannot be verified visually",
+            "Sterility of the pipette cannot be verified"
+          ],
+          "criticality": "critical",
+          "category": "ordering"
+        },
+        {
+          "id": "step-05",
+          "title": "Add cytokine(s) to medium",
+          "description": "Add cytokine(s) to the medium at the desired working concentration.",
+          "order": 5,
+          "checks": [
+            "Operator uses a micropipette to dispense into the plate's medium",
+            "Addition occurs after the fresh medium has been added",
+            "Addition is done inside the hood"
+          ],
+          "caveats": [
+            "Identity of the cytokine(s) depends on labels not readable on video",
+            "Volume added and the resulting working concentration cannot be confirmed",
+            "Sterility of the tips and reagent cannot be verified"
+          ],
+          "criticality": "critical",
+          "category": "identity"
+        },
+        {
+          "id": "step-06",
+          "title": "Inspect cells under microscope",
+          "description": "Examine the cells under an inverted microscope to assess cell health, density, and morphology.",
+          "order": 6,
+          "checks": [
+            "Plate is placed on the stage of the inverted (EVOS) microscope",
+            "Operator views the cells on the screen or through the microscope before returning the plate"
+          ],
+          "caveats": [
+            "The assessment of cell health, density and morphology is a judgement that video cannot verify"
+          ],
+          "criticality": "informational",
+          "category": "action"
+        },
+        {
+          "id": "step-07",
+          "title": "Return plate to incubator",
+          "description": "Place the plate back into the incubator at the correct conditions.",
+          "order": 7,
+          "checks": [
+            "Plate is carried back to the CO2 incubator and placed inside",
+            "Incubator door is closed afterwards",
+            "This is the final step, after microscope inspection"
+          ],
+          "caveats": [
+            "Correct incubator conditions (temperature, CO2) cannot be confirmed on video"
+          ],
+          "criticality": "important",
+          "category": "ordering"
+        }
+      ]
+    },
+    "observations": [
+      {
+        "id": "step-01-agent",
+        "stepId": "step-01",
+        "timestampStart": 4,
+        "timestampEnd": 10,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The ethanol concentration and how thoroughly the hands were covered cannot be verified.",
+          "Not establishable from video: Ethanol concentration (70%) cannot be confirmed on video",
+          "Not establishable from video: Thoroughness of coverage may not be fully visible"
+        ],
+        "confidence": 0.85,
+        "provenance": "claude_agent",
+        "summary": "The operator sprays liquid from a spray bottle onto the gloved hands and rubs them together beside the hood, before going to the incubator.",
+        "checkResults": [
+          {
+            "check": "Operator applies liquid from a spray or squirt bottle to hands and rubs them together",
+            "result": "confirmed",
+            "note": "At 5 s a spray bottle is aimed at the gloved hand, and at 9–10 s the hands are rubbed together."
+          },
+          {
+            "check": "Disinfection happens before the culture plate is handled",
+            "result": "confirmed",
+            "note": "This happens before the incubator is opened (11 s) and before the plate is taken out (17 s)."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-01-e0",
+            "timestamp": 5,
+            "end": 6,
+            "description": "Spray bottle held in the right hand and pointed at the left gloved hand.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e1",
+            "timestamp": 9,
+            "end": 10,
+            "description": "Gloved hands rubbed together.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-02-agent",
+        "stepId": "step-02",
+        "timestampStart": 11,
+        "timestampEnd": 25,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Whether this is the required plate cannot be established.",
+          "The plate is tilted somewhat during transport.",
+          "Not establishable from video: Whether this is the correct ('required') plate depends on labels or contents not readable on video",
+          "Not establishable from video: Sterility of the transfer cannot be verified"
+        ],
+        "confidence": 0.85,
+        "provenance": "claude_agent",
+        "summary": "The operator opens the HERAcell CO2 incubator, takes out a 6-well plate, carries it to the hood and sets it down on the work surface.",
+        "checkResults": [
+          {
+            "check": "Operator opens the incubator and takes out a culture plate",
+            "result": "confirmed",
+            "note": "Incubator door opened at 11–15 s; 6-well plate held in front of the open incubator at 17.8 s."
+          },
+          {
+            "check": "Plate is carried carefully and kept level, without sloshing",
+            "result": "not_visible",
+            "note": "The plate is visibly tilted at 17.8–20.2 s while being carried. Sloshing cannot be judged from the frames."
+          },
+          {
+            "check": "Plate is placed inside the tissue culture hood",
+            "result": "confirmed",
+            "note": "Plate placed on the hood work surface at 24.8 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-02-e0",
+            "timestamp": 13.2,
+            "end": 14.2,
+            "description": "Incubator door open with plates on the shelves.",
+            "kind": "video"
+          },
+          {
+            "id": "step-02-e1",
+            "timestamp": 17.8,
+            "end": 18.8,
+            "description": "6-well plate held at the open incubator.",
+            "kind": "video"
+          },
+          {
+            "id": "step-02-e2",
+            "timestamp": 24.8,
+            "end": 25.8,
+            "description": "Plate set down inside the hood.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-03-agent",
+        "stepId": "step-03",
+        "timestampStart": 31,
+        "timestampEnd": 50,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Exactly where the tip was placed relative to the cell layer is unclear.",
+          "Not establishable from video: Whether the cells were actually left undisturbed cannot be confirmed by camera",
+          "Not establishable from video: Sterility of the aspiration pipette cannot be verified"
+        ],
+        "confidence": 0.8,
+        "provenance": "claude_agent",
+        "summary": "Inside the hood, the operator aspirates the pink medium from the wells with a glass Pasteur pipette attached to the vacuum tubing, then discards the pipette.",
+        "checkResults": [
+          {
+            "check": "Aspiration happens inside the hood using the vacuum line with a glass pipette",
+            "result": "confirmed",
+            "note": "A glass pipette connected to the vacuum tubing is used inside the hood (31–47 s)."
+          },
+          {
+            "check": "Liquid is visibly removed from the plate",
+            "result": "confirmed",
+            "note": "Wells contain pink medium at 27.9 s and appear empty by about 39–42 s."
+          },
+          {
+            "check": "Pipette tip is placed gently, e.g. at the edge or wall of the well, not scraped across the cell layer",
+            "result": "not_visible",
+            "note": "The pipette goes into the wells at an angle and appears near the well edge, but where the tip touches cannot be resolved."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-03-e0",
+            "timestamp": 27.9,
+            "end": 28.9,
+            "description": "Wells containing pink medium before aspiration.",
+            "kind": "video"
+          },
+          {
+            "id": "step-03-e1",
+            "timestamp": 35.3,
+            "end": 36.3,
+            "description": "Glass pipette on the vacuum line inserted into a well.",
+            "kind": "video"
+          },
+          {
+            "id": "step-03-e2",
+            "timestamp": 42.7,
+            "end": 43.7,
+            "description": "Wells empty after aspiration.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-04-agent",
+        "stepId": "step-04",
+        "timestampStart": 56,
+        "timestampEnd": 84,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Volume, pre-warming and medium identity cannot be verified.",
+          "The pipette controller is partly out of frame.",
+          "Not establishable from video: Volume ('appropriate volume') cannot be confirmed on video",
+          "Not establishable from video: That the medium is pre-warmed and is the correct medium cannot be verified visually",
+          "Not establishable from video: Sterility of the pipette cannot be verified"
+        ],
+        "confidence": 0.85,
+        "provenance": "claude_agent",
+        "summary": "The operator opens the pink medium bottle, draws medium with a serological pipette and dispenses it into the wells. The wells are pink afterwards.",
+        "checkResults": [
+          {
+            "check": "Operator uses a serological pipette on a pipette controller to dispense medium into the plate",
+            "result": "confirmed",
+            "note": "A serological pipette is drawn from the bottle at 66.6 s (controller at the top of the frame) and dispensed into the wells at 70–80 s."
+          },
+          {
+            "check": "Medium is added after the old medium has been aspirated",
+            "result": "confirmed",
+            "note": "This follows the aspiration at 31–50 s."
+          },
+          {
+            "check": "Liquid is visibly present in the plate after addition",
+            "result": "confirmed",
+            "note": "The wells contain pink medium at 83.6–87.9 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-04-e0",
+            "timestamp": 66.6,
+            "end": 67.6,
+            "description": "Serological pipette drawing medium from the pink bottle.",
+            "kind": "video"
+          },
+          {
+            "id": "step-04-e1",
+            "timestamp": 79.4,
+            "end": 80.4,
+            "description": "Pipette tip dispensing into a well.",
+            "kind": "video"
+          },
+          {
+            "id": "step-04-e2",
+            "timestamp": 87.9,
+            "end": 88.9,
+            "description": "Wells filled with pink medium.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-05-agent",
+        "stepId": "step-05",
+        "timestampStart": 90,
+        "timestampEnd": 113,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Cytokine identity, volume and concentration are not establishable.",
+          "Not establishable from video: Identity of the cytokine(s) depends on labels not readable on video",
+          "Not establishable from video: Volume added and the resulting working concentration cannot be confirmed",
+          "Not establishable from video: Sterility of the tips and reagent cannot be verified"
+        ],
+        "confidence": 0.85,
+        "provenance": "claude_agent",
+        "summary": "The operator sets a micropipette, draws from a small tube held in the left hand and dispenses into the wells of the plate inside the hood.",
+        "checkResults": [
+          {
+            "check": "Operator uses a micropipette to dispense into the plate's medium",
+            "result": "confirmed",
+            "note": "Micropipette tip goes into the plate wells at 105.3 s and 112.2 s, after drawing from a small tube (103.9 s, 110.5 s)."
+          },
+          {
+            "check": "Addition occurs after the fresh medium has been added",
+            "result": "confirmed",
+            "note": "This comes after the medium addition at 70–84 s."
+          },
+          {
+            "check": "Addition is done inside the hood",
+            "result": "confirmed",
+            "note": "The plate is on the hood work surface throughout."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-05-e0",
+            "timestamp": 90.7,
+            "end": 91.7,
+            "description": "Micropipette being adjusted.",
+            "kind": "video"
+          },
+          {
+            "id": "step-05-e1",
+            "timestamp": 103.9,
+            "end": 104.9,
+            "description": "Micropipette drawing from a small tube held in the left hand.",
+            "kind": "video"
+          },
+          {
+            "id": "step-05-e2",
+            "timestamp": 105.3,
+            "end": 106.3,
+            "description": "Micropipette tip dispensing into a well of the plate.",
+            "kind": "video"
+          },
+          {
+            "id": "step-05-e3",
+            "timestamp": 112.2,
+            "end": 113.2,
+            "description": "Second dispense into a well.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-06-agent",
+        "stepId": "step-06",
+        "timestampStart": 119,
+        "timestampEnd": 141,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The quality of the assessment cannot be verified.",
+          "Not establishable from video: The assessment of cell health, density and morphology is a judgement that video cannot verify"
+        ],
+        "confidence": 0.9,
+        "provenance": "claude_agent",
+        "summary": "The plate is placed on the EVOS inverted microscope stage, and cell images (fluorescent and brightfield) are shown on the screen.",
+        "checkResults": [
+          {
+            "check": "Plate is placed on the stage of the inverted (EVOS) microscope",
+            "result": "confirmed",
+            "note": "Plate on the EVOS stage from 122.9 s to 139 s."
+          },
+          {
+            "check": "Operator views the cells on the screen or through the microscope before returning the plate",
+            "result": "confirmed",
+            "note": "The screen shows cell images at 122.9–131 s before the plate is picked up at 140.4 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-06-e0",
+            "timestamp": 122.9,
+            "end": 123.9,
+            "description": "Plate placed on the EVOS stage, with a fluorescent cell image on the screen.",
+            "kind": "video"
+          },
+          {
+            "id": "step-06-e1",
+            "timestamp": 131,
+            "end": 132,
+            "description": "Brightfield cell image on the screen.",
+            "kind": "video"
+          },
+          {
+            "id": "step-06-e2",
+            "timestamp": 140.4,
+            "end": 141.4,
+            "description": "Plate lifted off the stage.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-07-agent",
+        "stepId": "step-07",
+        "timestampStart": 142,
+        "timestampEnd": 153,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The moment the plate is set on the shelf falls between sampled frames.",
+          "The incubator conditions cannot be verified.",
+          "Not establishable from video: Correct incubator conditions (temperature, CO2) cannot be confirmed on video"
+        ],
+        "confidence": 0.85,
+        "provenance": "claude_agent",
+        "summary": "The plate is carried to the HERAcell CO2 incubator and placed inside, and the incubator door is closed.",
+        "checkResults": [
+          {
+            "check": "Plate is carried back to the CO2 incubator and placed inside",
+            "result": "confirmed",
+            "note": "Plate held at the open incubator at 146 s; the hand is empty in front of the open incubator at 148.8 s."
+          },
+          {
+            "check": "Incubator door is closed afterwards",
+            "result": "confirmed",
+            "note": "The door is pushed closed at 151.6 s."
+          },
+          {
+            "check": "This is the final step, after microscope inspection",
+            "result": "confirmed",
+            "note": "This comes after the microscope inspection. Afterwards the operator only tidies the hood."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-07-e0",
+            "timestamp": 143.2,
+            "end": 144.2,
+            "description": "Plate carried to the HERAcell incubator.",
+            "kind": "video"
+          },
+          {
+            "id": "step-07-e1",
+            "timestamp": 146,
+            "end": 147,
+            "description": "Plate at the open incubator chamber.",
+            "kind": "video"
+          },
+          {
+            "id": "step-07-e2",
+            "timestamp": 151.6,
+            "end": 152.6,
+            "description": "Incubator door being closed.",
+            "kind": "video"
+          }
+        ]
+      }
+    ],
+    "absences": [],
+    "log": [
+      "Reviewed 40 overview frames",
+      "I'll break the timeline into segments—0-10s, 10-24s, 26-52s, 56-90s, 90-118s, 118-140s, and 140-155s—and check each window in turn.",
+      "Inspected 00:00.0–00:12.0 (6 frames)",
+      "Inspected 00:12.0–00:26.0 (6 frames)",
+      "Disinfection steps look good with the spray and rubbing actions confirmed. But the plate appears tilted noticeably at both timestamps rather than kept level, so I'm leaning toward marking that aspect as contradicted since the wells also look mostly empty of medium.\n\nMoving on to the aspiration step spanning 26-52.",
+      "Inspected 00:26.0–00:52.0 (7 frames)",
+      "I'm watching the aspiration with the glass Pasteur pipette on vacuum tubing — pink medium is still visible in the wells around 27.9 but appears gone by 39. I want to check the tip placement more closely, since around 35.3 it looks like it's near the well edge, and I should also look at the medium addition happening between 56-90.",
+      "Inspected 00:33.0–00:38.0 (3 frames)",
+      "Inspected 00:56.0–01:30.0 (8 frames)",
+      "I'm confirming the pipette drawn from the pink bottle dispensed into wells 70-80, with the controller likely present just out of frame. Now moving on to check step 5, covering frames 90-118.",
+      "Inspected 01:36.0–01:58.0 (7 frames)",
+      "I noticed pipetting activity around frames 103.9 and 110.1 into a small tube rather than the plate, so I want to check more closely whether anything gets dispensed into the plate — I'll look more densely at frames 104-113 and also revisit 88-97 to be sure.",
+      "Inspected 01:44.5–01:53.0 (5 frames)",
+      "The micropipette steps into the plate wells look solid around 105.3 and 112.2, and the microscope segment from 118-140 with the return at 140-155 is well covered by the overview. I should double check 138-147 for the part where it's carried to the incubator.",
+      "Inspected 02:19.0–02:33.0 (5 frames)",
+      "The plate seems to go into the incubator sometime between 146 and 148.8, confirmed by the hand being empty at that point, with the door closing at 151.6. After 155, the operator returns to the hood to handle a medium bottle, which looks like cleanup after the plate return step, so I'll mark this as confirmed happening after the microscope step with the plate on the EVOS stage.\n\nFor step 2, I'm checking whether the plate was placed in the hood at 24.8, which is confirmed. For keeping the plate level, I see it tilted at noticeable angles around 17.8 and 20.2 — hard to tell if liquid spilled, so I'll mark this as not visible with a note about the tilt.",
+      "Submitted findings for 7 steps"
+    ],
+    "usage": {
+      "input": 16,
+      "cacheWrite": 30159,
+      "cacheRead": 127651,
+      "output": 4500
+    },
+    "generatedAt": "2026-10-03T22:50:30.359Z"
+  },
+  "DJI_24": {
+    "method": {
+      "schemaVersion": 1,
+      "title": "Adding Cytokine into Cells",
+      "version": "1.0",
+      "source": "Add-cytokine-into-cells.pdf",
+      "summary": "Refresh the culture medium on a cell plate in the TC hood, add cytokine(s), check the cells under an inverted microscope, then put the plate back in the CO2 incubator.",
+      "requirements": [
+        {
+          "id": "step-01",
+          "title": "Disinfect hands with ethanol",
+          "description": "Disinfect hands thoroughly with 70% ethanol.",
+          "order": 1,
+          "checks": [
+            "Operator sprays or rubs ethanol from a squirt or spray bottle onto hands or gloves",
+            "Hands are rubbed together to spread the liquid",
+            "Done before the incubator is opened or the plate is handled"
+          ],
+          "caveats": [
+            "Video cannot confirm the solution is 70% ethanol",
+            "Video cannot confirm hands were fully covered or effectively disinfected"
+          ],
+          "criticality": "important",
+          "category": "action"
+        },
+        {
+          "id": "step-02",
+          "title": "Transfer plate to TC hood",
+          "description": "Carefully remove the required cell culture plate from the incubator, and transport the plate into TC hood.",
+          "order": 2,
+          "checks": [
+            "Operator opens the CO2 incubator and takes out a culture plate",
+            "Plate is carried level and steadily to the tissue culture hood",
+            "Plate is placed on the work surface inside the hood"
+          ],
+          "caveats": [
+            "Video cannot confirm it is the correct plate or cell line",
+            "Incubator conditions are not visible",
+            "Sterility of the hood is not visible"
+          ],
+          "criticality": "important",
+          "category": "identity"
+        },
+        {
+          "id": "step-03",
+          "title": "Aspirate old medium",
+          "description": "Inside the hood, gently aspirate and discard the old medium from the culture plate without disturbing the cells.",
+          "order": 3,
+          "checks": [
+            "Done inside the hood",
+            "Glass pipette on the vacuum aspiration line is put into the wells or plate",
+            "Liquid is visibly removed from the plate",
+            "Pipette tip is held at the edge or side of the well rather than pushed onto the cell layer"
+          ],
+          "caveats": [
+            "Video cannot confirm the cell monolayer stayed intact",
+            "Sterility of the aspiration pipette cannot be confirmed",
+            "Video may not show whether all the old medium was removed"
+          ],
+          "criticality": "critical",
+          "category": "action"
+        },
+        {
+          "id": "step-04",
+          "title": "Add pre-warmed fresh medium",
+          "description": "Using a sterile pipette, add the appropriate volume of pre-warmed fresh medium to the plate.",
+          "order": 4,
+          "checks": [
+            "Serological pipette on a pipette controller draws medium from a medium bottle",
+            "Medium is dispensed into the plate",
+            "Done after the old medium has been aspirated"
+          ],
+          "caveats": [
+            "Volume added cannot be verified from video",
+            "Video cannot confirm the medium is the correct type or is pre-warmed",
+            "Sterility of the pipette cannot be confirmed"
+          ],
+          "criticality": "critical",
+          "category": "ordering"
+        },
+        {
+          "id": "step-05",
+          "title": "Add cytokine(s) to medium",
+          "description": "Add cytokine(s) to the medium at the desired working concentration.",
+          "order": 5,
+          "checks": [
+            "Micropipette with a tip draws liquid from a small tube",
+            "Liquid is dispensed into the medium in the plate",
+            "Done after fresh medium has been added"
+          ],
+          "caveats": [
+            "Video cannot confirm which cytokine was used",
+            "Volume and working concentration cannot be verified",
+            "Sterility of the tip cannot be confirmed"
+          ],
+          "criticality": "critical",
+          "category": "identity"
+        },
+        {
+          "id": "step-06",
+          "title": "Inspect cells under microscope",
+          "description": "Examine the cells under an inverted microscope to assess cell health, density, and morphology.",
+          "order": 6,
+          "checks": [
+            "Plate is placed on the stage of the inverted microscope (EVOS)",
+            "Operator looks at the image or display and adjusts focus or position",
+            "Done after cytokine addition and before the plate goes back in the incubator"
+          ],
+          "caveats": [
+            "Video cannot show the assessment of cell health, density and morphology"
+          ],
+          "criticality": "informational",
+          "category": "action"
+        },
+        {
+          "id": "step-07",
+          "title": "Return plate to incubator",
+          "description": "Place the plate back into the incubator at the correct conditions.",
+          "order": 7,
+          "checks": [
+            "Plate is carried back to the CO2 incubator",
+            "Plate is placed on a shelf and the incubator door is closed"
+          ],
+          "caveats": [
+            "Incubator temperature, CO2 level and humidity cannot be verified from video"
+          ],
+          "criticality": "important",
+          "category": "action"
+        }
+      ]
+    },
+    "observations": [
+      {
+        "id": "step-01-agent",
+        "stepId": "step-01",
+        "timestampStart": 3.5,
+        "timestampEnd": 6.8,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Whether ethanol was applied at all cannot be seen; the rubbing might be without liquid.",
+          "Not establishable from video: Video cannot confirm the solution is 70% ethanol",
+          "Not establishable from video: Video cannot confirm hands were fully covered or effectively disinfected"
+        ],
+        "confidence": 0.45,
+        "provenance": "claude_agent",
+        "summary": "Near the hood, the operator holds up gloved hands and rubs them together, then goes to the incubator. No ethanol bottle and no spraying are visible, so the hand rub shows but applying ethanol does not.",
+        "checkResults": [
+          {
+            "check": "Operator sprays or rubs ethanol from a squirt or spray bottle onto hands or gloves",
+            "result": "not_visible",
+            "note": "No squirt or spray bottle and no spraying appear in any frame between 0 and 7 s. The ethanol may have been applied out of shot."
+          },
+          {
+            "check": "Hands are rubbed together to spread the liquid",
+            "result": "confirmed",
+            "note": "Gloved hands are rubbed together at 5.5–6.3 s."
+          },
+          {
+            "check": "Done before the incubator is opened or the plate is handled",
+            "result": "confirmed",
+            "note": "The rubbing happens before the incubator door is opened (about 7–8 s) and before the plate is handled."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-01-e0",
+            "timestamp": 3.9,
+            "end": 4.9,
+            "description": "One gloved hand is held out flat toward the camera.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e1",
+            "timestamp": 5.5,
+            "end": 6.5,
+            "description": "The two gloved hands are pressed together and rubbing.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e2",
+            "timestamp": 6.3,
+            "end": 7.3,
+            "description": "The hands are still rubbed together in front of the incubator.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e3",
+            "timestamp": 7.1,
+            "end": 8.1,
+            "description": "The operator reaches to open the incubator.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-02-agent",
+        "stepId": "step-02",
+        "timestampStart": 7,
+        "timestampEnd": 22,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Not establishable from video: Video cannot confirm it is the correct plate or cell line",
+          "Not establishable from video: Incubator conditions are not visible",
+          "Not establishable from video: Sterility of the hood is not visible"
+        ],
+        "confidence": 0.9,
+        "provenance": "claude_agent",
+        "summary": "The operator opens the Heracell VIOS 160i CO2 incubator, takes out a 6-well plate, carries it to the hood and sets it on the work surface.",
+        "checkResults": [
+          {
+            "check": "Operator opens the CO2 incubator and takes out a culture plate",
+            "result": "confirmed",
+            "note": "The incubator is opened and a 6-well plate is taken off a shelf (8–14 s)."
+          },
+          {
+            "check": "Plate is carried level and steadily to the tissue culture hood",
+            "result": "confirmed",
+            "note": "The plate is held fairly level in both hands while being carried to the hood (14–19 s), though it is briefly tilted to show it to the camera."
+          },
+          {
+            "check": "Plate is placed on the work surface inside the hood",
+            "result": "confirmed",
+            "note": "The plate is placed on the hood surface at about 21–22 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-02-e0",
+            "timestamp": 8.3,
+            "end": 9.3,
+            "description": "The incubator is open with its inner glass door visible.",
+            "kind": "video"
+          },
+          {
+            "id": "step-02-e1",
+            "timestamp": 12.2,
+            "end": 13.2,
+            "description": "The plate is being pulled out of the incubator.",
+            "kind": "video"
+          },
+          {
+            "id": "step-02-e2",
+            "timestamp": 17,
+            "end": 18,
+            "description": "The plate is carried toward the hood.",
+            "kind": "video"
+          },
+          {
+            "id": "step-02-e3",
+            "timestamp": 21.8,
+            "end": 22.8,
+            "description": "The plate sits on the hood work surface.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-03-agent",
+        "stepId": "step-03",
+        "timestampStart": 26,
+        "timestampEnd": 43,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Whether the tip touched the cell layer cannot be fully judged at this resolution.",
+          "Not establishable from video: Video cannot confirm the cell monolayer stayed intact",
+          "Not establishable from video: Sterility of the aspiration pipette cannot be confirmed",
+          "Not establishable from video: Video may not show whether all the old medium was removed"
+        ],
+        "confidence": 0.85,
+        "provenance": "claude_agent",
+        "summary": "Inside the hood, the operator tilts the plate and holds a glass pipette on the vacuum line in the wells, and the pink medium is removed.",
+        "checkResults": [
+          {
+            "check": "Done inside the hood",
+            "result": "confirmed",
+            "note": "Performed on the hood work surface."
+          },
+          {
+            "check": "Glass pipette on the vacuum aspiration line is put into the wells or plate",
+            "result": "confirmed",
+            "note": "A glass Pasteur pipette attached to tubing is put into the wells (28–41 s)."
+          },
+          {
+            "check": "Liquid is visibly removed from the plate",
+            "result": "confirmed",
+            "note": "The wells are pink at 26.7 s and look clear by 43.3 s."
+          },
+          {
+            "check": "Pipette tip is held at the edge or side of the well rather than pushed onto the cell layer",
+            "result": "confirmed",
+            "note": "The plate is tilted and the tip is placed at the low edge of each well."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-03-e0",
+            "timestamp": 26.7,
+            "end": 27.7,
+            "description": "The wells contain pink medium and the operator picks up the aspirator.",
+            "kind": "video"
+          },
+          {
+            "id": "step-03-e1",
+            "timestamp": 33.3,
+            "end": 34.3,
+            "description": "The aspirator tip is at the edge of the tilted well.",
+            "kind": "video"
+          },
+          {
+            "id": "step-03-e2",
+            "timestamp": 43.3,
+            "end": 44.3,
+            "description": "The wells look emptied.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-04-agent",
+        "stepId": "step-04",
+        "timestampStart": 50,
+        "timestampEnd": 75,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Volume and pre-warming cannot be seen.",
+          "Not establishable from video: Volume added cannot be verified from video",
+          "Not establishable from video: Video cannot confirm the medium is the correct type or is pre-warmed",
+          "Not establishable from video: Sterility of the pipette cannot be confirmed"
+        ],
+        "confidence": 0.85,
+        "provenance": "claude_agent",
+        "summary": "The operator unwraps a serological pipette, fits it to a pipette controller, draws pink medium from the bottle and dispenses it into the wells.",
+        "checkResults": [
+          {
+            "check": "Serological pipette on a pipette controller draws medium from a medium bottle",
+            "result": "confirmed",
+            "note": "The serological pipette on the controller is in the medium bottle at about 57–59 s."
+          },
+          {
+            "check": "Medium is dispensed into the plate",
+            "result": "confirmed",
+            "note": "The pipette tip goes into the wells and they fill with pink medium (62–73 s)."
+          },
+          {
+            "check": "Done after the old medium has been aspirated",
+            "result": "confirmed",
+            "note": "This happens after the aspiration ends at about 43 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-04-e0",
+            "timestamp": 50.3,
+            "end": 51.3,
+            "description": "The serological pipette is being unwrapped.",
+            "kind": "video"
+          },
+          {
+            "id": "step-04-e1",
+            "timestamp": 58.9,
+            "end": 59.9,
+            "description": "The pipette is in the medium bottle.",
+            "kind": "video"
+          },
+          {
+            "id": "step-04-e2",
+            "timestamp": 66.1,
+            "end": 67.1,
+            "description": "The pipette dispenses into a well.",
+            "kind": "video"
+          },
+          {
+            "id": "step-04-e3",
+            "timestamp": 73.2,
+            "end": 74.2,
+            "description": "The wells contain pink medium.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-05-agent",
+        "stepId": "step-05",
+        "timestampStart": 79,
+        "timestampEnd": 92,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The identity and concentration of the cytokine cannot be seen.",
+          "How many wells received it is unclear.",
+          "Not establishable from video: Video cannot confirm which cytokine was used",
+          "Not establishable from video: Volume and working concentration cannot be verified",
+          "Not establishable from video: Sterility of the tip cannot be confirmed"
+        ],
+        "confidence": 0.8,
+        "provenance": "claude_agent",
+        "summary": "The operator holds a small tube in the left hand, draws liquid from it with a micropipette and tip, and dispenses into a well of medium.",
+        "checkResults": [
+          {
+            "check": "Micropipette with a tip draws liquid from a small tube",
+            "result": "confirmed",
+            "note": "The micropipette tip is put into the small tube held in the left hand (85–88 s)."
+          },
+          {
+            "check": "Liquid is dispensed into the medium in the plate",
+            "result": "confirmed",
+            "note": "The tip goes into a medium-filled well at about 90 s."
+          },
+          {
+            "check": "Done after fresh medium has been added",
+            "result": "confirmed",
+            "note": "This happens after the medium addition ends at about 75 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-05-e0",
+            "timestamp": 82.6,
+            "end": 83.6,
+            "description": "The operator holds the small tube and the micropipette is ready.",
+            "kind": "video"
+          },
+          {
+            "id": "step-05-e1",
+            "timestamp": 85.2,
+            "end": 86.2,
+            "description": "The micropipette tip is in the small tube.",
+            "kind": "video"
+          },
+          {
+            "id": "step-05-e2",
+            "timestamp": 90.4,
+            "end": 91.4,
+            "description": "The micropipette tip dispenses into a well.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-06-agent",
+        "stepId": "step-06",
+        "timestampStart": 99,
+        "timestampEnd": 117,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Whether the operator adjusted focus is not directly seen.",
+          "Not establishable from video: Video cannot show the assessment of cell health, density and morphology"
+        ],
+        "confidence": 0.8,
+        "provenance": "claude_agent",
+        "summary": "The plate is carried to an EVOS M5000 inverted microscope and put on the stage. The screen shows fluorescence, brightfield and colour images in turn.",
+        "checkResults": [
+          {
+            "check": "Plate is placed on the stage of the inverted microscope (EVOS)",
+            "result": "confirmed",
+            "note": "The plate is placed on the EVOS M5000 stage at about 102 s."
+          },
+          {
+            "check": "Operator looks at the image or display and adjusts focus or position",
+            "result": "not_visible",
+            "note": "The image on the display changes over time (fluorescence, then brightfield, then colour), but the operator's hands are not seen adjusting focus or position."
+          },
+          {
+            "check": "Done after cytokine addition and before the plate goes back in the incubator",
+            "result": "confirmed",
+            "note": "This happens after the cytokine addition (about 90 s) and before the plate is returned at about 118–123 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-06-e0",
+            "timestamp": 102,
+            "end": 103,
+            "description": "The hand places the plate on the EVOS stage, with a fluorescence image on screen.",
+            "kind": "video"
+          },
+          {
+            "id": "step-06-e1",
+            "timestamp": 108.7,
+            "end": 109.7,
+            "description": "A brightfield image of cells is on screen with the plate on the stage.",
+            "kind": "video"
+          },
+          {
+            "id": "step-06-e2",
+            "timestamp": 115.3,
+            "end": 116.3,
+            "description": "The display shows a different, colour view.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-07-agent",
+        "stepId": "step-07",
+        "timestampStart": 118,
+        "timestampEnd": 129.762967,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Whether the door latched fully may happen after the recording ends.",
+          "Not establishable from video: Incubator temperature, CO2 level and humidity cannot be verified from video"
+        ],
+        "confidence": 0.85,
+        "provenance": "claude_agent",
+        "summary": "The plate is carried back to the CO2 incubator, slid onto a shelf, and the door is closed.",
+        "checkResults": [
+          {
+            "check": "Plate is carried back to the CO2 incubator",
+            "result": "confirmed",
+            "note": "The plate is carried to the Heracell incubator (118–121 s)."
+          },
+          {
+            "check": "Plate is placed on a shelf and the incubator door is closed",
+            "result": "confirmed",
+            "note": "The plate is slid onto a shelf at about 121–123 s, and the door is being closed at 128.5 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-07-e0",
+            "timestamp": 118.3,
+            "end": 119.3,
+            "description": "The plate is carried toward the incubators.",
+            "kind": "video"
+          },
+          {
+            "id": "step-07-e1",
+            "timestamp": 120.8,
+            "end": 121.8,
+            "description": "The plate is being put into the open incubator.",
+            "kind": "video"
+          },
+          {
+            "id": "step-07-e2",
+            "timestamp": 128.5,
+            "end": 129.5,
+            "description": "The hand pushes the incubator door shut.",
+            "kind": "video"
+          }
+        ]
+      }
+    ],
+    "absences": [],
+    "log": [
+      "Reviewed 40 overview frames",
+      "I'm planning to scan through the footage in several time segments to check the key moments efficiently, covering roughly the 0 to 130 second range in chunks.",
+      "Inspected 00:00.0–00:09.0 (6 frames)",
+      "Inspected 00:25.0–00:45.0 (6 frames)",
+      "Inspected 00:50.0–01:15.0 (7 frames)",
+      "Inspected 01:16.0–01:37.0 (8 frames)",
+      "I don't see ethanol spray in the first 8 seconds—just gloved hands being shown and rubbed together around 5.3s, with no bottle visible, so I need to double-check that window more carefully. Then for step 4, I'm checking whether the pipette actually enters the wells around 62-73s and verifying the draw from the medium bottle.\n\nFor aspiration, the wells show pink liquid around 26.7s but appear clear by 43.3s, which looks right. I still need to verify the 3.5-7s window along with steps 2, 6, and 7.",
+      "Inspected 00:03.5–00:07.5 (5 frames)",
+      "Inspected 00:11.0–00:23.0 (5 frames)",
+      "Inspected 01:37.0–01:57.0 (6 frames)",
+      "Inspected 01:57.0–02:09.8 (5 frames)",
+      "I see hands being rubbed together around 5.5-6.3s, though no spray bottle is visible in frame—the earlier shot at 3.9s might show wetness on the hand suggesting ethanol was applied. I'll lean toward marking this action as found but with low confidence, since the rubbing motion happens before the incubator opens around 7-8s.\n\nLooking at the pipetting step, the micropipette draws from a small tube around 85-88s and dispenses into a well at 90.4s, with the tube held steady by the left hand. For the microscope step, the EVOS M5000 label is visible and the display changes between fluorescence, brightfield, and color views, implying channel switching occurred, but since the operator's hands aren't visible making adjustments, I'll mark that check as not clearly visible with a note about the implied interaction. Finally, the plate gets placed back on the shelf around 121-123s and the incubator door closes at 128.5s.",
+      "Submitted findings for 7 steps"
+    ],
+    "usage": {
+      "input": 8,
+      "cacheWrite": 30197,
+      "cacheRead": 34911,
+      "output": 4452
+    },
+    "generatedAt": "2026-10-03T22:51:35.680Z"
+  },
+  "DJI_25": {
+    "method": {
+      "schemaVersion": 1,
+      "title": "Adding Cytokine into Cells",
+      "version": "1.0",
+      "source": "Add-cytokine-into-cells.pdf",
+      "summary": "Refresh the culture medium on a cell plate in a TC hood. Aspirate the old medium, add pre-warmed fresh medium and then cytokine(s). Inspect the cells under an inverted microscope and return the plate to the CO2 incubator.",
+      "requirements": [
+        {
+          "id": "step-01",
+          "title": "Disinfect hands with ethanol",
+          "description": "Disinfect hands thoroughly with 70% ethanol.",
+          "order": 1,
+          "checks": [
+            "Operator applies liquid from a spray or squeeze bottle to hands or gloves",
+            "Operator rubs hands together to spread the liquid",
+            "This happens before the plate is removed from the incubator"
+          ],
+          "caveats": [
+            "Whether the liquid is 70% ethanol cannot be confirmed without reading the label",
+            "Whether disinfection is thorough or complete coverage is not verifiable"
+          ],
+          "criticality": "important",
+          "category": "action"
+        },
+        {
+          "id": "step-02",
+          "title": "Transfer plate from incubator to hood",
+          "description": "Carefully remove the required cell culture plate from the incubator, and transport the plate into TC hood.",
+          "order": 2,
+          "checks": [
+            "Operator opens the incubator and removes a culture plate",
+            "Plate is carried level and gently, without visible sloshing",
+            "Plate is placed inside the tissue culture hood"
+          ],
+          "caveats": [
+            "Whether this is the correct (required) plate depends on labels or contents not visible on video"
+          ],
+          "criticality": "important",
+          "category": "identity"
+        },
+        {
+          "id": "step-03",
+          "title": "Aspirate old medium",
+          "description": "Inside the hood, gently aspirate and discard the old medium from the culture plate without disturbing the cells.",
+          "order": 3,
+          "checks": [
+            "Aspiration is performed inside the hood",
+            "A glass pipette on a vacuum line is used to remove medium from the plate",
+            "Pipette tip is held against the well edge or wall rather than plunged onto the cell layer",
+            "Medium visibly disappears from the well(s)"
+          ],
+          "caveats": [
+            "Whether the cells were left undisturbed cannot be fully confirmed by video",
+            "Sterility of the aspiration pipette is not verifiable"
+          ],
+          "criticality": "critical",
+          "category": "action"
+        },
+        {
+          "id": "step-04",
+          "title": "Add pre-warmed fresh medium",
+          "description": "Using a sterile pipette, add the appropriate volume of pre-warmed fresh medium to the plate.",
+          "order": 4,
+          "checks": [
+            "A serological pipette on a pipette controller is used to add medium to the plate",
+            "Medium is added after the old medium was aspirated",
+            "Liquid is visibly dispensed into the well(s)"
+          ],
+          "caveats": [
+            "Volume added (appropriate volume) cannot be confirmed from video",
+            "That the medium is pre-warmed and is the correct fresh medium is not verifiable",
+            "Pipette sterility is not visible"
+          ],
+          "criticality": "critical",
+          "category": "ordering"
+        },
+        {
+          "id": "step-05",
+          "title": "Add cytokine(s) to medium",
+          "description": "Add cytokine(s) to the medium at the desired working concentration.",
+          "order": 5,
+          "checks": [
+            "Cytokine addition occurs after fresh medium has been added",
+            "Addition is performed inside the hood"
+          ],
+          "caveats": [
+            "Identity of the cytokine(s) depends on tube labels",
+            "Working concentration and volume added cannot be verified from video",
+            "Sterility not verifiable",
+            "Measured quantity, not verifiable from video: A micropipette is used to dispense a small volume into the well(s)"
+          ],
+          "criticality": "critical",
+          "category": "identity"
+        },
+        {
+          "id": "step-06",
+          "title": "Inspect cells under microscope",
+          "description": "Examine the cells under an inverted microscope to assess cell health, density, and morphology.",
+          "order": 6,
+          "checks": [
+            "Plate is placed on the stage of an inverted microscope (EVOS)",
+            "Operator views or images the cells",
+            "Inspection occurs after medium and cytokine addition and before returning plate to the incubator"
+          ],
+          "caveats": [
+            "The assessment of cell health, density and morphology is a judgment not verifiable by video"
+          ],
+          "criticality": "informational",
+          "category": "action"
+        },
+        {
+          "id": "step-07",
+          "title": "Return plate to incubator",
+          "description": "Place the plate back into the incubator at the correct conditions.",
+          "order": 7,
+          "checks": [
+            "Plate is placed back inside the CO2 incubator",
+            "Incubator door is closed afterwards"
+          ],
+          "caveats": [
+            "The correct incubator conditions (temperature, CO2) cannot be confirmed from video"
+          ],
+          "criticality": "important",
+          "category": "action"
+        }
+      ]
+    },
+    "observations": [
+      {
+        "id": "step-01-agent",
+        "stepId": "step-01",
+        "timestampStart": 0.5,
+        "timestampEnd": 5,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The spray action is not clearly seen.",
+          "The liquid's identity is not established.",
+          "Not establishable from video: Whether the liquid is 70% ethanol cannot be confirmed without reading the label",
+          "Not establishable from video: Whether disinfection is thorough or complete coverage is not verifiable"
+        ],
+        "confidence": 0.65,
+        "provenance": "claude_agent",
+        "summary": "At the start the operator holds out gloved hands next to what looks like a small spray bottle, then rubs the gloved hands together while facing the incubator. The gloves look wet.",
+        "checkResults": [
+          {
+            "check": "Operator applies liquid from a spray or squeeze bottle to hands or gloves",
+            "result": "confirmed",
+            "note": "At 1.0 s a blue-and-white bottle with a nozzle is at the bottom of the frame beside the outstretched gloved hand. By 3.7 s the gloves look wet. The spray itself is not clearly caught in any frame."
+          },
+          {
+            "check": "Operator rubs hands together to spread the liquid",
+            "result": "confirmed",
+            "note": "Hands are rubbed together at 3.2–4.2 s."
+          },
+          {
+            "check": "This happens before the plate is removed from the incubator",
+            "result": "confirmed",
+            "note": "The incubator is opened only after this, at about 5–7 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-01-e0",
+            "timestamp": 1,
+            "end": 2,
+            "description": "Gloved hand held out, with a spray bottle visible at the bottom of the frame.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e1",
+            "timestamp": 3.7,
+            "end": 4.7,
+            "description": "Gloves look wet and the hands are being rubbed together.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e2",
+            "timestamp": 4.2,
+            "end": 5.2,
+            "description": "Hands still rubbing together in front of the incubator.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-02-agent",
+        "stepId": "step-02",
+        "timestampStart": 4.5,
+        "timestampEnd": 17,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The camera moves quickly during the carry, so only some frames show the plate.",
+          "Not establishable from video: Whether this is the correct (required) plate depends on labels or contents not visible on video"
+        ],
+        "confidence": 0.85,
+        "provenance": "claude_agent",
+        "summary": "The operator opens the Heracell CO2 incubator, takes out a 6-well plate, carries it to the biosafety cabinet and sets it down on the work surface.",
+        "checkResults": [
+          {
+            "check": "Operator opens the incubator and removes a culture plate",
+            "result": "confirmed",
+            "note": "The incubator door is open at 7.4 s and the 6-well plate is lifted out at 10.4–10.9 s."
+          },
+          {
+            "check": "Plate is carried level and gently, without visible sloshing",
+            "result": "confirmed",
+            "note": "The plate is held roughly level in both hands, and no sloshing is seen in the sampled frames."
+          },
+          {
+            "check": "Plate is placed inside the tissue culture hood",
+            "result": "confirmed",
+            "note": "The plate is placed on the hood work surface at 16–17 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-02-e0",
+            "timestamp": 7.4,
+            "end": 8.4,
+            "description": "Incubator door open, with plates on the shelves.",
+            "kind": "video"
+          },
+          {
+            "id": "step-02-e1",
+            "timestamp": 10.9,
+            "end": 11.9,
+            "description": "6-well plate held level after being taken out.",
+            "kind": "video"
+          },
+          {
+            "id": "step-02-e2",
+            "timestamp": 16.1,
+            "end": 17.1,
+            "description": "Plate set down inside the hood.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-04-agent",
+        "stepId": "step-04",
+        "timestampStart": 28,
+        "timestampEnd": 46,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Volume and temperature are not verifiable.",
+          "Not establishable from video: Volume added (appropriate volume) cannot be confirmed from video",
+          "Not establishable from video: That the medium is pre-warmed and is the correct fresh medium is not verifiable",
+          "Not establishable from video: Pipette sterility is not visible"
+        ],
+        "confidence": 0.8,
+        "provenance": "claude_agent",
+        "summary": "The operator draws pink medium from the bottle with a serological pipette on a controller and dispenses it into the left-column wells of the 6-well plate.",
+        "checkResults": [
+          {
+            "check": "A serological pipette on a pipette controller is used to add medium to the plate",
+            "result": "confirmed",
+            "note": "A serological pipette is fitted to a white pipette controller at 26–30 s."
+          },
+          {
+            "check": "Medium is added after the old medium was aspirated",
+            "result": "contradicted",
+            "note": "No aspiration of old medium is seen before this addition."
+          },
+          {
+            "check": "Liquid is visibly dispensed into the well(s)",
+            "result": "confirmed",
+            "note": "The pipette tip is in the wells and pink medium fills them at 34–42 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-04-e0",
+            "timestamp": 28.4,
+            "end": 29.4,
+            "description": "Serological pipette on the controller.",
+            "kind": "video"
+          },
+          {
+            "id": "step-04-e1",
+            "timestamp": 30.6,
+            "end": 31.6,
+            "description": "Medium being drawn from the pink medium bottle.",
+            "kind": "video"
+          },
+          {
+            "id": "step-04-e2",
+            "timestamp": 40,
+            "end": 41,
+            "description": "Pipette tip dispensing medium into a well.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-05-agent",
+        "stepId": "step-05",
+        "timestampStart": 52,
+        "timestampEnd": 63,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The tube's contents (cytokine identity) cannot be read.",
+          "Not establishable from video: Identity of the cytokine(s) depends on tube labels",
+          "Not establishable from video: Working concentration and volume added cannot be verified from video",
+          "Not establishable from video: Sterility not verifiable",
+          "Not establishable from video: Measured quantity, not verifiable from video: A micropipette is used to dispense a small volume into the well(s)"
+        ],
+        "confidence": 0.8,
+        "provenance": "claude_agent",
+        "summary": "Inside the hood, the operator uses a micropipette to draw from a small tube held in the left hand and dispenses it into a well of the plate that already contains medium.",
+        "checkResults": [
+          {
+            "check": "Cytokine addition occurs after fresh medium has been added",
+            "result": "confirmed",
+            "note": "Medium was added at 34–44 s, and the micropipette dispenses into a well at about 61 s."
+          },
+          {
+            "check": "Addition is performed inside the hood",
+            "result": "confirmed",
+            "note": "The whole addition takes place on the hood work surface."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-05-e0",
+            "timestamp": 59,
+            "end": 60,
+            "description": "Micropipette tip in a small tube held in the left hand.",
+            "kind": "video"
+          },
+          {
+            "id": "step-05-e1",
+            "timestamp": 61,
+            "end": 62,
+            "description": "Micropipette tip dispensing into a medium-filled well.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-06-agent",
+        "stepId": "step-06",
+        "timestampStart": 72,
+        "timestampEnd": 92,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The microscope model is not legible.",
+          "Not establishable from video: The assessment of cell health, density and morphology is a judgment not verifiable by video"
+        ],
+        "confidence": 0.85,
+        "provenance": "claude_agent",
+        "summary": "The plate is carried to an EVOS-style imaging station, placed on the stage and imaged; cell images appear on the monitor. The plate is then picked up again.",
+        "checkResults": [
+          {
+            "check": "Plate is placed on the stage of an inverted microscope (EVOS)",
+            "result": "confirmed",
+            "note": "The plate is placed on the stage of the inverted imaging system at 75–77 s."
+          },
+          {
+            "check": "Operator views or images the cells",
+            "result": "confirmed",
+            "note": "The monitor shows cell images in fluorescence and brightfield views at 78–87 s."
+          },
+          {
+            "check": "Inspection occurs after medium and cytokine addition and before returning plate to the incubator",
+            "result": "confirmed",
+            "note": "This happens after the cytokine addition (about 61 s) and before the plate goes back into the incubator (about 96 s)."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-06-e0",
+            "timestamp": 75.5,
+            "end": 76.5,
+            "description": "Plate being placed on the imager stage.",
+            "kind": "video"
+          },
+          {
+            "id": "step-06-e1",
+            "timestamp": 81.3,
+            "end": 82.3,
+            "description": "Brightfield image of cells on the monitor.",
+            "kind": "video"
+          },
+          {
+            "id": "step-06-e2",
+            "timestamp": 90.2,
+            "end": 91.2,
+            "description": "Plate being taken off the stage.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-07-agent",
+        "stepId": "step-07",
+        "timestampStart": 93,
+        "timestampEnd": 103.5,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The plate going onto the shelf is partly hidden by the arm.",
+          "Not establishable from video: The correct incubator conditions (temperature, CO2) cannot be confirmed from video"
+        ],
+        "confidence": 0.85,
+        "provenance": "claude_agent",
+        "summary": "The operator opens the Heracell CO2 incubator, puts the plate on a shelf, and closes the inner and outer doors.",
+        "checkResults": [
+          {
+            "check": "Plate is placed back inside the CO2 incubator",
+            "result": "confirmed",
+            "note": "The plate is carried into the open CO2 incubator at 96–99 s."
+          },
+          {
+            "check": "Incubator door is closed afterwards",
+            "result": "confirmed",
+            "note": "The doors are being closed at 100.7–102.6 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-07-e0",
+            "timestamp": 96.9,
+            "end": 97.9,
+            "description": "Plate held at the open incubator.",
+            "kind": "video"
+          },
+          {
+            "id": "step-07-e1",
+            "timestamp": 100.7,
+            "end": 101.7,
+            "description": "Inner door being closed.",
+            "kind": "video"
+          },
+          {
+            "id": "step-07-e2",
+            "timestamp": 102.6,
+            "end": 103.5034,
+            "description": "Outer door pushed shut.",
+            "kind": "video"
+          }
+        ]
+      }
+    ],
+    "absences": [
+      {
+        "stepId": "step-03",
+        "reason": "not_performed",
+        "confidence": 0.7,
+        "note": "Between placing the plate in the hood (about 16 s) and adding medium (about 33 s), the operator opens the medium bottle and unwraps and fills a serological pipette. No vacuum aspiration pipette is used and no old medium is removed from the wells."
+      }
+    ],
+    "log": [
+      "Reviewed 35 overview frames",
+      "I'm checking the early frames to spot key steps like hand disinfection and aspiration—trying to figure out whether the long pipette going into the wells around frames 34-43 is adding medium or aspirating.",
+      "Inspected 00:00.0–00:06.0 (4 frames)",
+      "Inspected 00:16.0–00:34.0 (8 frames)",
+      "I'm noticing hand rubbing around the 3.8 mark but no visible spray, and I don't see clear aspiration via the vacuum line. The serological pipette around frames 28-30 looks drawn into the medium bottle, which makes me wonder if old medium was aspirated that way, especially since the wells at 17.1 show only a small amount of medium left. I should check frames 33-46 to confirm whether aspiration happened through the pipette.",
+      "Inspected 00:33.0–00:47.0 (7 frames)",
+      "I'm watching medium being added to wells via serological pipette with the controller at top right, noticing only the left column of wells received medium and no aspiration step is visible — I should check frames 11-17 more closely and also look at frames 46-66 for the cytokine addition step using a micropipette.",
+      "Inspected 00:10.0–00:17.0 (4 frames)",
+      "Inspected 00:52.0–01:08.0 (8 frames)",
+      "I'm tracking the micropipette sequence: drawing from the tube at frame 59, dispensing into the well at 61, then checking the microscope placement around frames 72-91, with the return motion spanning 93-103 and a closer look at frames 74-78.",
+      "Inspected 01:13.0–01:18.0 (3 frames)",
+      "Inspected 01:36.0–01:43.5 (4 frames)",
+      "I see hands rubbing together around 3.8 but no bottle visible yet, so I'm looking more closely in the 2.5-4.5 range for a spray bottle.",
+      "Inspected 00:02.4–00:04.4 (4 frames)",
+      "I notice the gloves appear wet around the 3.7 mark, and there seems to be a bottle-like object near the bottom of the 0.8 frame — possibly a spray bottle. I should check the range from 0 to 1.5 more closely to confirm.",
+      "Inspected 00:00.0–00:02.0 (3 frames)",
+      "I notice a spray bottle near the hands around 1.0 seconds, with the nozzle visible but the actual spraying motion not clearly captured. By 3.7 seconds the gloves look wet, suggesting spray was applied, though I'm not fully confident enough to confirm it outright.\n\nFor aspiration, I'm checking the stretch between the plate being placed in the hood (16s) and medium addition (33s) — that interval shows opening a bottle, unwrapping a pipette, and drawing medium, but no aspiration step. Some wells show residual pink medium around 12-13s, so aspiration seems not_performed. Since aspiration wasn't shown, I'll mark the \"added after old medium aspirated\" check as contradicted, then continue noting the inspection step around 72-92s and the following step around 93-103s.",
+      "Submitted findings for 7 steps"
+    ],
+    "usage": {
+      "input": 16,
+      "cacheWrite": 28328,
+      "cacheRead": 121385,
+      "output": 4664
+    },
+    "generatedAt": "2026-10-03T22:52:51.740Z"
+  }
+}

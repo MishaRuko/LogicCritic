@@ -16,6 +16,11 @@ services:
   frontend:
     build:
       context: ./frontend
+    environment:
+      CLAUDE_API_KEY: ${CLAUDE_API_KEY:-}
+      EXPERIMENT_RECORDS_DIR: /data/experiment-records
+    volumes:
+      - experiment_records:/data/experiment-records
     expose:
       - "80"
 
@@ -109,3 +114,4 @@ volumes:
   postgres_data:
   redis_data:
   uploads:
+  experiment_records:

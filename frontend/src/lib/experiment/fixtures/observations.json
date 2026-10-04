@@ -1,0 +1,342 @@
+{
+  "DJI_10": [
+    {
+      "id": "DJI_10-step-01",
+      "stepId": "step-01",
+      "timestampStart": 0.0,
+      "timestampEnd": 20.0,
+      "observed": {
+        "action": "pipette_transfer",
+        "source": "reagent_1",
+        "target": "mixing_tube"
+      },
+      "evidence": [
+        {
+          "id": "DJI_10-step-01-frame",
+          "timestamp": 1.0,
+          "end": 20.0,
+          "description": "Pipette transfer into a held tube is visible; sterility is not visually established.",
+          "kind": "video",
+          "frame": "/experiment/demo/DJI_10-0.jpg"
+        },
+        {
+          "id": "DJI_10-step-01-label",
+          "timestamp": 0.0,
+          "end": 20.0,
+          "description": "Published protocol alignment: Add reagent 1 into a sterile 1.5 mL EP tube.",
+          "kind": "dataset_annotation"
+        }
+      ],
+      "establishes": [
+        "action",
+        "source",
+        "target"
+      ],
+      "uncertain": [
+        "Reagent identity is supplied by dataset annotation; labels are not independently legible.",
+        "Exact liquid volume is not established; the source method does not specify a volume for this transfer.",
+        "Tube sterility cannot be established from this video."
+      ],
+      "confidence": 0.86,
+      "provenance": "annotation_assisted_visual_review"
+    },
+    {
+      "id": "DJI_10-step-02",
+      "stepId": "step-02",
+      "timestampStart": 20.0,
+      "timestampEnd": 34.0,
+      "observed": {
+        "action": "pipette_transfer",
+        "source": "reagent_2",
+        "target": "mixing_tube"
+      },
+      "evidence": [
+        {
+          "id": "DJI_10-step-02-frame",
+          "timestamp": 21.0,
+          "end": 34.0,
+          "description": "Pipette transfer into the mixture tube is visible.",
+          "kind": "video",
+          "frame": "/experiment/demo/DJI_10-1.jpg"
+        },
+        {
+          "id": "DJI_10-step-02-label",
+          "timestamp": 20.0,
+          "end": 34.0,
+          "description": "Published protocol alignment: Add reagent 2 into the EP tube.",
+          "kind": "dataset_annotation"
+        }
+      ],
+      "establishes": [
+        "action",
+        "source",
+        "target"
+      ],
+      "uncertain": [
+        "Reagent identity is supplied by dataset annotation; labels are not independently legible.",
+        "Exact liquid volume is not established; the source method does not specify a volume for this transfer."
+      ],
+      "confidence": 0.86,
+      "provenance": "annotation_assisted_visual_review"
+    },
+    {
+      "id": "DJI_10-step-03",
+      "stepId": "step-03",
+      "timestampStart": 34.0,
+      "timestampEnd": 53.0,
+      "observed": {
+        "action": "pipette_transfer",
+        "source": "reagent_3",
+        "target": "mixing_tube"
+      },
+      "evidence": [
+        {
+          "id": "DJI_10-step-03-frame",
+          "timestamp": 35.0,
+          "end": 53.0,
+          "description": "A further pipette transfer into a held tube is visible.",
+          "kind": "video",
+          "frame": "/experiment/demo/DJI_10-2.jpg"
+        },
+        {
+          "id": "DJI_10-step-03-label",
+          "timestamp": 34.0,
+          "end": 53.0,
+          "description": "Published protocol alignment: Add reagent 3 into the EP tube.",
+          "kind": "dataset_annotation"
+        }
+      ],
+      "establishes": [
+        "action",
+        "source",
+        "target"
+      ],
+      "uncertain": [
+        "Reagent identity is supplied by dataset annotation; labels are not independently legible.",
+        "Exact liquid volume is not established; the source method does not specify a volume for this transfer."
+      ],
+      "confidence": 0.86,
+      "provenance": "annotation_assisted_visual_review"
+    },
+    {
+      "id": "DJI_10-step-04",
+      "stepId": "step-04",
+      "timestampStart": 53.0,
+      "timestampEnd": 70.0,
+      "observed": {
+        "action": "mix",
+        "target": "mixing_tube"
+      },
+      "evidence": [
+        {
+          "id": "DJI_10-step-04-frame",
+          "timestamp": 54.0,
+          "end": 70.0,
+          "description": "Repeated pipetting of the tube contents is visible.",
+          "kind": "video",
+          "frame": "/experiment/demo/DJI_10-3.jpg"
+        },
+        {
+          "id": "DJI_10-step-04-label",
+          "timestamp": 53.0,
+          "end": 70.0,
+          "description": "Published protocol alignment: Mix well.",
+          "kind": "dataset_annotation"
+        }
+      ],
+      "establishes": [
+        "action",
+        "target"
+      ],
+      "uncertain": [],
+      "confidence": 0.86,
+      "provenance": "annotation_assisted_visual_review"
+    },
+    {
+      "id": "DJI_10-step-06",
+      "stepId": "step-06",
+      "timestampStart": 70.0,
+      "timestampEnd": 80.0,
+      "observed": {
+        "action": "dropwise_transfer",
+        "target": "culture_dish"
+      },
+      "evidence": [
+        {
+          "id": "DJI_10-step-06-frame",
+          "timestamp": 71.0,
+          "end": 80.0,
+          "description": "Pipette positioned over an open culture dish; a transfer motion is visible.",
+          "kind": "video",
+          "frame": "/experiment/demo/DJI_10-4.jpg"
+        },
+        {
+          "id": "DJI_10-step-06-label",
+          "timestamp": 70.0,
+          "end": 80.0,
+          "description": "Published protocol alignment: Add the mixture dropwise into a 10 cm dish of 293T cells (~70-80% confluency).",
+          "kind": "dataset_annotation"
+        }
+      ],
+      "establishes": [
+        "action",
+        "target"
+      ],
+      "uncertain": [
+        "Cell identity and 70\u201380% confluency cannot be established from this camera view."
+      ],
+      "confidence": 0.86,
+      "provenance": "annotation_assisted_visual_review"
+    },
+    {
+      "id": "DJI_10-step-07",
+      "stepId": "step-07",
+      "timestampStart": 80.0,
+      "timestampEnd": 95.0,
+      "observed": {
+        "action": "rock_dish",
+        "target": "culture_dish"
+      },
+      "evidence": [
+        {
+          "id": "DJI_10-step-07-frame",
+          "timestamp": 81.0,
+          "end": 95.0,
+          "description": "The dish is moved gently forward and backward.",
+          "kind": "video",
+          "frame": "/experiment/demo/DJI_10-5.jpg"
+        },
+        {
+          "id": "DJI_10-step-07-label",
+          "timestamp": 80.0,
+          "end": 95.0,
+          "description": "Published protocol alignment: Gently rock the dish forward and backward to mix.",
+          "kind": "dataset_annotation"
+        }
+      ],
+      "establishes": [
+        "action",
+        "target"
+      ],
+      "uncertain": [],
+      "confidence": 0.86,
+      "provenance": "annotation_assisted_visual_review"
+    }
+  ],
+  "DJI_16": [
+    {
+      "id": "DJI_16-step-02",
+      "stepId": "step-02",
+      "timestampStart": 6.0,
+      "timestampEnd": 12.0,
+      "observed": {
+        "action": "pipette_transfer",
+        "source": "reagent_2",
+        "target": "reagent_3"
+      },
+      "evidence": [
+        {
+          "id": "DJI_16-step-02-frame",
+          "timestamp": 7.0,
+          "end": 12.0,
+          "description": "Pipette tip enters a held reagent vessel; the dataset identifies this as reagent 3, not the mixing tube.",
+          "kind": "video",
+          "frame": "/experiment/demo/DJI_16-0.jpg"
+        },
+        {
+          "id": "DJI_16-step-02-label",
+          "timestamp": 6.0,
+          "end": 12.0,
+          "description": "Published error annotation: Added reagent 2 to reagent 3 instead of mixing tube",
+          "kind": "dataset_annotation"
+        }
+      ],
+      "establishes": [
+        "action",
+        "source",
+        "target"
+      ],
+      "uncertain": [
+        "Reagent identity is supplied by dataset annotation; labels are not independently legible.",
+        "Exact liquid volume is not established; the source method does not specify a volume for this transfer."
+      ],
+      "confidence": 0.86,
+      "provenance": "annotation_assisted_visual_review"
+    },
+    {
+      "id": "DJI_16-step-03",
+      "stepId": "step-03",
+      "timestampStart": 13.0,
+      "timestampEnd": 15.0,
+      "observed": {
+        "action": "pipette_transfer",
+        "source": "reagent_3",
+        "target": "mixing_tube"
+      },
+      "evidence": [
+        {
+          "id": "DJI_16-step-03-frame",
+          "timestamp": 14.0,
+          "end": 15.0,
+          "description": "A further pipette transfer into a held tube is visible.",
+          "kind": "video",
+          "frame": "/experiment/demo/DJI_16-1.jpg"
+        },
+        {
+          "id": "DJI_16-step-03-label",
+          "timestamp": 13.0,
+          "end": 15.0,
+          "description": "Published protocol alignment: Add reagent 3 into the EP tube.",
+          "kind": "dataset_annotation"
+        }
+      ],
+      "establishes": [
+        "action",
+        "source",
+        "target"
+      ],
+      "uncertain": [
+        "Reagent identity is supplied by dataset annotation; labels are not independently legible.",
+        "Exact liquid volume is not established; the source method does not specify a volume for this transfer."
+      ],
+      "confidence": 0.86,
+      "provenance": "annotation_assisted_visual_review"
+    },
+    {
+      "id": "DJI_16-step-06",
+      "stepId": "step-06",
+      "timestampStart": 16.0,
+      "timestampEnd": 25.0,
+      "observed": {
+        "action": "dropwise_transfer",
+        "target": "culture_dish"
+      },
+      "evidence": [
+        {
+          "id": "DJI_16-step-06-frame",
+          "timestamp": 17.0,
+          "end": 25.0,
+          "description": "Pipette positioned over an open culture dish; a transfer motion is visible.",
+          "kind": "video",
+          "frame": "/experiment/demo/DJI_16-2.jpg"
+        },
+        {
+          "id": "DJI_16-step-06-label",
+          "timestamp": 16.0,
+          "end": 25.0,
+          "description": "Published protocol alignment: Add the mixture dropwise into a 10 cm dish of 293T cells (~70-80% confluency).",
+          "kind": "dataset_annotation"
+        }
+      ],
+      "establishes": [
+        "action",
+        "target"
+      ],
+      "uncertain": [
+        "Cell identity and 70\u201380% confluency cannot be established from this camera view."
+      ],
+      "confidence": 0.86,
+      "provenance": "annotation_assisted_visual_review"
+    }
+  ]
+}

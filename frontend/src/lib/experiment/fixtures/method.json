@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "title": "CRISPR delivery",
+  "version": "1.0",
+  "source": "LSV · Mock_Cas9_Delivery.txt · operationalised from published protocol_json. Identity of reagents uses dataset annotations; sterility and confluency remain unverified.",
+  "requirements": [
+    { "id": "step-01", "title": "Add reagent 1", "description": "Add reagent 1 into a sterile 1.5 mL EP tube.", "order": 1, "action": "pipette_transfer", "source": "reagent_1", "target": "mixing_tube", "requiredEvidence": ["action", "source", "target", "sterility"], "criticality": "important", "category": "identity" },
+    { "id": "step-02", "title": "Add reagent 2", "description": "Add reagent 2 into the EP tube.", "order": 2, "action": "pipette_transfer", "source": "reagent_2", "target": "mixing_tube", "requiredEvidence": ["action", "source", "target"], "criticality": "critical", "category": "identity" },
+    { "id": "step-03", "title": "Add reagent 3", "description": "Add reagent 3 into the EP tube.", "order": 3, "action": "pipette_transfer", "source": "reagent_3", "target": "mixing_tube", "requiredEvidence": ["action", "source", "target"], "criticality": "important", "category": "identity" },
+    { "id": "step-04", "title": "Mix well", "description": "Mix well.", "order": 4, "action": "mix", "target": "mixing_tube", "after": ["step-03"], "requiredEvidence": ["action", "target"], "criticality": "important", "category": "ordering" },
+    { "id": "step-05", "title": "Incubate for 20 minutes", "description": "Incubate at room temperature for 20 min.", "order": 5, "action": "incubate", "duration": { "expectedSeconds": 1200, "minSeconds": 1200, "maxSeconds": 1200 }, "requiredEvidence": ["continuous_recording", "room_temperature"], "criticality": "critical", "category": "timing" },
+    { "id": "step-06", "title": "Add mixture dropwise", "description": "Add the mixture dropwise into a 10 cm dish of 293T cells (~70–80% confluency).", "order": 6, "action": "dropwise_transfer", "target": "culture_dish", "requiredEvidence": ["action", "target", "cell_identity", "confluency"], "criticality": "important", "category": "identity" },
+    { "id": "step-07", "title": "Gently rock the dish", "description": "Gently rock the dish forward and backward to mix.", "order": 7, "action": "rock_dish", "target": "culture_dish", "after": ["step-06"], "requiredEvidence": ["action", "target"], "criticality": "informational", "category": "action" }
+  ]
+}

@@ -1,0 +1,3888 @@
+{
+  "DJI_17": {
+    "method": {
+      "schemaVersion": 1,
+      "title": "E. coli Transformation with Plasmid DNA (Heat Shock and Plating)",
+      "version": "1.0",
+      "source": "Mock-Transformation.pdf",
+      "summary": "Competent E. coli cells are mixed with plasmid DNA by flicking and briefly chilled on ice. They are heat-shocked at 42°C (the procedure says water bath, the equipment list says thermal cycler) and returned to ice. Culture is then spread on a selective LB agar plate, and the plate is inverted.",
+      "requirements": [
+        {
+          "id": "step-01",
+          "title": "Add plasmid DNA to cells",
+          "description": "Add 5 μL of plasmid DNA to the competent E. coli cells.",
+          "order": 1,
+          "checks": [
+            "A pipette draws liquid from one tube (plasmid DNA source)",
+            "The pipetted liquid is dispensed into a different tube (competent cells)",
+            "This addition happens before the flicking step"
+          ],
+          "details": [
+            "This addition happens before the flicking step"
+          ],
+          "definingAction": "A pipette draws liquid from the plasmid DNA tube and dispenses it into the separate tube of competent cells.",
+          "caveats": [
+            "The 5 μL volume cannot be verified from video",
+            "Identity of the plasmid DNA and the competent cells depends on labels or contents"
+          ],
+          "criticality": "critical",
+          "category": "action"
+        },
+        {
+          "id": "step-02",
+          "title": "Mix by flicking tube",
+          "description": "Mix gently by flicking the tube 4-5 times.",
+          "order": 2,
+          "checks": [
+            "The tube containing the DNA-cell mixture is flicked with a finger",
+            "Mixing is gentle (flicking rather than vortexing or vigorous pipetting)",
+            "Flicking occurs after the DNA addition and before the tube goes on ice"
+          ],
+          "details": [
+            "Mixing is gentle (flicking rather than vortexing or vigorous pipetting)",
+            "Flicking occurs after the DNA addition and before the tube goes on ice"
+          ],
+          "definingAction": "The cell tube is held and flicked with a finger to mix its contents, without any pipette drawing from another container.",
+          "caveats": [
+            "The exact number of flicks (4-5) cannot be reliably counted from sampled frames"
+          ],
+          "criticality": "important",
+          "category": "action"
+        },
+        {
+          "id": "step-03",
+          "title": "Incubate mixture on ice",
+          "description": "Incubate the DNA-cell mixture on ice for 5 seconds.",
+          "order": 3,
+          "checks": [
+            "The tube is placed into the ice in the green ice bucket",
+            "The tube is left in the ice rather than moved on straight away",
+            "This ice step comes before the heat shock"
+          ],
+          "details": [
+            "This ice step comes before the heat shock"
+          ],
+          "definingAction": "The tube is placed into the ice bucket (green container with ice) and left there briefly before heat shock.",
+          "caveats": [
+            "The 5-second duration cannot be verified precisely"
+          ],
+          "criticality": "important",
+          "category": "timing"
+        },
+        {
+          "id": "step-04",
+          "title": "Heat shock at 42°C",
+          "description": "Rapidly transfer the tube to a pre-heated 42°C water bath for exactly 5 seconds.",
+          "order": 4,
+          "checks": [
+            "The tube is moved from the ice into a heating device (water bath, heat block or thermal cycler)",
+            "The tube stays in the heating device briefly before being removed",
+            "The transfer from ice to the heat source is rapid",
+            "Heat shock happens after the first ice incubation and before the return to ice"
+          ],
+          "details": [
+            "The transfer from ice to the heat source is rapid",
+            "Heat shock happens after the first ice incubation and before the return to ice"
+          ],
+          "definingAction": "The tube is moved from the ice bucket into a heating device (water bath, heat block or thermal cycler) and held there briefly.",
+          "caveats": [
+            "The 42°C temperature and that the device was pre-heated cannot be verified from video",
+            "The exact 5-second duration cannot be verified precisely",
+            "The protocol names a water bath in the procedure but a thermal cycler in the equipment list; either heat source is accepted"
+          ],
+          "criticality": "critical",
+          "category": "action"
+        },
+        {
+          "id": "step-05",
+          "title": "Return tube to ice",
+          "description": "Immediately return the tube to ice for 5 seconds.",
+          "order": 5,
+          "checks": [
+            "The tube is taken out of the heating device and placed back into the ice bucket",
+            "The tube is left in the ice briefly",
+            "The return to ice follows the heat shock immediately, with no other action in between"
+          ],
+          "details": [
+            "The return to ice follows the heat shock immediately, with no other action in between"
+          ],
+          "definingAction": "The tube is taken out of the heating device and placed straight back into the ice bucket.",
+          "caveats": [
+            "The 5-second duration cannot be verified precisely"
+          ],
+          "criticality": "important",
+          "category": "ordering"
+        },
+        {
+          "id": "step-06",
+          "title": "Spread culture onto LB plate",
+          "description": "Spread 50 μL of culture onto an LB agar plate containing the appropriate selective antibiotic.",
+          "order": 6,
+          "checks": [
+            "A pipette draws culture from the tube and dispenses it onto an agar plate",
+            "The liquid is spread across the agar surface",
+            "The plate lid is opened for plating and closed afterwards",
+            "Plating happens after the final ice step"
+          ],
+          "details": [
+            "The plate lid is opened for plating and closed afterwards",
+            "Plating happens after the final ice step"
+          ],
+          "definingAction": "Culture is pipetted from the tube onto the surface of an agar plate and spread across the agar.",
+          "caveats": [
+            "The 50 μL volume cannot be verified from video",
+            "That the plate is LB agar containing the correct selective antibiotic depends on labels or contents"
+          ],
+          "criticality": "critical",
+          "category": "action"
+        },
+        {
+          "id": "step-07",
+          "title": "Invert the plates",
+          "description": "Invert the plates.",
+          "order": 7,
+          "checks": [
+            "The plate is turned upside down, lid side down",
+            "Inversion happens after the culture has been spread"
+          ],
+          "details": [
+            "Inversion happens after the culture has been spread"
+          ],
+          "definingAction": "The agar plate is turned upside down so the lid faces down.",
+          "caveats": [],
+          "criticality": "informational",
+          "category": "action"
+        }
+      ]
+    },
+    "observations": [
+      {
+        "id": "step-01-agent",
+        "stepId": "step-01",
+        "timestampStart": 6,
+        "timestampEnd": 12,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "It is unclear which of the two pipetting events (about 10 s or about 30 s) is the plasmid addition. I did not see where the liquid for the second one was drawn from.",
+          "The 5 µL volume and the reagent identities cannot be verified.",
+          "Not establishable from video: The 5 μL volume cannot be verified from video",
+          "Not establishable from video: Identity of the plasmid DNA and the competent cells depends on labels or contents"
+        ],
+        "confidence": 0.55,
+        "provenance": "claude_agent",
+        "summary": "At about 6.8 s the right-hand pipette draws from a tube in or behind the ice bucket. It then dispenses into a separate microtube held in the left hand at about 9.8–11.3 s. A second pipetting into the hand-held tube happens at about 29–33 s, just before flicking.",
+        "checkResults": [
+          {
+            "check": "A pipette draws liquid from one tube (plasmid DNA source)",
+            "result": "confirmed",
+            "note": "At 6.8 s the pipette tip goes down into a tube near the ice bucket and blue rack. The tube's identity as plasmid DNA cannot be read."
+          },
+          {
+            "check": "The pipetted liquid is dispensed into a different tube (competent cells)",
+            "result": "confirmed",
+            "note": "At 9.8–11.3 s the tip enters a different microtube held by the left hand over the orange rack."
+          },
+          {
+            "check": "This addition happens before the flicking step",
+            "result": "confirmed",
+            "note": "Both pipetting events (about 10 s and about 30 s) come before the finger flicking at about 37–45 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-01-e0",
+            "timestamp": 6.8,
+            "end": 7.8,
+            "description": "The pipette tip goes down into a tube near the ice bucket.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e1",
+            "timestamp": 9.8,
+            "end": 10.8,
+            "description": "The pipette tip goes into a microtube held in the left hand.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e2",
+            "timestamp": 29.8,
+            "end": 30.8,
+            "description": "A second pipetting into the hand-held microtube.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-02-agent",
+        "stepId": "step-02",
+        "timestampStart": 36,
+        "timestampEnd": 45,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The number of flicks cannot be counted from the sampled frames.",
+          "Not establishable from video: The exact number of flicks (4-5) cannot be reliably counted from sampled frames"
+        ],
+        "confidence": 0.7,
+        "provenance": "claude_agent",
+        "summary": "The tube is held in the left hand and flicked with the right index finger, with no pipette involved.",
+        "checkResults": [
+          {
+            "check": "The tube containing the DNA-cell mixture is flicked with a finger",
+            "result": "confirmed",
+            "note": "At 37.3–42.3 s the right finger is in flicking position against the tube held in the left hand."
+          },
+          {
+            "check": "Mixing is gentle (flicking rather than vortexing or vigorous pipetting)",
+            "result": "confirmed",
+            "note": "The mixing is finger flicking only. There is no vortex and no pipetting up and down."
+          },
+          {
+            "check": "Flicking occurs after the DNA addition and before the tube goes on ice",
+            "result": "confirmed",
+            "note": "Flicking comes after the pipetting at about 30 s and before the tube goes into the thermal cycler. No ice placement was seen."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-02-e0",
+            "timestamp": 39.8,
+            "end": 40.8,
+            "description": "The right index finger is raised to flick the tube held in the left hand.",
+            "kind": "video"
+          },
+          {
+            "id": "step-02-e1",
+            "timestamp": 42.3,
+            "end": 43.3,
+            "description": "The finger is against the tube while it is being flicked.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-04-agent",
+        "stepId": "step-04",
+        "timestampStart": 46.5,
+        "timestampEnd": 58.5,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The temperature and the exact duration cannot be verified.",
+          "Not establishable from video: The 42°C temperature and that the device was pre-heated cannot be verified from video",
+          "Not establishable from video: The exact 5-second duration cannot be verified precisely",
+          "Not establishable from video: The protocol names a water bath in the procedure but a thermal cycler in the equipment list; either heat source is accepted"
+        ],
+        "confidence": 0.75,
+        "provenance": "claude_agent",
+        "summary": "The tube is put into the Bio-Rad thermal cycler and the lid is closed. After about 8 s the lid is opened and the tube is taken out.",
+        "checkResults": [
+          {
+            "check": "The tube is moved from the ice into a heating device (water bath, heat block or thermal cycler)",
+            "result": "contradicted",
+            "note": "The tube goes into the thermal cycler (heating device) directly from the hands after flicking, not from the ice."
+          },
+          {
+            "check": "The tube stays in the heating device briefly before being removed",
+            "result": "confirmed",
+            "note": "The lid is closed at about 48–50 s and reopened at about 56–58 s, so the tube stayed in briefly."
+          },
+          {
+            "check": "The transfer from ice to the heat source is rapid",
+            "result": "confirmed",
+            "note": "The transfer from hands to the cycler takes about 1–2 s."
+          },
+          {
+            "check": "Heat shock happens after the first ice incubation and before the return to ice",
+            "result": "contradicted",
+            "note": "No first ice incubation was seen before the heat shock. The return to ice does follow it, at about 60 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-04-e0",
+            "timestamp": 46.8,
+            "end": 47.8,
+            "description": "The tube is held at the thermal cycler while the lid is opened.",
+            "kind": "video"
+          },
+          {
+            "id": "step-04-e1",
+            "timestamp": 48.2,
+            "end": 49.2,
+            "description": "The tube is placed into the thermal cycler block.",
+            "kind": "video"
+          },
+          {
+            "id": "step-04-e2",
+            "timestamp": 52,
+            "end": 53,
+            "description": "The lid is closed and the person waits.",
+            "kind": "video"
+          },
+          {
+            "id": "step-04-e3",
+            "timestamp": 58,
+            "end": 59,
+            "description": "The lid is opened to take the tube out.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-05-agent",
+        "stepId": "step-05",
+        "timestampStart": 58,
+        "timestampEnd": 67,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The exact duration cannot be verified.",
+          "Not establishable from video: The 5-second duration cannot be verified precisely"
+        ],
+        "confidence": 0.75,
+        "provenance": "claude_agent",
+        "summary": "The tube is taken out of the thermal cycler and placed straight into the ice in the green bucket at about 60 s. It stays there until the pipette draws from it at about 67 s.",
+        "checkResults": [
+          {
+            "check": "The tube is taken out of the heating device and placed back into the ice bucket",
+            "result": "confirmed",
+            "note": "At 60.0 s the right hand puts the tube into the ice in the green bucket."
+          },
+          {
+            "check": "The tube is left in the ice briefly",
+            "result": "confirmed",
+            "note": "At 62 s the hand is away from the bucket, and the tube is left until about 67 s."
+          },
+          {
+            "check": "The return to ice follows the heat shock immediately, with no other action in between",
+            "result": "confirmed",
+            "note": "The tube goes from the cycler (about 58 s) to the ice (about 60 s) with nothing in between."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-05-e0",
+            "timestamp": 58,
+            "end": 59,
+            "description": "The thermal cycler lid is open as the tube is removed.",
+            "kind": "video"
+          },
+          {
+            "id": "step-05-e1",
+            "timestamp": 60,
+            "end": 61,
+            "description": "The hand places the tube into the ice bucket.",
+            "kind": "video"
+          },
+          {
+            "id": "step-05-e2",
+            "timestamp": 62,
+            "end": 63,
+            "description": "The hand has moved away and the tube is left in the ice.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-06-agent",
+        "stepId": "step-06",
+        "timestampStart": 67,
+        "timestampEnd": 107,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The volume and the identity of the plate or antibiotic cannot be verified.",
+          "Spreading was done with the pipette tip and plate tilting rather than a spreader; the frames do not show coverage in detail.",
+          "Not establishable from video: The 50 μL volume cannot be verified from video",
+          "Not establishable from video: That the plate is LB agar containing the correct selective antibiotic depends on labels or contents"
+        ],
+        "confidence": 0.65,
+        "provenance": "claude_agent",
+        "summary": "The pipette draws culture from the tube in the ice. The person picks up an agar plate without its lid, dispenses onto the agar, and spreads it by tilting the plate and moving the pipette tip over the surface. The plate is then put back with its lid.",
+        "checkResults": [
+          {
+            "check": "A pipette draws culture from the tube and dispenses it onto an agar plate",
+            "result": "confirmed",
+            "note": "At about 67.7 s the pipette goes into the tube in the ice bucket. At about 84–85 s the tip dispenses onto the agar in the plate held in the left hand."
+          },
+          {
+            "check": "The liquid is spread across the agar surface",
+            "result": "confirmed",
+            "note": "From 85 to 102 s the plate is tilted and the pipette tip moves across the agar surface."
+          },
+          {
+            "check": "The plate lid is opened for plating and closed afterwards",
+            "result": "confirmed",
+            "note": "The plate is held without its lid during plating (about 81–102 s). By about 106–109 s it is back with its lid on."
+          },
+          {
+            "check": "Plating happens after the final ice step",
+            "result": "confirmed",
+            "note": "Plating starts after the tube's return to ice at about 60 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-06-e0",
+            "timestamp": 67.7,
+            "end": 68.7,
+            "description": "The pipette goes into the tube in the ice.",
+            "kind": "video"
+          },
+          {
+            "id": "step-06-e1",
+            "timestamp": 84.3,
+            "end": 85.3,
+            "description": "The pipette tip dispenses onto the agar of the open plate.",
+            "kind": "video"
+          },
+          {
+            "id": "step-06-e2",
+            "timestamp": 95.6,
+            "end": 96.6,
+            "description": "The tip is spreading the liquid while the plate is tilted.",
+            "kind": "video"
+          },
+          {
+            "id": "step-06-e3",
+            "timestamp": 106.7,
+            "end": 107.7,
+            "description": "The plate is put down and the lid is replaced.",
+            "kind": "video"
+          }
+        ]
+      }
+    ],
+    "absences": [
+      {
+        "stepId": "step-03",
+        "reason": "not_performed",
+        "confidence": 0.5,
+        "note": "After flicking (around 44.8–45.5 s), the tube is held near or over the ice bucket. It goes straight to the thermal cycler at about 46.8 s and is never seen placed in the ice and left there."
+      },
+      {
+        "stepId": "step-07",
+        "reason": "not_visible",
+        "confidence": 0.4,
+        "note": "After plating, the plate is carried down a corridor and placed in an incubator. A clear turning of the plate lid-side down is never seen."
+      }
+    ],
+    "log": [
+      "Reviewed 40 overview frames",
+      "I'm mapping out the 48-frame budget across key moments in the video—DNA addition, flicking, ice incubation, thermal cycler, plating, and the inversion step—before deciding to start with the first 10 seconds using 8 frames.",
+      "Inspected 00:00.0–00:12.0 (8 frames)",
+      "Around 3.8-6.8 seconds it looks like a tube is pulled from the ice, with the pipette drawing liquid near the ice/blue box area around 6.8s. Then from 9.8-11.3s there's dispensing into a tube held in the left hand, suggesting the draw happened from a tube behind the ice around the 7s mark. I should keep watching the 11-26s range to confirm.",
+      "Inspected 00:12.0–00:26.0 (7 frames)",
+      "Inspected 00:26.0–00:46.0 (8 frames)",
+      "I'm trying to untangle the sequence of hand movements—the first addition around 9.8 might be cells rather than DNA, with the actual DNA addition happening near 30, followed by a flicking motion between 37-45 to mix.\n\nThen it looks like there's an ice placement step around 44-48 before moving into the thermal cycler loading between 46-58. I want to check that window more closely to pin down exactly when the tube goes on ice versus into the cycler.",
+      "Inspected 00:44.5–00:48.5 (6 frames)",
+      "I'm trying to pin down whether the tube actually touches the ice around 44.8-45.5, but it's ambiguous — it looks like it might just be hovering near the edge before going to the thermal cycler. I'll keep checking further frames around 48-62 to see if there's a clearer placement.",
+      "Inspected 00:49.0–01:03.0 (7 frames)",
+      "I'm tracking the tube through the thermal cycler, removal into ice, and the transition to plating around frame 66-90. With a budget of 12 frames, I'll check 68-88 in 6-frame steps, then look at 130-138 in 4-frame steps to catch the inversion step.",
+      "Inspected 01:06.0–01:26.0 (6 frames)",
+      "Inspected 01:44.0–02:16.0 (6 frames)",
+      "Going through the remaining frames, I'm tracking the plating steps closely—noting the tilted plate with pipette tip touching agar for spreading, moments where the lid appears off or back on, and trying to determine whether the plate gets inverted near the end based on how it's being held and carried.\n\nFor step-01, I'm comparing two pipetting moments—one around 7-11s and another at 29-33s followed by flicking—trying to figure out which one actually corresponds to the DNA addition, since the draw source for the second instance isn't clearly visible in the ice area. I'm leaning toward the earlier pipetting event but remain uncertain about the exact timing.\n\nFor step-02, the flicking motion at 37-45s does include a confirmed finger flick around 39.8s, though the sampling isn't dense enough to fully verify the gentleness of the mixing.\n\nFor step-03, I'm trying to determine whether the tube was placed on ice before heat shock—between the flick ending around 45s and the thermal cycler placement at 46.8s, the tube seems held near the ice edge but may not have been properly placed and left, so I'm leaning toward not_performed with moderate confidence.\n\nFor step-04, the tube goes into the thermal cycler from 46.8-58s with lid closing around 48-50s and opening at 56-58s, but the tube appears to come from hands rather than ice, which contradicts the expected transfer sequence; I also don't see evidence of a prior ice incubation step. For step-05, the tube is removed from the thermal cycler and placed back in ice around 60s.\n\nFor step-06, I track the pipette drawing from the iced tube at 67.7s, then dispensing into the plate around 84s after the lid opens at 81s, followed by spreading from 85-102s using tilted pipette-tip technique, with the lid closing around 106s. I'm ready to submit these findings.",
+      "Submitted findings for 7 steps"
+    ],
+    "usage": {
+      "input": 14,
+      "cacheWrite": 38478,
+      "cacheRead": 122332,
+      "output": 5874
+    },
+    "generatedAt": "2026-10-04T03:07:32.470Z"
+  },
+  "DJI_10": {
+    "method": {
+      "schemaVersion": 1,
+      "title": "CRISPR Component Delivery into 293T Cells",
+      "version": "1.0",
+      "source": "Mock-Cas9-Delivery.pdf",
+      "summary": "Three reagents are added in turn to a sterile 1.5 mL EP tube and mixed. The mixture is incubated at room temperature for 20 min, added dropwise to a 10 cm dish of 293T cells, and the dish is rocked gently to distribute it.",
+      "requirements": [
+        {
+          "id": "step-01",
+          "title": "Add reagent 1 to tube",
+          "description": "Add reagent 1 into a sterile 1.5 mL EP tube.",
+          "order": 1,
+          "checks": [
+            "A pipette draws liquid from a reagent container",
+            "The liquid is dispensed into a small microcentrifuge (EP) tube",
+            "The tube is empty before this addition",
+            "A fresh pipette tip is used"
+          ],
+          "details": [
+            "The tube is empty before this addition",
+            "A fresh pipette tip is used"
+          ],
+          "definingAction": "Pipette draws liquid from the first reagent container and dispenses it into an empty 1.5 mL EP tube.",
+          "visualGroup": "reagent addition",
+          "caveats": [
+            "Identity of reagent 1 cannot be confirmed without reading labels",
+            "Volume of reagent 1 is not specified and cannot be verified on video",
+            "Sterility of the tube cannot be verified"
+          ],
+          "criticality": "critical",
+          "category": "identity"
+        },
+        {
+          "id": "step-02",
+          "title": "Add reagent 2 to tube",
+          "description": "Add reagent 2 into the EP tube.",
+          "order": 2,
+          "checks": [
+            "A pipette draws liquid from a different reagent container than in the previous step",
+            "The liquid is dispensed into the same EP tube",
+            "The tip is changed or a new tip is used before drawing reagent 2",
+            "Occurs after reagent 1 addition"
+          ],
+          "details": [
+            "The tip is changed or a new tip is used before drawing reagent 2",
+            "Occurs after reagent 1 addition"
+          ],
+          "definingAction": "Pipette draws liquid from a second reagent container and dispenses it into the same EP tube that already holds reagent 1.",
+          "visualGroup": "reagent addition",
+          "caveats": [
+            "Identity of reagent 2 cannot be confirmed without reading labels",
+            "Volume is not specified and cannot be verified"
+          ],
+          "criticality": "critical",
+          "category": "identity"
+        },
+        {
+          "id": "step-03",
+          "title": "Add reagent 3 to tube",
+          "description": "Add reagent 3 into the EP tube.",
+          "order": 3,
+          "checks": [
+            "A pipette draws liquid from a third reagent container",
+            "The liquid is dispensed into the same EP tube",
+            "A fresh tip is used",
+            "Occurs after reagent 2 addition"
+          ],
+          "details": [
+            "A fresh tip is used",
+            "Occurs after reagent 2 addition"
+          ],
+          "definingAction": "Pipette draws liquid from a third reagent container and dispenses it into the same EP tube.",
+          "visualGroup": "reagent addition",
+          "caveats": [
+            "Identity of reagent 3 cannot be confirmed without reading labels",
+            "Volume is not specified and cannot be verified",
+            "Whether the order of additions matters is not stated in the document"
+          ],
+          "criticality": "critical",
+          "category": "identity"
+        },
+        {
+          "id": "step-04",
+          "title": "Mix tube contents well",
+          "description": "Mix well.",
+          "order": 4,
+          "checks": [
+            "The EP tube contents are mixed by pipetting up and down, flicking, inverting or vortexing",
+            "Mixing happens after all three reagents are added"
+          ],
+          "details": [
+            "Mixing happens after all three reagents are added"
+          ],
+          "definingAction": "Contents are mixed within the EP tube by pipetting up and down, flicking, inverting or vortexing, without drawing from any other container.",
+          "caveats": [
+            "Thoroughness of mixing cannot be confirmed",
+            "Number of pipetting or flicking cycles is not specified"
+          ],
+          "criticality": "important",
+          "category": "action"
+        },
+        {
+          "id": "step-05",
+          "title": "Incubate 20 min at RT",
+          "description": "Incubate at room temperature for 20 min.",
+          "order": 5,
+          "checks": [
+            "The tube is placed in a rack or on the bench and left standing",
+            "The mixture is not immediately added to the cells",
+            "The tube is not placed in an incubator, heat block or on ice"
+          ],
+          "details": [
+            "The tube is not placed in an incubator, heat block or on ice"
+          ],
+          "definingAction": "The closed EP tube is set down in a rack or on the bench and left there, not moved to the dish straight away.",
+          "caveats": [
+            "The exact 20 min duration cannot be verified from sampled frames",
+            "Room temperature cannot be confirmed visually"
+          ],
+          "criticality": "important",
+          "category": "timing"
+        },
+        {
+          "id": "step-06",
+          "title": "Add mixture dropwise to cells",
+          "description": "Add the mixture dropwise into a 10 cm dish of 293T cells (~70-80% confluency).",
+          "order": 6,
+          "checks": [
+            "The mixture is drawn from the EP tube with a pipette",
+            "The mixture is dispensed into a 10 cm cell culture dish",
+            "The liquid is released dropwise rather than in a single stream",
+            "Drops are distributed across different areas of the dish",
+            "The dish lid is removed for the addition and replaced afterwards"
+          ],
+          "details": [
+            "The liquid is released dropwise rather than in a single stream",
+            "Drops are distributed across different areas of the dish",
+            "The dish lid is removed for the addition and replaced afterwards"
+          ],
+          "definingAction": "Pipette draws the mixture from the EP tube and releases it drop by drop over the medium in a 10 cm culture dish.",
+          "caveats": [
+            "Cell confluency (~70-80%) cannot be confirmed on video",
+            "That the dish contains 293T cells cannot be verified",
+            "Whether the whole mixture is transferred cannot be confirmed"
+          ],
+          "criticality": "critical",
+          "category": "action"
+        },
+        {
+          "id": "step-07",
+          "title": "Rock dish gently to mix",
+          "description": "Gently rock the dish forward and backward to mix.",
+          "order": 7,
+          "checks": [
+            "The dish is rocked forward and backward by hand",
+            "The motion is gentle, without spilling or splashing",
+            "The dish is kept on or close to the bench surface while rocking",
+            "Rocking follows the dropwise addition"
+          ],
+          "details": [
+            "The motion is gentle, without spilling or splashing",
+            "The dish is kept on or close to the bench surface while rocking",
+            "Rocking follows the dropwise addition"
+          ],
+          "definingAction": "The covered dish is tilted forward and backward on the bench surface by hand, with no pipette involved.",
+          "caveats": [
+            "Whether the mixture is evenly distributed cannot be verified"
+          ],
+          "criticality": "important",
+          "category": "action"
+        }
+      ]
+    },
+    "observations": [
+      {
+        "id": "step-01-agent",
+        "stepId": "step-01",
+        "timestampStart": 1,
+        "timestampEnd": 18,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The source tube and the destination tube are hard to tell apart in the frames.",
+          "Reagent identity cannot be read.",
+          "Not establishable from video: Identity of reagent 1 cannot be confirmed without reading labels",
+          "Not establishable from video: Volume of reagent 1 is not specified and cannot be verified on video",
+          "Not establishable from video: Sterility of the tube cannot be verified"
+        ],
+        "confidence": 0.6,
+        "provenance": "claude_agent",
+        "summary": "The operator puts a tip on a small pipette at the tip boxes, draws liquid from a tube held in the left hand (about 6–9 s), then dispenses into a small tube held in the left hand (about 14–17 s).",
+        "checkResults": [
+          {
+            "check": "A pipette draws liquid from a reagent container",
+            "result": "confirmed",
+            "note": "Around 6–9 s the pipette tip goes into a small tube held up in the left hand to draw liquid."
+          },
+          {
+            "check": "The liquid is dispensed into a small microcentrifuge (EP) tube",
+            "result": "confirmed",
+            "note": "Around 14–17 s the tip goes into a small microcentrifuge-type tube held in the left hand."
+          },
+          {
+            "check": "The tube is empty before this addition",
+            "result": "not_visible",
+            "note": "The tube's contents cannot be seen at this resolution."
+          },
+          {
+            "check": "A fresh pipette tip is used",
+            "result": "confirmed",
+            "note": "At 1.3 s the pipette is held over the waste beaker. By 3.9 s it carries a tip picked up at the tip boxes."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-01-e0",
+            "timestamp": 1.3,
+            "end": 2.3,
+            "description": "Right hand holds the pipette over the waste beaker, before a tip is fitted.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e1",
+            "timestamp": 3.9,
+            "end": 4.9,
+            "description": "Pipette now has a tip; left hand is at the tube rack.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e2",
+            "timestamp": 9,
+            "end": 10,
+            "description": "Tip is in a tube held up by the left hand while liquid is drawn.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e3",
+            "timestamp": 16.7,
+            "end": 17.7,
+            "description": "Tip goes into a small tube in the left hand to dispense.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-02-agent",
+        "stepId": "step-02",
+        "timestampStart": 19,
+        "timestampEnd": 33,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The tube identities cannot be resolved.",
+          "Not establishable from video: Identity of reagent 2 cannot be confirmed without reading labels",
+          "Not establishable from video: Volume is not specified and cannot be verified"
+        ],
+        "confidence": 0.5,
+        "provenance": "claude_agent",
+        "summary": "The same cycle repeats: the tip is discarded and replaced (about 19–20 s), liquid is drawn from a tube held in the left hand, and it is dispensed into a small tube (about 23–31 s).",
+        "checkResults": [
+          {
+            "check": "A pipette draws liquid from a different reagent container than in the previous step",
+            "result": "not_visible",
+            "note": "A tube is picked from the rack, but the frames cannot show that it differs from the first source tube."
+          },
+          {
+            "check": "The liquid is dispensed into the same EP tube",
+            "result": "not_visible",
+            "note": "The tip goes into a small tube, but it cannot be confirmed as the same EP tube."
+          },
+          {
+            "check": "The tip is changed or a new tip is used before drawing reagent 2",
+            "result": "confirmed",
+            "note": "At 19.9 s the pipette is near the waste or tip area, and a tip is then fitted."
+          },
+          {
+            "check": "Occurs after reagent 1 addition",
+            "result": "confirmed",
+            "note": "This happens after the first addition cycle."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-02-e0",
+            "timestamp": 19.9,
+            "end": 20.9,
+            "description": "Pipette tip is ejected or replaced near the waste beaker.",
+            "kind": "video"
+          },
+          {
+            "id": "step-02-e1",
+            "timestamp": 23.6,
+            "end": 24.6,
+            "description": "Tip is in a tube held by the left hand.",
+            "kind": "video"
+          },
+          {
+            "id": "step-02-e2",
+            "timestamp": 31.1,
+            "end": 32.1,
+            "description": "Tip goes into a small tube to dispense.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-03-agent",
+        "stepId": "step-03",
+        "timestampStart": 34,
+        "timestampEnd": 48,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The tube identities cannot be resolved.",
+          "Not establishable from video: Identity of reagent 3 cannot be confirmed without reading labels",
+          "Not establishable from video: Volume is not specified and cannot be verified",
+          "Not establishable from video: Whether the order of additions matters is not stated in the document"
+        ],
+        "confidence": 0.5,
+        "provenance": "claude_agent",
+        "summary": "A third cycle follows: the tip is changed (about 34–35 s), liquid is drawn from a tube in the left hand, and it is dispensed into a small tube (about 38–47 s).",
+        "checkResults": [
+          {
+            "check": "A pipette draws liquid from a third reagent container",
+            "result": "not_visible",
+            "note": "A different source container cannot be confirmed from the frames."
+          },
+          {
+            "check": "The liquid is dispensed into the same EP tube",
+            "result": "not_visible",
+            "note": "The destination tube cannot be confirmed as the same EP tube."
+          },
+          {
+            "check": "A fresh tip is used",
+            "result": "confirmed",
+            "note": "At 34.9 s the pipette is near the waste beaker before a new tip is used."
+          },
+          {
+            "check": "Occurs after reagent 2 addition",
+            "result": "confirmed",
+            "note": "This happens after the second cycle."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-03-e0",
+            "timestamp": 34.9,
+            "end": 35.9,
+            "description": "Tip is changed near the waste beaker.",
+            "kind": "video"
+          },
+          {
+            "id": "step-03-e1",
+            "timestamp": 38.6,
+            "end": 39.6,
+            "description": "Liquid is drawn from a tube in the left hand.",
+            "kind": "video"
+          },
+          {
+            "id": "step-03-e2",
+            "timestamp": 46.1,
+            "end": 47.1,
+            "description": "Tip goes into a small tube to dispense.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-04-agent",
+        "stepId": "step-04",
+        "timestampStart": 56,
+        "timestampEnd": 63,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "This could be only drawing the mixture rather than mixing it.",
+          "Not establishable from video: Thoroughness of mixing cannot be confirmed",
+          "Not establishable from video: Number of pipetting or flicking cycles is not specified"
+        ],
+        "confidence": 0.4,
+        "provenance": "claude_agent",
+        "summary": "The operator switches to a larger pipette with a new tip (about 50–54 s) and holds the tip in the EP tube for about 6 s with the thumb on the plunger. This is consistent with pipetting up and down to mix, but the cycles cannot be resolved.",
+        "checkResults": [
+          {
+            "check": "The EP tube contents are mixed by pipetting up and down, flicking, inverting or vortexing",
+            "result": "not_visible",
+            "note": "The tip stays in the tube from 57 to 63 s, but no up-and-down plunger movement or liquid movement can be resolved."
+          },
+          {
+            "check": "Mixing happens after all three reagents are added",
+            "result": "confirmed",
+            "note": "This happens after the three addition cycles."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-04-e0",
+            "timestamp": 50.9,
+            "end": 51.9,
+            "description": "Operator picks up a larger pipette.",
+            "kind": "video"
+          },
+          {
+            "id": "step-04-e1",
+            "timestamp": 59.1,
+            "end": 60.1,
+            "description": "Tip of the larger pipette is held in the EP tube.",
+            "kind": "video"
+          },
+          {
+            "id": "step-04-e2",
+            "timestamp": 62.6,
+            "end": 63.6,
+            "description": "Tip is still in the tube.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-06-agent",
+        "stepId": "step-06",
+        "timestampStart": 63,
+        "timestampEnd": 78,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The dish size and the dropwise release cannot be resolved.",
+          "Not establishable from video: Cell confluency (~70-80%) cannot be confirmed on video",
+          "Not establishable from video: That the dish contains 293T cells cannot be verified",
+          "Not establishable from video: Whether the whole mixture is transferred cannot be confirmed"
+        ],
+        "confidence": 0.55,
+        "provenance": "claude_agent",
+        "summary": "The mixture taken from the EP tube is dispensed into a small culture dish with its lid removed (about 72–77 s), and the lid is then put back.",
+        "checkResults": [
+          {
+            "check": "The mixture is drawn from the EP tube with a pipette",
+            "result": "confirmed",
+            "note": "The pipette tip is in the EP tube until about 63 s and then carries the mixture to the dish."
+          },
+          {
+            "check": "The mixture is dispensed into a 10 cm cell culture dish",
+            "result": "not_visible",
+            "note": "A culture dish with pink medium is used. It looks smaller than 10 cm, and its size cannot be confirmed."
+          },
+          {
+            "check": "The liquid is released dropwise rather than in a single stream",
+            "result": "not_visible",
+            "note": "Individual drops cannot be resolved."
+          },
+          {
+            "check": "Drops are distributed across different areas of the dish",
+            "result": "not_visible",
+            "note": "The tip position varies only slightly, so distribution of drops across the dish is unclear."
+          },
+          {
+            "check": "The dish lid is removed for the addition and replaced afterwards",
+            "result": "confirmed",
+            "note": "The left hand holds the lid off while dispensing (73–77 s), and the dish is covered and handled by about 79 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-06-e0",
+            "timestamp": 67,
+            "end": 68,
+            "description": "Covered dish with pink medium sits on the bench.",
+            "kind": "video"
+          },
+          {
+            "id": "step-06-e1",
+            "timestamp": 73.9,
+            "end": 74.9,
+            "description": "Lid is off; the pipette tip is over the medium in the dish.",
+            "kind": "video"
+          },
+          {
+            "id": "step-06-e2",
+            "timestamp": 79,
+            "end": 80,
+            "description": "Both hands are at the dish after dispensing.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-07-agent",
+        "stepId": "step-07",
+        "timestampStart": 80,
+        "timestampEnd": 92,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The frames show movement on the bench but cannot confirm whether it is a forward-backward rocking or a sliding/swirling motion.",
+          "Not establishable from video: Whether the mixture is evenly distributed cannot be verified"
+        ],
+        "confidence": 0.6,
+        "provenance": "claude_agent",
+        "summary": "The operator's hand moves the dish back and forth across the bench surface for about 12 s after the addition, with no pipette involved.",
+        "checkResults": [
+          {
+            "check": "The dish is rocked forward and backward by hand",
+            "result": "confirmed",
+            "note": "The dish changes position between frames from 81 to 91 s while held by hand."
+          },
+          {
+            "check": "The motion is gentle, without spilling or splashing",
+            "result": "confirmed",
+            "note": "No spilling or splashing is visible."
+          },
+          {
+            "check": "The dish is kept on or close to the bench surface while rocking",
+            "result": "confirmed",
+            "note": "The dish stays on the bench surface."
+          },
+          {
+            "check": "Rocking follows the dropwise addition",
+            "result": "confirmed",
+            "note": "This follows the dispensing at 72–77 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-07-e0",
+            "timestamp": 81,
+            "end": 82,
+            "description": "Hand on the dish at the front of the bench.",
+            "kind": "video"
+          },
+          {
+            "id": "step-07-e1",
+            "timestamp": 85,
+            "end": 86,
+            "description": "Dish shifted to a different position.",
+            "kind": "video"
+          },
+          {
+            "id": "step-07-e2",
+            "timestamp": 91,
+            "end": 92,
+            "description": "Dish moved again by hand.",
+            "kind": "video"
+          }
+        ]
+      }
+    ],
+    "absences": [
+      {
+        "stepId": "step-05",
+        "reason": "not_performed",
+        "confidence": 0.75,
+        "note": "There is no incubation. Right after the in-tube pipetting at about 63 s, the pipette carrying the mixture goes straight to the dish (about 66–77 s), with no break in the continuous recording."
+      }
+    ],
+    "log": [
+      "Reviewed 32 overview frames",
+      "I'm mapping out the rough timing of reagent additions in the video, estimating segments around 0-19s, 19-34s, and 34-49s, and planning to check specific frame windows to confirm these boundaries.",
+      "Inspected 00:00.0–00:18.0 (7 frames)",
+      "Inspected 00:18.0–00:48.0 (8 frames)",
+      "I'm tracing a repeated pattern: grabbing a tip, drawing reagent with the left hand, then dispensing into an EP tube from the rack, repeated three times, followed by a tip discard and what looks like a mixing step afterward. I should look more closely at the 47-70 second range to confirm these details.",
+      "Inspected 00:47.0–01:08.0 (8 frames)",
+      "Around frames 50-53 I see them switch to a larger pipette and grab a tip from the box, then at 56-62 they seem to pipette up and down into the EP tube, possibly mixing. From 64-79 they dispense into a dish, then rock it between 79-92. I don't see an obvious incubation step—the tube seems to go straight to the dish, so I want to double-check the motion around 57-63.",
+      "Inspected 00:57.0–01:03.0 (7 frames)",
+      "The plunger motion is hard to make out, but the thumb appears positioned on it, so pipetting up and down for mixing seems plausible, though the resolution doesn't clearly show cycles. After the pipette is withdrawn with tube still held, it moves to the dish without any visible incubation step—I should check the frames around dispensing to clarify whether this is mixing or just drawing.",
+      "Inspected 01:04.0–01:20.0 (8 frames)",
+      "I'm examining the small dish closely—looks like a petri dish with a lid that gets removed around 71-77 seconds, with the pipette tip visible inside the dish briefly before the rocking motion starts.",
+      "Inspected 01:12.0–01:17.0 (4 frames)",
+      "Inspected 01:20.0–01:32.0 (6 frames)",
+      "Budget's exhausted, so I'll note the dish being moved around and rocked on the bench between frames 80-92, but it's small and not clearly the 10 cm size, so I'll mark it not visible. The incubation step also seems skipped, since the tube jumps from mixing around 62s straight to the dish by 66s.\n\nChecking the tip changes around frames 1-4, 19-20, and 34-35, the pipette seems to swing over the waste beaker before grabbing a fresh tip from the yellow racks each time, which fits a new-tip-per-transfer pattern, though I can't confirm reagent container identity or tube emptiness visually. For the mixing step around 56-63s, the pipette dips into the tube but I can't clearly resolve up-and-down motion, so I'll log it as found with moderate confidence while leaving some sub-checks uncertain.\n\nThe draw from the EP tube happens right at the end of mixing, then dispensing into the dish spans roughly 71-77s with the lid lifted by the left hand and replaced around 79s; dropwise delivery and distribution pattern aren't clearly visible, and the dish looks smaller than a standard 10cm plate, so I'm marking that check as not_visible.",
+      "Submitted findings for 7 steps"
+    ],
+    "usage": {
+      "input": 14,
+      "cacheWrite": 28876,
+      "cacheRead": 94425,
+      "output": 5198
+    },
+    "generatedAt": "2026-10-04T03:01:17.158Z"
+  },
+  "DJI_16": {
+    "method": {
+      "schemaVersion": 1,
+      "title": "CRISPR component delivery into 293T cells",
+      "version": "1.0",
+      "source": "Mock-Cas9-Delivery.pdf",
+      "summary": "Three reagents are added in turn to a sterile 1.5 mL EP tube and mixed. The mixture is left at room temperature for 20 min, then added dropwise to a 10 cm dish of 293T cells, and the dish is rocked gently to distribute it.",
+      "requirements": [
+        {
+          "id": "step-01",
+          "title": "Add reagent 1 to tube",
+          "description": "Add reagent 1 into a sterile 1.5 mL EP tube.",
+          "order": 1,
+          "checks": [
+            "Liquid is drawn by pipette from a reagent container and dispensed into a 1.5 mL microcentrifuge (EP) tube",
+            "The receiving tube is empty before this addition",
+            "This is the first addition into the tube"
+          ],
+          "details": [
+            "This is the first addition into the tube"
+          ],
+          "definingAction": "A pipette draws liquid from the first reagent container and dispenses it into an empty 1.5 mL EP tube.",
+          "visualGroup": "reagent addition",
+          "caveats": [
+            "The reagent's identity as reagent 1 depends on labels and cannot be confirmed visually",
+            "The volume added is not specified and cannot be read from video",
+            "Tube sterility cannot be verified on video"
+          ],
+          "criticality": "critical",
+          "category": "identity"
+        },
+        {
+          "id": "step-02",
+          "title": "Add reagent 2 to tube",
+          "description": "Add reagent 2 into the EP tube.",
+          "order": 2,
+          "checks": [
+            "Liquid is drawn by pipette from a reagent container and dispensed into the same EP tube used in step 1",
+            "The addition happens after reagent 1 is in the tube",
+            "A fresh pipette tip is used for this reagent"
+          ],
+          "details": [
+            "The addition happens after reagent 1 is in the tube",
+            "A fresh pipette tip is used for this reagent"
+          ],
+          "definingAction": "A pipette draws liquid from a second reagent container and dispenses it into the same EP tube, which already holds reagent 1.",
+          "visualGroup": "reagent addition",
+          "caveats": [
+            "The reagent's identity as reagent 2 depends on labels and cannot be confirmed visually",
+            "The volume added is not specified and cannot be read from video",
+            "The order of reagents 1-3 cannot be verified if the containers look the same"
+          ],
+          "criticality": "critical",
+          "category": "identity"
+        },
+        {
+          "id": "step-03",
+          "title": "Add reagent 3 to tube",
+          "description": "Add reagent 3 into the EP tube.",
+          "order": 3,
+          "checks": [
+            "Liquid is drawn by pipette from a reagent container and dispensed into the same EP tube",
+            "The addition happens after the first two additions",
+            "A fresh pipette tip is used for this reagent"
+          ],
+          "details": [
+            "The addition happens after the first two additions",
+            "A fresh pipette tip is used for this reagent"
+          ],
+          "definingAction": "A pipette draws liquid from a third reagent container and dispenses it into the same EP tube.",
+          "visualGroup": "reagent addition",
+          "caveats": [
+            "The reagent's identity as reagent 3 depends on labels and cannot be confirmed visually",
+            "The volume added is not specified and cannot be read from video"
+          ],
+          "criticality": "critical",
+          "category": "identity"
+        },
+        {
+          "id": "step-04",
+          "title": "Mix the tube contents",
+          "description": "Mix well.",
+          "order": 4,
+          "checks": [
+            "The tube contents are mixed by pipetting up and down within the tube, flicking, inverting or brief vortexing",
+            "Mixing happens after all three reagents have been added"
+          ],
+          "details": [
+            "Mixing happens after all three reagents have been added"
+          ],
+          "definingAction": "The contents are mixed inside the EP tube by pipetting up and down, flicking or inverting it, without drawing from any other container.",
+          "caveats": [
+            "Whether mixing is thorough ('well') cannot be judged from video",
+            "The number of mixing repetitions is not specified"
+          ],
+          "criticality": "important",
+          "category": "action"
+        },
+        {
+          "id": "step-05",
+          "title": "Incubate at room temperature",
+          "description": "Incubate at room temperature for 20 min.",
+          "order": 5,
+          "checks": [
+            "The tube is placed on the bench or in a rack and left there rather than used immediately",
+            "The tube is not placed in a heating or cooling device"
+          ],
+          "details": [
+            "The tube is not placed in a heating or cooling device"
+          ],
+          "definingAction": "The mixed tube is set down on the bench or in a rack and left untouched, rather than used right away.",
+          "caveats": [
+            "The exact 20 min duration cannot be confirmed from sampled frames",
+            "Room temperature cannot be verified visually"
+          ],
+          "criticality": "important",
+          "category": "timing"
+        },
+        {
+          "id": "step-06",
+          "title": "Add mixture dropwise to dish",
+          "description": "Add the mixture dropwise into a 10 cm dish of 293T cells (~70-80% confluency).",
+          "order": 6,
+          "checks": [
+            "Liquid is drawn from the EP tube with a pipette",
+            "The liquid is dispensed into a 10 cm cell culture dish",
+            "The liquid is released dropwise rather than in one stream",
+            "Drops are spread over different areas of the dish",
+            "This happens after the incubation period"
+          ],
+          "details": [
+            "The liquid is released dropwise rather than in one stream",
+            "Drops are spread over different areas of the dish",
+            "This happens after the incubation period"
+          ],
+          "definingAction": "The mixture is drawn from the EP tube and released drop by drop into a 10 cm cell culture dish.",
+          "caveats": [
+            "Cell confluency (~70-80%) and identity as 293T cells cannot be verified on video",
+            "The volume transferred cannot be read from video",
+            "Sterility cannot be confirmed"
+          ],
+          "criticality": "critical",
+          "category": "action"
+        },
+        {
+          "id": "step-07",
+          "title": "Rock dish gently to mix",
+          "description": "Gently rock the dish forward and backward to mix.",
+          "order": 7,
+          "checks": [
+            "The 10 cm dish is moved gently forward and backward to spread the liquid",
+            "Rocking happens after the mixture has been added",
+            "The motion is gentle, without swirling vigorously or spilling",
+            "The dish is kept roughly level"
+          ],
+          "details": [
+            "Rocking happens after the mixture has been added",
+            "The motion is gentle, without swirling vigorously or spilling",
+            "The dish is kept roughly level"
+          ],
+          "definingAction": "The dish is tilted or slid forward and backward on the bench without being picked up for pipetting.",
+          "caveats": [
+            "The number of rocking motions is not specified"
+          ],
+          "criticality": "important",
+          "category": "action"
+        }
+      ]
+    },
+    "observations": [
+      {
+        "id": "step-01-agent",
+        "stepId": "step-01",
+        "timestampStart": 7,
+        "timestampEnd": 14.2,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Which tube is the source and which is the receiver is inferred from the order of the motions.",
+          "The reagent identity and whether the receiving tube was empty can't be seen.",
+          "Not establishable from video: The reagent's identity as reagent 1 depends on labels and cannot be confirmed visually",
+          "Not establishable from video: The volume added is not specified and cannot be read from video",
+          "Not establishable from video: Tube sterility cannot be verified on video"
+        ],
+        "confidence": 0.5,
+        "provenance": "claude_agent",
+        "summary": "With a single tip, the person puts the tip into a microcentrifuge tube held in the left hand (about 7–9 s) and then into a second tube taken from the rack (about 10.5–13.5 s), which reads as a draw and dispense into an EP tube. The tube is then put back in the rack.",
+        "checkResults": [
+          {
+            "check": "Liquid is drawn by pipette from a reagent container and dispensed into a 1.5 mL microcentrifuge (EP) tube",
+            "result": "confirmed",
+            "note": "The pipette tip enters a hand-held 1.5 mL-type tube at 7.1–8.9 s. That tube goes back to the rack, a second tube is picked up, and the tip enters it at 10.9–13.5 s, consistent with a draw followed by a dispense. The plunger action is not clearly resolved."
+          },
+          {
+            "check": "The receiving tube is empty before this addition",
+            "result": "not_visible",
+            "note": "I can't see the contents of the receiving tube before the addition at this resolution."
+          },
+          {
+            "check": "This is the first addition into the tube",
+            "result": "not_visible",
+            "note": "Nothing is seen going into this tube earlier in the clip (0–7 s is spent opening tubes in the rack and loading a tip), but the tube's history before the recording is unknown."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-01-e0",
+            "timestamp": 5.5,
+            "end": 6.5,
+            "description": "A tip is picked up from the pink tip box.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e1",
+            "timestamp": 7.6,
+            "end": 8.6,
+            "description": "The pipette tip is inside a tube held in the left hand.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e2",
+            "timestamp": 10.5,
+            "end": 11.5,
+            "description": "The first tube is back in the rack and the left hand picks up another tube.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e3",
+            "timestamp": 12.5,
+            "end": 13.5,
+            "description": "The pipette tip is inside the second hand-held tube.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e4",
+            "timestamp": 14.1,
+            "end": 15.1,
+            "description": "The tube is put back in the rack.",
+            "kind": "video"
+          }
+        ]
+      }
+    ],
+    "absences": [
+      {
+        "stepId": "step-02",
+        "reason": "not_visible",
+        "confidence": 0.4,
+        "note": "I don't see a second reagent addition with a fresh tip. The same tip is used from 5.5 s until it is ejected at about 18.9 s, and the clip ends with tubes being closed."
+      },
+      {
+        "stepId": "step-03",
+        "reason": "not_visible",
+        "confidence": 0.4,
+        "note": "No third reagent addition is visible in the recording."
+      },
+      {
+        "stepId": "step-04",
+        "reason": "not_visible",
+        "confidence": 0.3,
+        "note": "No clear mixing by pipetting, flicking or inverting is visible. Between 15.5 and 17.5 s the pipette tip goes below the frame near something small held in the left hand, but I can't make out what happens."
+      },
+      {
+        "stepId": "step-05",
+        "reason": "not_visible",
+        "confidence": 0.35,
+        "note": "No mixed tube is seen being left to incubate. The tubes are put back in the rack and closed at the end of the clip, and the clip ends there."
+      },
+      {
+        "stepId": "step-06",
+        "reason": "not_visible",
+        "confidence": 0.35,
+        "note": "No 10 cm cell culture dish appears, and no dropwise addition to a dish is visible. A small round transparent object is briefly held at 15.5–17.5 s, but it is not identifiable as a 10 cm dish."
+      },
+      {
+        "stepId": "step-07",
+        "reason": "not_visible",
+        "confidence": 0.4,
+        "note": "No dish is rocked anywhere in the recording."
+      }
+    ],
+    "log": [
+      "Reviewed 8 overview frames",
+      "The recording's 25 seconds long, so I'll break it into a few windows to examine more closely.",
+      "Inspected 00:00.0–00:08.0 (8 frames)",
+      "Inspected 00:08.0–00:16.0 (8 frames)",
+      "Inspected 00:16.0–00:25.3 (8 frames)",
+      "Trying to piece together the timeline: tubes get opened first, then a tip is loaded, then there's dispensing into a hand-held tube, and afterward the tip seems to move toward the blue-capped reagent tubes, possibly drawing liquid from one held in the left hand.\n\nTracking further details - the left hand switches between holding tubes and what might be a small round dish, the tip gets ejected at different points (pink box vs waste beaker), and tubes get closed near the end. I want to nail down exactly where the reagent is drawn from by looking more closely at the 6-11 second window.",
+      "Inspected 00:06.5–00:09.5 (7 frames)",
+      "Inspected 00:09.0–00:11.5 (6 frames)",
+      "So the tip draws from tube A in the left hand, then that tube goes back in the rack, the left hand grabs tube B, and the tip dispenses into B — this is one single-tip transfer, likely the first reagent addition step.\n\nThen I need to check what's happening around 14-18s, since the pipette seems to move near the tip box and the left hand may be holding something round, possibly a dish.",
+      "Inspected 00:13.8–00:18.5 (7 frames)",
+      "Around 15.5-17.5 seconds, I'm trying to figure out what the left hand is holding — it could be a small lid or dish, or maybe a tilted tube near the rack. The pipette tip descends below the frame, so it's unclear exactly what it's dispensing into.\n\nPutting this together, I only see one clear transfer: drawing from tube A around 7-9 seconds and dispensing into tube B around 11-13.5, using a single tip loaded at 5.5 and ejected at 18.9 seconds. Since no fresh tip appears afterward, any subsequent addition steps wouldn't be visible — so only step-01 is confirmed as found, with steps 2 and 3 marked not_visible or not_found given the continuous single-tip usage throughout the clip.",
+      "Inspected 00:15.2–00:17.3 (4 frames)",
+      "It's unclear whether the object in the left hand is a small dish or something else, and the pipette tip disappears below the frame, so I can't confirm what it's dispensing into — I'll flag this as uncertain in step-06 and move to submit.",
+      "Submitted findings for 7 steps"
+    ],
+    "usage": {
+      "input": 12,
+      "cacheWrite": 30193,
+      "cacheRead": 74911,
+      "output": 4787
+    },
+    "generatedAt": "2026-10-04T03:02:33.795Z"
+  },
+  "DJI_08": {
+    "method": {
+      "schemaVersion": 1,
+      "title": "Passaging Adherent Cells in a Biosafety Cabinet (PBS Wash, Trypsin-EDTA Detachment, Reseeding)",
+      "version": "1.0",
+      "source": "Splitting-cells-DJI-027.pdf",
+      "summary": "Adherent cells in a 10 cm dish are taken from the incubator, washed with PBS, detached with 0.25% Trypsin-EDTA, neutralised with complete medium and pipetted into a single-cell suspension. The suspension is moved to a conical tube, reseeded into a new 10 cm dish with fresh medium, distributed by cross-pattern rocking, and returned to the incubator. Note the document's inconsistencies: a 15 ml tube in the equipment list versus 50 ml in the procedure, and a calculated ~2 ml for a 1:3 split versus 5 ml dispensed. Step 17, the split volume calculation, is mental work, so it is not a separate observable step; it is noted under the reseeding step.",
+      "requirements": [
+        {
+          "id": "step-01",
+          "title": "Spray hands with ethanol",
+          "description": "Spray hands with 70% ethanol.",
+          "order": 1,
+          "checks": [
+            "The operator sprays their hands with a spray bottle",
+            "The hands are rubbed together after spraying",
+            "This happens before reagents are gathered or items are placed in the hood"
+          ],
+          "details": [
+            "This happens before reagents are gathered or items are placed in the hood"
+          ],
+          "definingAction": "The operator sprays their own hands from a spray bottle and rubs them together, before handling reagents or the hood.",
+          "caveats": [
+            "The spray contents being 70% ethanol cannot be confirmed by video"
+          ],
+          "criticality": "important",
+          "category": "action"
+        },
+        {
+          "id": "step-02",
+          "title": "Gather all reagents",
+          "description": "Get all reagents (PBS, 0.25% Trypsin-EDTA, complete medium).",
+          "order": 2,
+          "checks": [
+            "Reagent bottles are brought to the workspace near the biosafety cabinet"
+          ],
+          "definingAction": "The operator collects reagent bottles from storage (fridge, shelf or water bath) and brings them to the hood area.",
+          "caveats": [
+            "The identity of each reagent (PBS, Trypsin-EDTA, complete medium) depends on labels",
+            "Whether all required reagents were gathered cannot be fully confirmed"
+          ],
+          "criticality": "important",
+          "category": "identity"
+        },
+        {
+          "id": "step-03",
+          "title": "Spray materials before hood entry",
+          "description": "Spray all materials with 70% ethanol before placing in hood.",
+          "order": 3,
+          "checks": [
+            "Items are cleaned, by spraying or wiping, before entering the hood",
+            "The cleaned items are placed inside the biosafety cabinet"
+          ],
+          "definingAction": "Bottles and other items are sprayed or wiped with ethanol, then moved into the biosafety cabinet.",
+          "caveats": [
+            "Whether every material was sprayed cannot be confirmed from sampled frames",
+            "The spray being 70% ethanol cannot be confirmed",
+            "Sterility cannot be verified",
+            "Claim about every item, not verifiable from video: Cleaning happens before each item crosses into the cabinet, not after"
+          ],
+          "criticality": "important",
+          "category": "action"
+        },
+        {
+          "id": "step-04",
+          "title": "Remove dish from incubator",
+          "description": "Remove 10cm dish from incubator.",
+          "order": 4,
+          "checks": [
+            "The incubator door is opened",
+            "A 10 cm culture dish is taken out of the incubator",
+            "The dish is kept level while carried",
+            "The incubator door is closed afterwards"
+          ],
+          "details": [
+            "The dish is kept level while carried",
+            "The incubator door is closed afterwards"
+          ],
+          "definingAction": "The operator opens the CO2 incubator and takes out a 10 cm culture dish.",
+          "caveats": [
+            "Which cell line or dish is taken depends on labels"
+          ],
+          "criticality": "important",
+          "category": "identity"
+        },
+        {
+          "id": "step-05",
+          "title": "Place dish in cabinet",
+          "description": "Place dish in biosafety cabinet.",
+          "order": 5,
+          "checks": [
+            "The culture dish is placed on the work surface inside the biosafety cabinet",
+            "The dish is placed well inside the cabinet rather than at the front grille"
+          ],
+          "details": [
+            "The dish is placed well inside the cabinet rather than at the front grille"
+          ],
+          "definingAction": "The dish taken from the incubator is set down on the work surface inside the biosafety cabinet.",
+          "caveats": [],
+          "criticality": "informational",
+          "category": "action"
+        },
+        {
+          "id": "step-06",
+          "title": "Aspirate old medium",
+          "description": "Aspirate old medium completely using vacuum aspirator.",
+          "order": 6,
+          "checks": [
+            "The vacuum aspirator tip is placed into the dish",
+            "Medium is removed from the dish",
+            "The aspirator tip is held at the dish edge rather than scraping the cell layer"
+          ],
+          "details": [
+            "The aspirator tip is held at the dish edge rather than scraping the cell layer"
+          ],
+          "definingAction": "The vacuum aspirator tip is inserted into the dish and the culture medium is drawn off into the aspirator line.",
+          "visualGroup": "aspiration",
+          "caveats": [
+            "Complete removal of the medium may be hard to confirm visually"
+          ],
+          "criticality": "important",
+          "category": "action"
+        },
+        {
+          "id": "step-07",
+          "title": "Tilt dish, remove residual medium",
+          "description": "Tilt dish to remove residual medium from edges.",
+          "order": 7,
+          "checks": [
+            "The dish is tilted",
+            "Residual liquid is aspirated from the lowered edge",
+            "No visible liquid remains pooled in the dish afterwards"
+          ],
+          "details": [
+            "No visible liquid remains pooled in the dish afterwards"
+          ],
+          "definingAction": "The dish is tilted so liquid pools at one edge, and the aspirator removes the pooled residue.",
+          "visualGroup": "aspiration",
+          "caveats": [
+            "The amount of residual medium cannot be measured"
+          ],
+          "criticality": "informational",
+          "category": "action"
+        },
+        {
+          "id": "step-08",
+          "title": "Add PBS to dish",
+          "description": "Add 3ml PBS to dish.",
+          "order": 8,
+          "checks": [
+            "A serological pipette on a pipette controller draws liquid from a reagent bottle",
+            "The liquid is dispensed into the culture dish",
+            "The liquid is dispensed against the dish wall rather than directly onto the cells"
+          ],
+          "details": [
+            "The liquid is dispensed against the dish wall rather than directly onto the cells"
+          ],
+          "definingAction": "A serological pipette draws liquid from the PBS bottle and dispenses it into the culture dish.",
+          "caveats": [
+            "The volume (3 ml) cannot be confirmed",
+            "The reagent being PBS depends on the label"
+          ],
+          "criticality": "important",
+          "category": "identity"
+        },
+        {
+          "id": "step-09",
+          "title": "Rock dish to wash",
+          "description": "Gently rock dish to wash cell surface.",
+          "order": 9,
+          "checks": [
+            "The dish is gently rocked or tilted back and forth so the liquid moves across the surface",
+            "The movement is gentle, without splashing"
+          ],
+          "details": [
+            "The movement is gentle, without splashing"
+          ],
+          "definingAction": "The dish containing PBS is gently rocked or swirled on the surface, with no pipette involved.",
+          "caveats": [],
+          "criticality": "informational",
+          "category": "action"
+        },
+        {
+          "id": "step-10",
+          "title": "Aspirate PBS",
+          "description": "Aspirate PBS completely.",
+          "order": 10,
+          "checks": [
+            "The aspirator tip is placed into the dish",
+            "The liquid is removed from the dish",
+            "The dish appears empty of liquid afterwards"
+          ],
+          "details": [
+            "The dish appears empty of liquid afterwards"
+          ],
+          "definingAction": "The vacuum aspirator removes the PBS wash from the dish.",
+          "caveats": [
+            "Complete removal cannot be confirmed precisely"
+          ],
+          "criticality": "important",
+          "category": "action"
+        },
+        {
+          "id": "step-11",
+          "title": "Add Trypsin-EDTA to dish",
+          "description": "Add 1ml of 0.25% Trypsin-EDTA to 10cm dish.",
+          "order": 11,
+          "checks": [
+            "Liquid is drawn from a reagent container with a pipette",
+            "The liquid is dispensed into the washed culture dish",
+            "This happens after the PBS has been aspirated"
+          ],
+          "details": [
+            "This happens after the PBS has been aspirated"
+          ],
+          "definingAction": "A pipette draws from the trypsin container and dispenses a small volume into the washed dish.",
+          "caveats": [
+            "The volume (1 ml) cannot be confirmed",
+            "The reagent identity (0.25% Trypsin-EDTA) depends on the label"
+          ],
+          "criticality": "critical",
+          "category": "identity"
+        },
+        {
+          "id": "step-12",
+          "title": "Tilt dish to distribute trypsin",
+          "description": "Ensure even distribution by tilting dish.",
+          "order": 12,
+          "checks": [
+            "The dish is tilted in different directions after the trypsin is added",
+            "The liquid visibly spreads over the dish surface"
+          ],
+          "details": [
+            "The liquid visibly spreads over the dish surface"
+          ],
+          "definingAction": "The dish is tilted in several directions so the small volume of trypsin spreads across the whole surface.",
+          "caveats": [
+            "Even coverage of the entire surface cannot be confirmed"
+          ],
+          "criticality": "important",
+          "category": "action"
+        },
+        {
+          "id": "step-13",
+          "title": "Tap dish sides",
+          "description": "Gently tap sides of dish to help detachment.",
+          "order": 13,
+          "checks": [
+            "The side of the dish is tapped with the hand",
+            "The tapping is gentle and the dish is not knocked over"
+          ],
+          "details": [
+            "The tapping is gentle and the dish is not knocked over"
+          ],
+          "definingAction": "The operator taps the side of the dish with a hand or fingers.",
+          "caveats": [
+            "Whether the cells actually detach cannot be seen without a microscope"
+          ],
+          "criticality": "important",
+          "category": "action"
+        },
+        {
+          "id": "step-14",
+          "title": "Add complete medium",
+          "description": "Add 5ml complete medium to dish.",
+          "order": 14,
+          "checks": [
+            "Liquid is drawn from the medium bottle with a serological pipette",
+            "The liquid is dispensed into the culture dish",
+            "This happens after the trypsin step"
+          ],
+          "details": [
+            "This happens after the trypsin step"
+          ],
+          "definingAction": "A serological pipette draws from the medium bottle and dispenses it into the trypsinised dish.",
+          "caveats": [
+            "The volume (5 ml) cannot be confirmed",
+            "The reagent being complete medium depends on the label"
+          ],
+          "criticality": "critical",
+          "category": "identity"
+        },
+        {
+          "id": "step-15",
+          "title": "Pipette to single-cell suspension",
+          "description": "Pipette up and down 5-10 times to create single cell suspension.",
+          "order": 15,
+          "checks": [
+            "Liquid is repeatedly aspirated and expelled within the dish using the serological pipette",
+            "The liquid is expelled across the dish surface to rinse the cells off"
+          ],
+          "details": [
+            "The liquid is expelled across the dish surface to rinse the cells off"
+          ],
+          "definingAction": "The serological pipette repeatedly draws and expels liquid within the same dish, washing over the surface, without going to any other container.",
+          "caveats": [
+            "The exact number of repetitions (5-10) cannot be confirmed",
+            "Whether a single-cell suspension forms cannot be seen"
+          ],
+          "criticality": "important",
+          "category": "action"
+        },
+        {
+          "id": "step-16",
+          "title": "Transfer suspension to conical tube",
+          "description": "Transfer entire 6ml cell suspension to sterile 50ml conical tube.",
+          "order": 16,
+          "checks": [
+            "The cell suspension is drawn from the dish",
+            "It is dispensed into a conical tube",
+            "The dish is tilted to collect all of the suspension"
+          ],
+          "details": [
+            "The dish is tilted to collect all of the suspension"
+          ],
+          "definingAction": "The pipette draws the suspension from the dish and dispenses it into a conical tube.",
+          "caveats": [
+            "The volume (6 ml) and full transfer cannot be confirmed",
+            "The tube size is inconsistent in the document (15 ml in the equipment list, 50 ml in the step)",
+            "Sterility cannot be verified"
+          ],
+          "criticality": "important",
+          "category": "action"
+        },
+        {
+          "id": "step-17",
+          "title": "Seed suspension into new dish",
+          "description": "Calculate volume needed for 1:3 split (approximately 2ml of cell suspension), then add 5ml cell suspension to new 10cm dish.",
+          "order": 17,
+          "checks": [
+            "The cell suspension is drawn from the conical tube",
+            "It is dispensed into a new 10 cm culture dish"
+          ],
+          "definingAction": "The pipette draws from the conical tube and dispenses into a new, empty 10 cm dish.",
+          "visualGroup": "addition to new dish",
+          "caveats": [
+            "The volume cannot be confirmed, and the document is inconsistent (~2 ml calculated for a 1:3 split versus 5 ml stated)",
+            "The split ratio calculation is mental and not observable",
+            "Whether the dish is new or labelled cannot be confirmed"
+          ],
+          "criticality": "critical",
+          "category": "action"
+        },
+        {
+          "id": "step-18",
+          "title": "Add fresh medium to new dish",
+          "description": "Add 5ml fresh medium (total 10ml in dish).",
+          "order": 18,
+          "checks": [
+            "Liquid is drawn from the medium bottle",
+            "It is dispensed into the newly seeded dish",
+            "This follows the addition of the cell suspension"
+          ],
+          "details": [
+            "This follows the addition of the cell suspension"
+          ],
+          "definingAction": "The pipette draws from the medium bottle, not the tube, and dispenses into the newly seeded dish.",
+          "visualGroup": "addition to new dish",
+          "caveats": [
+            "The volumes (5 ml added, 10 ml total) cannot be confirmed",
+            "The medium identity depends on the label"
+          ],
+          "criticality": "important",
+          "category": "identity"
+        },
+        {
+          "id": "step-19",
+          "title": "Rock dish in cross pattern",
+          "description": "Gently rock dish in cross pattern (North-South, East-West) to distribute cells.",
+          "order": 19,
+          "checks": [
+            "The dish is moved forward-backward and side-to-side on the surface",
+            "The motion is in a cross pattern rather than swirling",
+            "The movement is gentle, without spilling"
+          ],
+          "details": [
+            "The motion is in a cross pattern rather than swirling",
+            "The movement is gentle, without spilling"
+          ],
+          "definingAction": "The dish is slid back and forth along two perpendicular axes on the work surface.",
+          "caveats": [
+            "Even distribution of the cells cannot be confirmed"
+          ],
+          "criticality": "important",
+          "category": "action"
+        },
+        {
+          "id": "step-20",
+          "title": "Return dishes to incubator",
+          "description": "Place dishes back.",
+          "order": 20,
+          "checks": [
+            "The dishes are placed inside the incubator",
+            "The incubator door is closed afterwards"
+          ],
+          "details": [
+            "The incubator door is closed afterwards"
+          ],
+          "definingAction": "The dishes are carried from the hood and placed into the CO2 incubator.",
+          "caveats": [
+            "The incubator conditions (37°C, CO2) cannot be confirmed"
+          ],
+          "criticality": "important",
+          "category": "action"
+        },
+        {
+          "id": "step-21",
+          "title": "Level dishes, clean up, close hood",
+          "description": "Ensure dishes are level, clean-up, close hood.",
+          "order": 21,
+          "checks": [
+            "Materials and waste are removed from the hood",
+            "The work surface is cleaned by spraying or wiping",
+            "The hood sash is closed or lowered",
+            "The dishes sit flat on the incubator shelf"
+          ],
+          "details": [
+            "The dishes sit flat on the incubator shelf"
+          ],
+          "definingAction": "The operator removes waste and items from the hood, wipes or sprays the surface, and lowers or closes the sash.",
+          "caveats": [
+            "Whether the dishes are exactly level may not be clearly visible"
+          ],
+          "criticality": "informational",
+          "category": "action"
+        }
+      ]
+    },
+    "observations": [
+      {
+        "id": "step-01-agent",
+        "stepId": "step-01",
+        "timestampStart": 1,
+        "timestampEnd": 7,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The spray contents can't be confirmed from video.",
+          "Not establishable from video: The spray contents being 70% ethanol cannot be confirmed by video"
+        ],
+        "confidence": 0.85,
+        "provenance": "claude_agent",
+        "summary": "Operator sprays gloved hands from a spray bottle in front of the hood and rubs them together, before handling any reagents.",
+        "checkResults": [
+          {
+            "check": "The operator sprays their hands with a spray bottle",
+            "result": "confirmed",
+            "note": "Spray bottle aimed at the gloved hands at 1.9 s."
+          },
+          {
+            "check": "The hands are rubbed together after spraying",
+            "result": "confirmed",
+            "note": "Hands rubbed together at 5.6 s."
+          },
+          {
+            "check": "This happens before reagents are gathered or items are placed in the hood",
+            "result": "confirmed",
+            "note": "Reagent handling starts around 9–17 s, after this."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-01-e0",
+            "timestamp": 1.9,
+            "end": 2.9,
+            "description": "Spray bottle held to the gloved hands.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e1",
+            "timestamp": 5.6,
+            "end": 6.6,
+            "description": "Hands rubbed together.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-03-agent",
+        "stepId": "step-03",
+        "timestampStart": 9,
+        "timestampEnd": 31,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Not every item is seen being cleaned.",
+          "Not establishable from video: Whether every material was sprayed cannot be confirmed from sampled frames",
+          "Not establishable from video: The spray being 70% ethanol cannot be confirmed",
+          "Not establishable from video: Sterility cannot be verified",
+          "Not establishable from video: Claim about every item, not verifiable from video: Cleaning happens before each item crosses into the cabinet, not after"
+        ],
+        "confidence": 0.75,
+        "provenance": "claude_agent",
+        "summary": "The operator picks up the spray bottle, wipes the medium bottle and PBS bottle with a paper towel, then carries them into the hood.",
+        "checkResults": [
+          {
+            "check": "Items are cleaned, by spraying or wiping, before entering the hood",
+            "result": "confirmed",
+            "note": "Bottles wiped with a towel at 16.9–24.4 s."
+          },
+          {
+            "check": "The cleaned items are placed inside the biosafety cabinet",
+            "result": "confirmed",
+            "note": "Bottles placed inside the hood at 28–31 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-03-e0",
+            "timestamp": 16.9,
+            "end": 17.9,
+            "description": "Medium bottle wiped with a paper towel.",
+            "kind": "video"
+          },
+          {
+            "id": "step-03-e1",
+            "timestamp": 20.6,
+            "end": 21.6,
+            "description": "Bottle being wiped down.",
+            "kind": "video"
+          },
+          {
+            "id": "step-03-e2",
+            "timestamp": 30.7,
+            "end": 31.7,
+            "description": "Medium and PBS bottles set down in the hood.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-04-agent",
+        "stepId": "step-04",
+        "timestampStart": 36,
+        "timestampEnd": 46,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The dish size is estimated by eye.",
+          "Not establishable from video: Which cell line or dish is taken depends on labels"
+        ],
+        "confidence": 0.8,
+        "provenance": "claude_agent",
+        "summary": "The Heracell CO2 incubator is opened, a culture dish is taken out, and the outer door is pushed shut.",
+        "checkResults": [
+          {
+            "check": "The incubator door is opened",
+            "result": "confirmed",
+            "note": "Doors opened at 37–41 s."
+          },
+          {
+            "check": "A 10 cm culture dish is taken out of the incubator",
+            "result": "confirmed",
+            "note": "Dish containing pink medium held at 44–47 s. Its size looks consistent with a 10 cm dish."
+          },
+          {
+            "check": "The dish is kept level while carried",
+            "result": "confirmed",
+            "note": "Dish held flat while carried at 47.6 s."
+          },
+          {
+            "check": "The incubator door is closed afterwards",
+            "result": "confirmed",
+            "note": "Hand pushes the incubator door shut at 44.2 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-04-e0",
+            "timestamp": 40.8,
+            "end": 41.8,
+            "description": "Incubator inner door open and hand reaching inside.",
+            "kind": "video"
+          },
+          {
+            "id": "step-04-e1",
+            "timestamp": 44.2,
+            "end": 45.2,
+            "description": "Door pushed closed with the dish in the other hand.",
+            "kind": "video"
+          },
+          {
+            "id": "step-04-e2",
+            "timestamp": 47.6,
+            "end": 48.6,
+            "description": "Dish carried level toward the hood.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-05-agent",
+        "stepId": "step-05",
+        "timestampStart": 49,
+        "timestampEnd": 55,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [],
+        "confidence": 0.8,
+        "provenance": "claude_agent",
+        "summary": "The dish is set on the hood work surface in the middle of the cabinet.",
+        "checkResults": [
+          {
+            "check": "The culture dish is placed on the work surface inside the biosafety cabinet",
+            "result": "confirmed",
+            "note": "Dish on the hood surface at 50.9–54.3 s."
+          },
+          {
+            "check": "The dish is placed well inside the cabinet rather than at the front grille",
+            "result": "confirmed",
+            "note": "The dish sits in the middle of the surface, not on the front grille."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-05-e0",
+            "timestamp": 54.3,
+            "end": 55.3,
+            "description": "Dish on the work surface inside the hood.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-06-agent",
+        "stepId": "step-06",
+        "timestampStart": 56,
+        "timestampEnd": 62,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Not establishable from video: Complete removal of the medium may be hard to confirm visually"
+        ],
+        "confidence": 0.8,
+        "provenance": "claude_agent",
+        "summary": "A vacuum aspirator with a pipette tip is put into the dish and the pink medium is drawn off.",
+        "checkResults": [
+          {
+            "check": "The vacuum aspirator tip is placed into the dish",
+            "result": "confirmed",
+            "note": "Aspirator tip in the dish at 59.7 s."
+          },
+          {
+            "check": "Medium is removed from the dish",
+            "result": "confirmed",
+            "note": "Pink medium visible in the aspirator tip and line at 61.6 s."
+          },
+          {
+            "check": "The aspirator tip is held at the dish edge rather than scraping the cell layer",
+            "result": "confirmed",
+            "note": "Tip placed at the dish edge."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-06-e0",
+            "timestamp": 59.7,
+            "end": 60.7,
+            "description": "Aspirator tip entering the dish.",
+            "kind": "video"
+          },
+          {
+            "id": "step-06-e1",
+            "timestamp": 61.6,
+            "end": 62.6,
+            "description": "Pink medium being drawn into the aspirator.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-07-agent",
+        "stepId": "step-07",
+        "timestampStart": 61,
+        "timestampEnd": 64,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Not establishable from video: The amount of residual medium cannot be measured"
+        ],
+        "confidence": 0.7,
+        "provenance": "claude_agent",
+        "summary": "The dish is tilted with the left hand and the aspirator draws from the lowered edge.",
+        "checkResults": [
+          {
+            "check": "The dish is tilted",
+            "result": "confirmed",
+            "note": "Dish tilted at 61.6–63.4 s."
+          },
+          {
+            "check": "Residual liquid is aspirated from the lowered edge",
+            "result": "confirmed",
+            "note": "Aspirator tip at the lowered edge."
+          },
+          {
+            "check": "No visible liquid remains pooled in the dish afterwards",
+            "result": "confirmed",
+            "note": "Dish looks clear of liquid at 64–65 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-07-e0",
+            "timestamp": 63.4,
+            "end": 64.4,
+            "description": "Dish tilted with the aspirator at the low edge.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-08-agent",
+        "stepId": "step-08",
+        "timestampStart": 74,
+        "timestampEnd": 86,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The dispense into the dish is not seen.",
+          "Not establishable from video: The volume (3 ml) cannot be confirmed",
+          "Not establishable from video: The reagent being PBS depends on the label"
+        ],
+        "confidence": 0.6,
+        "provenance": "claude_agent",
+        "summary": "A serological pipette on a controller draws from the bottle labelled 'TC CMF PBS' and is then moved toward the dish. The actual dispensing is hidden behind the arm.",
+        "checkResults": [
+          {
+            "check": "A serological pipette on a pipette controller draws liquid from a reagent bottle",
+            "result": "confirmed",
+            "note": "Pipette in the PBS bottle at 78–81 s."
+          },
+          {
+            "check": "The liquid is dispensed into the culture dish",
+            "result": "not_visible",
+            "note": "The dispensing at 84–86 s is hidden by the arm."
+          },
+          {
+            "check": "The liquid is dispensed against the dish wall rather than directly onto the cells",
+            "result": "not_visible",
+            "note": "Dispensing is not visible."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-08-e0",
+            "timestamp": 78.3,
+            "end": 79.3,
+            "description": "Pipette drawing from the PBS bottle.",
+            "kind": "video"
+          },
+          {
+            "id": "step-08-e1",
+            "timestamp": 84.3,
+            "end": 85.3,
+            "description": "Pipette moved over toward the dish, with the arm blocking the view.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-09-agent",
+        "stepId": "step-09",
+        "timestampStart": 87,
+        "timestampEnd": 90,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The motion is short. It may just be repositioning before aspiration rather than rocking."
+        ],
+        "confidence": 0.45,
+        "provenance": "claude_agent",
+        "summary": "After the PBS addition the dish is moved and tilted by hand on the surface for a few seconds, with no pipette in the dish.",
+        "checkResults": [
+          {
+            "check": "The dish is gently rocked or tilted back and forth so the liquid moves across the surface",
+            "result": "confirmed",
+            "note": "Hand moves and tilts the dish across 87.8–89.6 s."
+          },
+          {
+            "check": "The movement is gentle, without splashing",
+            "result": "confirmed",
+            "note": "No splashing seen."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-09-e0",
+            "timestamp": 87.8,
+            "end": 88.8,
+            "description": "Hand on the dish.",
+            "kind": "video"
+          },
+          {
+            "id": "step-09-e1",
+            "timestamp": 89.6,
+            "end": 90.6,
+            "description": "Dish tilted and moved.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-10-agent",
+        "stepId": "step-10",
+        "timestampStart": 90,
+        "timestampEnd": 95,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Not establishable from video: Complete removal cannot be confirmed precisely"
+        ],
+        "confidence": 0.7,
+        "provenance": "claude_agent",
+        "summary": "The aspirator is placed into the tilted dish and the PBS is removed.",
+        "checkResults": [
+          {
+            "check": "The aspirator tip is placed into the dish",
+            "result": "confirmed",
+            "note": "Aspirator tip in the dish at 93 s."
+          },
+          {
+            "check": "The liquid is removed from the dish",
+            "result": "confirmed",
+            "note": "Liquid drawn off at the tilted edge."
+          },
+          {
+            "check": "The dish appears empty of liquid afterwards",
+            "result": "not_visible",
+            "note": "The dish is occluded or too small to judge afterwards."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-10-e0",
+            "timestamp": 93,
+            "end": 94,
+            "description": "Dish tilted with the aspirator at its edge.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-11-agent",
+        "stepId": "step-11",
+        "timestampStart": 99,
+        "timestampEnd": 114,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The reagent identity can't be read from the label.",
+          "The target dish at the moment of dispensing is only partly visible.",
+          "Not establishable from video: The volume (1 ml) cannot be confirmed",
+          "Not establishable from video: The reagent identity (0.25% Trypsin-EDTA) depends on the label"
+        ],
+        "confidence": 0.6,
+        "provenance": "claude_agent",
+        "summary": "A small white-capped bottle is opened. A P1000 micropipette draws from it (bottle tilted) and dispenses into the dish area.",
+        "checkResults": [
+          {
+            "check": "Liquid is drawn from a reagent container with a pipette",
+            "result": "confirmed",
+            "note": "Micropipette draws from the small bottle at 107–109 s."
+          },
+          {
+            "check": "The liquid is dispensed into the washed culture dish",
+            "result": "confirmed",
+            "note": "Pipette lowered to dispense at 111.6 s, though the exact dish is partly unclear."
+          },
+          {
+            "check": "This happens after the PBS has been aspirated",
+            "result": "confirmed",
+            "note": "Happens after the PBS aspiration at 93 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-11-e0",
+            "timestamp": 109.4,
+            "end": 110.4,
+            "description": "P1000 drawing from the tilted small bottle.",
+            "kind": "video"
+          },
+          {
+            "id": "step-11-e1",
+            "timestamp": 111.6,
+            "end": 112.6,
+            "description": "Pipette lowered to dispense.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-12-agent",
+        "stepId": "step-12",
+        "timestampStart": 119,
+        "timestampEnd": 121,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Tilting in several directions is not clearly established.",
+          "Not establishable from video: Even coverage of the entire surface cannot be confirmed"
+        ],
+        "confidence": 0.55,
+        "provenance": "claude_agent",
+        "summary": "The dish is lifted with both hands and tilted, then set back down.",
+        "checkResults": [
+          {
+            "check": "The dish is tilted in different directions after the trypsin is added",
+            "result": "confirmed",
+            "note": "Dish lifted and tilted at 119.7–120.6 s."
+          },
+          {
+            "check": "The liquid visibly spreads over the dish surface",
+            "result": "not_visible",
+            "note": "The liquid spreading is too small to see."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-12-e0",
+            "timestamp": 120.5,
+            "end": 121.5,
+            "description": "Dish held in both hands and tilted.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-14-agent",
+        "stepId": "step-14",
+        "timestampStart": 137,
+        "timestampEnd": 158,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Not establishable from video: The volume (5 ml) cannot be confirmed",
+          "Not establishable from video: The reagent being complete medium depends on the label"
+        ],
+        "confidence": 0.75,
+        "provenance": "claude_agent",
+        "summary": "The medium bottle cap is removed. A serological pipette draws pink medium from the bottle and dispenses it into the culture dish.",
+        "checkResults": [
+          {
+            "check": "Liquid is drawn from the medium bottle with a serological pipette",
+            "result": "confirmed",
+            "note": "Pipette drawing from the medium bottle at 152 s."
+          },
+          {
+            "check": "The liquid is dispensed into the culture dish",
+            "result": "confirmed",
+            "note": "Pink liquid in the dish with the pipette in it at 157 s."
+          },
+          {
+            "check": "This happens after the trypsin step",
+            "result": "confirmed",
+            "note": "Happens after the trypsin step."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-14-e0",
+            "timestamp": 138.8,
+            "end": 139.8,
+            "description": "Medium bottle cap removed.",
+            "kind": "video"
+          },
+          {
+            "id": "step-14-e1",
+            "timestamp": 152.3,
+            "end": 153.3,
+            "description": "Pipette drawing medium.",
+            "kind": "video"
+          },
+          {
+            "id": "step-14-e2",
+            "timestamp": 157.2,
+            "end": 158.2,
+            "description": "Medium in the dish with the pipette.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-15-agent",
+        "stepId": "step-15",
+        "timestampStart": 157,
+        "timestampEnd": 163,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The repetitions can't be counted from sampled frames.",
+          "Not establishable from video: The exact number of repetitions (5-10) cannot be confirmed",
+          "Not establishable from video: Whether a single-cell suspension forms cannot be seen"
+        ],
+        "confidence": 0.55,
+        "provenance": "claude_agent",
+        "summary": "The pipette stays in the tilted dish, drawing and expelling the pink liquid.",
+        "checkResults": [
+          {
+            "check": "Liquid is repeatedly aspirated and expelled within the dish using the serological pipette",
+            "result": "confirmed",
+            "note": "Pipette in the tilted dish at 157–162 s with liquid moving in it."
+          },
+          {
+            "check": "The liquid is expelled across the dish surface to rinse the cells off",
+            "result": "not_visible",
+            "note": "Rinsing across the surface can't be resolved."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-15-e0",
+            "timestamp": 161.6,
+            "end": 162.6,
+            "description": "Pipette tip in the tilted dish, with liquid drawn into the pipette.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-16-agent",
+        "stepId": "step-16",
+        "timestampStart": 160,
+        "timestampEnd": 184,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The tube size can't be confirmed.",
+          "Not establishable from video: The volume (6 ml) and full transfer cannot be confirmed",
+          "Not establishable from video: The tube size is inconsistent in the document (15 ml in the equipment list, 50 ml in the step)",
+          "Not establishable from video: Sterility cannot be verified"
+        ],
+        "confidence": 0.7,
+        "provenance": "claude_agent",
+        "summary": "The suspension is drawn from the tilted dish and dispensed into a conical tube in the rack. The tube is then capped and shows pink contents.",
+        "checkResults": [
+          {
+            "check": "The cell suspension is drawn from the dish",
+            "result": "confirmed",
+            "note": "Pipette drawing from the dish at 161.6 s."
+          },
+          {
+            "check": "It is dispensed into a conical tube",
+            "result": "confirmed",
+            "note": "Pipette in the conical tube at 165.9 s, and the tube holds pink liquid at 183 s."
+          },
+          {
+            "check": "The dish is tilted to collect all of the suspension",
+            "result": "confirmed",
+            "note": "Dish tilted while drawing."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-16-e0",
+            "timestamp": 165.9,
+            "end": 166.9,
+            "description": "Pipette dispensing into a conical tube in the rack.",
+            "kind": "video"
+          },
+          {
+            "id": "step-16-e1",
+            "timestamp": 183.4,
+            "end": 184.4,
+            "description": "Capped tube with pink suspension.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-17-agent",
+        "stepId": "step-17",
+        "timestampStart": 209,
+        "timestampEnd": 218,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Volume not confirmable.",
+          "Not establishable from video: The volume cannot be confirmed, and the document is inconsistent (~2 ml calculated for a 1:3 split versus 5 ml stated)",
+          "Not establishable from video: The split ratio calculation is mental and not observable",
+          "Not establishable from video: Whether the dish is new or labelled cannot be confirmed"
+        ],
+        "confidence": 0.65,
+        "provenance": "claude_agent",
+        "summary": "The conical tube is held while the pipette draws pink suspension from it, then the suspension is dispensed into the new dish. That dish already contained medium, so it was not empty.",
+        "checkResults": [
+          {
+            "check": "The cell suspension is drawn from the conical tube",
+            "result": "confirmed",
+            "note": "Pipette drawing from the tube held in the hand at 213 s."
+          },
+          {
+            "check": "It is dispensed into a new 10 cm culture dish",
+            "result": "confirmed",
+            "note": "Dispensed into the centre dish at 217 s. The dish already held medium added at 206 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-17-e0",
+            "timestamp": 213,
+            "end": 214,
+            "description": "Pipette withdrawing suspension from the conical tube.",
+            "kind": "video"
+          },
+          {
+            "id": "step-17-e1",
+            "timestamp": 217,
+            "end": 218,
+            "description": "Pipette tip dispensing into the new dish.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-18-agent",
+        "stepId": "step-18",
+        "timestampStart": 200,
+        "timestampEnd": 208,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "There may have been a second medium addition that wasn't seen.",
+          "Not establishable from video: The volumes (5 ml added, 10 ml total) cannot be confirmed",
+          "Not establishable from video: The medium identity depends on the label"
+        ],
+        "confidence": 0.55,
+        "provenance": "claude_agent",
+        "summary": "Fresh medium is drawn from the medium bottle and dispensed into the new dish. This happens before the cell suspension is added, not after.",
+        "checkResults": [
+          {
+            "check": "Liquid is drawn from the medium bottle",
+            "result": "confirmed",
+            "note": "Pipette drawing from the tilted medium bottle at 202 s."
+          },
+          {
+            "check": "It is dispensed into the newly seeded dish",
+            "result": "confirmed",
+            "note": "Dispensed into the new centre dish at 206 s."
+          },
+          {
+            "check": "This follows the addition of the cell suspension",
+            "result": "contradicted",
+            "note": "The suspension is added afterwards (213–217 s), so medium came first."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-18-e0",
+            "timestamp": 202.2,
+            "end": 203.2,
+            "description": "Drawing medium from the bottle.",
+            "kind": "video"
+          },
+          {
+            "id": "step-18-e1",
+            "timestamp": 206.5,
+            "end": 207.5,
+            "description": "Dispensing into the new dish.",
+            "kind": "video"
+          },
+          {
+            "id": "step-18-e2",
+            "timestamp": 213,
+            "end": 214,
+            "description": "Suspension drawn from the tube only after this.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-19-agent",
+        "stepId": "step-19",
+        "timestampStart": 222,
+        "timestampEnd": 226,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "This may simply be picking up the dish.",
+          "Not establishable from video: Even distribution of the cells cannot be confirmed"
+        ],
+        "confidence": 0.35,
+        "provenance": "claude_agent",
+        "summary": "A hand rests on the new dish and moves it briefly on the surface. The motion pattern can't be resolved from the frames.",
+        "checkResults": [
+          {
+            "check": "The dish is moved forward-backward and side-to-side on the surface",
+            "result": "not_visible",
+            "note": "Only one or two frames show a hand on the dish."
+          },
+          {
+            "check": "The motion is in a cross pattern rather than swirling",
+            "result": "not_visible",
+            "note": "The pattern can't be determined."
+          },
+          {
+            "check": "The movement is gentle, without spilling",
+            "result": "not_visible",
+            "note": "No spill visible, but the frames are insufficient."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-19-e0",
+            "timestamp": 223.8,
+            "end": 224.8,
+            "description": "Hand on the new dish on the surface.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-20-agent",
+        "stepId": "step-20",
+        "timestampStart": 226,
+        "timestampEnd": 238,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Only one dish is clearly seen; the original dish may have been discarded.",
+          "Not establishable from video: The incubator conditions (37°C, CO2) cannot be confirmed"
+        ],
+        "confidence": 0.65,
+        "provenance": "claude_agent",
+        "summary": "The dish is carried from the hood to the incubator and placed inside. Closing of the door is not seen.",
+        "checkResults": [
+          {
+            "check": "The dishes are placed inside the incubator",
+            "result": "confirmed",
+            "note": "Dish being put on the incubator shelf at 233.6 s."
+          },
+          {
+            "check": "The incubator door is closed afterwards",
+            "result": "not_visible",
+            "note": "Door closing not captured."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-20-e0",
+            "timestamp": 226.8,
+            "end": 227.8,
+            "description": "Dish carried out of the hood.",
+            "kind": "video"
+          },
+          {
+            "id": "step-20-e1",
+            "timestamp": 233.6,
+            "end": 234.6,
+            "description": "Dish placed into the incubator.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-21-agent",
+        "stepId": "step-21",
+        "timestampStart": 240,
+        "timestampEnd": 270,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Not establishable from video: Whether the dishes are exactly level may not be clearly visible"
+        ],
+        "confidence": 0.5,
+        "provenance": "claude_agent",
+        "summary": "Items are removed from the hood and its surface is largely cleared by the end. Surface wiping and sash closure are not clearly shown.",
+        "checkResults": [
+          {
+            "check": "Materials and waste are removed from the hood",
+            "result": "confirmed",
+            "note": "Hood mostly cleared by 267 s compared with earlier."
+          },
+          {
+            "check": "The work surface is cleaned by spraying or wiping",
+            "result": "not_visible",
+            "note": "Spray bottles are visible at 260.6 s but spraying or wiping of the surface is not seen."
+          },
+          {
+            "check": "The hood sash is closed or lowered",
+            "result": "not_visible",
+            "note": "Sash closure not seen."
+          },
+          {
+            "check": "The dishes sit flat on the incubator shelf",
+            "result": "not_visible",
+            "note": "The dish on the shelf is not clearly viewed."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-21-e0",
+            "timestamp": 253.9,
+            "end": 254.9,
+            "description": "Items being bagged or removed from the hood.",
+            "kind": "video"
+          },
+          {
+            "id": "step-21-e1",
+            "timestamp": 260.6,
+            "end": 261.6,
+            "description": "Waste bin and spray bottles.",
+            "kind": "video"
+          },
+          {
+            "id": "step-21-e2",
+            "timestamp": 267.4,
+            "end": 268.4,
+            "description": "Hood work surface largely cleared.",
+            "kind": "video"
+          }
+        ]
+      }
+    ],
+    "absences": [
+      {
+        "stepId": "step-02",
+        "reason": "not_visible",
+        "confidence": 0.5,
+        "note": "At 9 s the reagent bottles (PBS, medium, small bottle) are already on the side bench next to the hood. Nobody is seen collecting them from a fridge, shelf or bath."
+      },
+      {
+        "stepId": "step-13",
+        "reason": "not_visible",
+        "confidence": 0.45,
+        "note": "No tapping of the dish sides is seen. After the tilt at 121 s the camera moves and shows mostly other activity, so a tap could have been missed."
+      }
+    ],
+    "log": [
+      "Reviewed 40 overview frames",
+      "With a 270s recording to work through, I should focus on key windows rather than reviewing everything—starting with the first 30 seconds where I can spot a gloved hand around frame 3.4 and what looks like a bag with bottles being wiped down around frame 16.9.",
+      "Inspected 00:00.0–00:30.0 (8 frames)",
+      "I'm tracking the timeline of hand spraying around 1.9, rubbing at 5.6, and possibly handling a spray bottle near 9.4 and spraying the hood around 13.1. The reagent bottles appear already on the bench near the microscope by 9.4, with wiping happening between 16.9-24.4, though I don't see where the bottles were originally gathered from.\n\nStep-02 may not be visible in this segment, so I should check the 30-60 range for where the incubator and hood are placed.",
+      "Inspected 00:29.0–00:56.0 (8 frames)",
+      "I'm tracking the sequence: the incubator opens around frame 37-41, the dish is removed around 44, the door closes, and then the dish is placed in the hood between frames 50-54 before aspiration begins around frame 54-70.",
+      "Inspected 00:55.0–01:10.0 (8 frames)",
+      "I'm tracking the aspiration step around frames 57-64, noting the dish tilt at 61-63 with the aspirator positioned at the lowered edge, then checking the PBS wash spanning 67-90, so I'll look closer at frames 70-92.",
+      "Inspected 01:12.0–01:32.0 (8 frames)",
+      "I'm tracking the PBS draw from the labeled bottle around the 78-81 mark, then watching the dish get handled afterward—checking whether the hand motions around 84-92 suggest rocking the dish before the aspirator comes back into play at 90.8.",
+      "Inspected 01:23.0–01:30.0 (8 frames)",
+      "The PBS dispensing seems to happen off-camera, likely obscured by the arm around 84-86 seconds. I'm trying to track which dish is which since there are several empty ones, and the culture dish appears to be the one under the arm near the front-center. Dispensing isn't clearly visible, but I notice what looks like moderate rocking around 87-89 with a hand on the dish, followed by PBS aspiration from 90-100.\n\nI'll check the 90-102 window next.",
+      "Inspected 01:30.0–01:44.0 (7 frames)",
+      "I'm noting the PBS aspiration with the dish tilted around frames 91-94, then spotting the trypsin bottle with its white cap appearing around 99-103, followed by the P1000 micropipette drawing trypsin and dispensing it into the dish between roughly 105-125.",
+      "Inspected 01:46.0–02:04.0 (8 frames)",
+      "I'm tracking the trypsin being drawn from the small bottle and dispensed, trying to pin down whether it's going into the culture dish given the pipette tip's position near the dish and tip box areas. By the later timestamp, the dish appears to be held with both hands and tilted.\n\nNow I'm checking the later frames for a possible tapping motion around 120-130, noting the camera movement and hand positions at the tube rack, so I want to review that window more closely.",
+      "Inspected 01:59.0–02:11.0 (7 frames)",
+      "I'm tracking the tilting motion around frame 120 and the dish placement at 121.6, trying to pin down whether a tapping action happened somewhere in the 113-120 range or if it's not clearly visible at all. I'm planning to check a tighter window of frames around 116-121 to confirm, while keeping in mind the budget for remaining steps like medium addition, pipetting, transfer, seeding, rocking, and incubation still need coverage.",
+      "Inspected 01:56.5–02:01.0 (5 frames)",
+      "I'm checking the 119.7-130 window for tapping, but the camera angle around 123-126 only shows the left hand, so I'd mark that stretch as not clearly visible with moderate confidence. I also note the dish lifted around 120 could be the culture dish with trypsin added, which seems consistent.\n\nMoving to the 138-165 range, I see the orange cap removed from the medium bottle, the pipette controller appearing, drawing medium, then pipetting pink liquid into the dish repeatedly. From there I'm tracking conical tubes and hand movements through 172-220, trying to pin down whether the pipette is dispensing pink suspension into a new dish versus drawing from a tube, so I need to review the 156-185 frames more closely.",
+      "Inspected 02:35.0–03:10.0 (8 frames)",
+      "I'm tracking the pipetting sequence with the tilted dish, then the transfer into the conical tube where the contents turn pink, suggesting a cell suspension. After capping that tube, it looks like the suspension gets reseeded into a new dish, which also turns pink, followed by what seems like a rocking or mixing step.\n\nNow I want to check the incubator stage around 226-240, so I'll pull up frames from 200-226 at wider intervals and then 226-268 more sparsely to see what happens next.",
+      "Inspected 03:20.0–03:46.0 (6 frames)",
+      "I'm tracing the sequence of pipetting steps—drawing medium from the bottle around frame 202, dispensing it into the new center dish around 206, then noticing a pink suspension appears at 210, trying to figure out whether that liquid originated from the medium bottle or a separate tube.\n\nLooking at the left hand position near the tube rack around 210-215 suggests the suspension may have actually been drawn from a tube before being added to the dish, which would mean medium went in first and suspension second—contradicting what I assumed earlier. I'm uncertain and want to pick a few more frames around 212-218 to confirm the source.\n\nFor the rest of the sequence, I'm mapping out the overview frames: the dish being carried around 226.8, placed into the incubator near 233.6, returning to the hood by 240, then cleanup activity with a bag around 253.9, turning toward the waste bin and spray bottles at 260.6, and the hood mostly emptied by 267.4. I still need to check whether the sash gets closed and whether there's a rocking step around 223.8 for cross-mixing the dish.",
+      "Inspected 03:32.0–03:38.0 (3 frames)",
+      "I'm tracing the sequence: medium added to the dish first at steps around 202-206, then suspension drawn from the conical tube and dispensed into that same dish around 213-217, confirming the dish wasn't empty when the suspension was added. Now I'm checking step 18, where medium is drawn from a bottle and dispensed elsewhere.\n\nFor step 9, the rocking motion is only weakly supported — hand on the dish causing slight shifting around 87-89 — so I'll mark it found but with low confidence, and note PBS dispensing wasn't directly observed, leaving that sub-check as not visible.\n\nFor step 2, bottles appear already on the bench near the hood at 9.4 without visible retrieval from storage, so I'll mark that as not visible, while the move to the hood around 24-30 counts as bringing them to the workspace. For step 3, wiping with a paper towel occurs around 16.9-24.4, which I'm using to support that check.\n\nStep 1 is confirmed with spraying and rubbing motions before reagents appear. For step 20, the dish goes into the incubator around 233.6 with the inner door open, but closing isn't visible. Step 21 shows item removal around 247-267 and bottles placed near waste at 260, though surface wiping and sash closure aren't clearly verifiable — I'll mark this as partially found with removal confirmed.\n\nStep 16's tilted dish check is confirmed around 161.6, while step 15's pipetting evidence around 157-162 is thinner, so that's partial. Step 14 is solidly confirmed with cap removal, drawing, and dispensing events in sequence. Step 19 only has a hand on the dish around 223.8 without clear cross-pattern evidence, so that's low confidence. I'm ready to submit these findings.",
+      "Submitted findings for 21 steps"
+    ],
+    "usage": {
+      "input": 28,
+      "cacheWrite": 59275,
+      "cacheRead": 457120,
+      "output": 10454
+    },
+    "generatedAt": "2026-10-04T03:05:46.484Z"
+  },
+  "DJI_23": {
+    "method": {
+      "schemaVersion": 1,
+      "title": "Medium Refresh and Cytokine Addition to Cultured Cells",
+      "version": "1.0",
+      "source": "Add-cytokine-into-cells.pdf",
+      "summary": "Hands are disinfected and the culture plate is moved from the incubator to the TC hood. Old medium is aspirated and pre-warmed fresh medium is added. Cytokine(s) are added with a micropipette, the cells are checked on an inverted microscope, and the plate goes back into the incubator.",
+      "requirements": [
+        {
+          "id": "step-01",
+          "title": "Disinfect hands with ethanol",
+          "description": "Disinfect hands thoroughly with 70% ethanol.",
+          "order": 1,
+          "checks": [
+            "Ethanol is sprayed or dispensed onto the hands",
+            "Hands are rubbed together to spread it",
+            "Done before the plate is taken from the incubator"
+          ],
+          "details": [
+            "Done before the plate is taken from the incubator"
+          ],
+          "definingAction": "Ethanol is sprayed onto the gloved or bare hands, which are then rubbed together; no lab vessels are handled.",
+          "caveats": [
+            "Ethanol concentration (70%) cannot be confirmed on video",
+            "Whether coverage is thorough cannot be judged"
+          ],
+          "criticality": "important",
+          "category": "action"
+        },
+        {
+          "id": "step-02",
+          "title": "Transfer plate to TC hood",
+          "description": "Carefully remove the required cell culture plate from the incubator, and transport the plate into TC hood.",
+          "order": 2,
+          "checks": [
+            "A culture plate is taken out of the incubator",
+            "The plate is placed inside the TC hood",
+            "The plate is held level while carried",
+            "The incubator door is closed after the plate is removed"
+          ],
+          "details": [
+            "The plate is held level while carried",
+            "The incubator door is closed after the plate is removed"
+          ],
+          "definingAction": "The incubator door is opened, a culture plate is taken out and carried into the tissue culture hood.",
+          "caveats": [
+            "Whether it is the correct plate depends on labels that cannot be read on video"
+          ],
+          "criticality": "important",
+          "category": "identity"
+        },
+        {
+          "id": "step-03",
+          "title": "Aspirate old medium",
+          "description": "Inside the hood, gently aspirate and discard the old medium from the culture plate without disturbing the cells.",
+          "order": 3,
+          "checks": [
+            "The aspiration pipette tip is placed into the plate inside the hood",
+            "Medium is removed from the plate",
+            "The plate is tilted and the tip placed at the well edge rather than on the cell layer",
+            "Aspiration happens before fresh medium is added"
+          ],
+          "details": [
+            "The plate is tilted and the tip placed at the well edge rather than on the cell layer",
+            "Aspiration happens before fresh medium is added"
+          ],
+          "definingAction": "A glass pipette on the vacuum aspiration line is lowered into the plate and medium is drawn out into the aspirator; nothing is dispensed.",
+          "caveats": [
+            "Whether cells are disturbed or detached cannot be confirmed on video",
+            "Sterility of the aspiration pipette cannot be verified"
+          ],
+          "criticality": "important",
+          "category": "action"
+        },
+        {
+          "id": "step-04",
+          "title": "Add pre-warmed fresh medium",
+          "description": "Using a sterile pipette, add the appropriate volume of pre-warmed fresh medium to the plate.",
+          "order": 4,
+          "checks": [
+            "Medium is drawn from a bottle with a serological pipette and pipette controller",
+            "Medium is dispensed into the culture plate",
+            "Medium is dispensed gently against the well wall rather than directly onto cells",
+            "The medium bottle is capped afterwards",
+            "Done after the old medium is aspirated"
+          ],
+          "details": [
+            "Medium is dispensed gently against the well wall rather than directly onto cells",
+            "The medium bottle is capped afterwards",
+            "Done after the old medium is aspirated"
+          ],
+          "definingAction": "A serological pipette on a pipette controller draws medium from a medium bottle and dispenses it into the plate.",
+          "caveats": [
+            "Volume added cannot be verified",
+            "That the medium is pre-warmed and is the correct medium cannot be confirmed",
+            "Sterility of the pipette cannot be verified"
+          ],
+          "criticality": "critical",
+          "category": "action"
+        },
+        {
+          "id": "step-05",
+          "title": "Add cytokine(s) to medium",
+          "description": "Add cytokine(s) to the medium at the desired working concentration.",
+          "order": 5,
+          "checks": [
+            "A micropipette draws liquid from a small tube",
+            "The liquid is dispensed into the plate containing medium",
+            "Done after the fresh medium has been added",
+            "The plate is gently swirled or rocked afterwards to distribute the cytokine"
+          ],
+          "details": [
+            "Done after the fresh medium has been added",
+            "The plate is gently swirled or rocked afterwards to distribute the cytokine"
+          ],
+          "definingAction": "A micropipette draws liquid from a small cytokine tube and dispenses it into the medium in the plate.",
+          "caveats": [
+            "Cytokine identity cannot be confirmed without reading labels",
+            "Volume and working concentration cannot be verified",
+            "Whether multiple cytokines are added correctly cannot be confirmed"
+          ],
+          "criticality": "critical",
+          "category": "identity"
+        },
+        {
+          "id": "step-06",
+          "title": "Inspect cells under microscope",
+          "description": "Examine the cells under an inverted microscope to assess cell health, density, and morphology.",
+          "order": 6,
+          "checks": [
+            "The culture plate is placed on the inverted microscope stage",
+            "The cells are viewed on the microscope",
+            "The plate stays covered with its lid during imaging"
+          ],
+          "details": [
+            "The plate stays covered with its lid during imaging"
+          ],
+          "definingAction": "The plate is placed on the stage of the inverted (EVOS) microscope and the cells are viewed on its screen or through it.",
+          "caveats": [
+            "The actual judgement of cell health, density and morphology cannot be verified from video"
+          ],
+          "criticality": "informational",
+          "category": "action"
+        },
+        {
+          "id": "step-07",
+          "title": "Return plate to incubator",
+          "description": "Place the plate back into the incubator at the correct conditions.",
+          "order": 7,
+          "checks": [
+            "The plate is placed inside the CO2 incubator",
+            "The incubator door is closed afterwards",
+            "The plate is kept level during transfer"
+          ],
+          "details": [
+            "The incubator door is closed afterwards",
+            "The plate is kept level during transfer"
+          ],
+          "definingAction": "The plate is carried to the CO2 incubator, placed on a shelf inside and the door is closed.",
+          "caveats": [
+            "Incubator conditions (temperature, CO2) cannot be confirmed on video"
+          ],
+          "criticality": "important",
+          "category": "action"
+        }
+      ]
+    },
+    "observations": [
+      {
+        "id": "step-01-agent",
+        "stepId": "step-01",
+        "timestampStart": 1.5,
+        "timestampEnd": 5.8,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The spray liquid cannot be identified as ethanol.",
+          "Not establishable from video: Ethanol concentration (70%) cannot be confirmed on video",
+          "Not establishable from video: Whether coverage is thorough cannot be judged"
+        ],
+        "confidence": 0.85,
+        "provenance": "claude_agent",
+        "summary": "Next to the hood, the operator sprays the gloved hands from a blue spray bottle and rubs them together, then moves to the incubator.",
+        "checkResults": [
+          {
+            "check": "Ethanol is sprayed or dispensed onto the hands",
+            "result": "confirmed",
+            "note": "A blue spray bottle is held at the gloved hands at 1.8–2.9 s."
+          },
+          {
+            "check": "Hands are rubbed together to spread it",
+            "result": "confirmed",
+            "note": "The gloved hands are rubbed together at 4.1–5.3 s."
+          },
+          {
+            "check": "Done before the plate is taken from the incubator",
+            "result": "confirmed",
+            "note": "This happens before the incubator is opened at about 6.4 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-01-e0",
+            "timestamp": 1.8,
+            "end": 2.8,
+            "description": "A spray bottle is held near the open gloved hand.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e1",
+            "timestamp": 4.1,
+            "end": 5.1,
+            "description": "The hands are pressed together and rubbed.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e2",
+            "timestamp": 5.3,
+            "end": 6.3,
+            "description": "Hand rubbing continues in front of the incubator.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-02-agent",
+        "stepId": "step-02",
+        "timestampStart": 6.4,
+        "timestampEnd": 20,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "How much the plate is tilted is a judgement from a few frames.",
+          "The incubator door closing is not shown.",
+          "Not establishable from video: Whether it is the correct plate depends on labels that cannot be read on video"
+        ],
+        "confidence": 0.75,
+        "provenance": "claude_agent",
+        "summary": "The operator opens the HERAcell incubator, takes out a 6-well plate, carries it to the hood and sets it down on the work surface.",
+        "checkResults": [
+          {
+            "check": "A culture plate is taken out of the incubator",
+            "result": "confirmed",
+            "note": "The 6-well plate is pulled from the open incubator at 11–13 s."
+          },
+          {
+            "check": "The plate is placed inside the TC hood",
+            "result": "confirmed",
+            "note": "The plate is placed on the hood work surface at 19–21 s."
+          },
+          {
+            "check": "The plate is held level while carried",
+            "result": "contradicted",
+            "note": "At 11–13 s the plate is held clearly tilted as it is taken out. It is roughly level by 15 s."
+          },
+          {
+            "check": "The incubator door is closed after the plate is removed",
+            "result": "not_visible",
+            "note": "The camera turns to the hood without showing the door being closed."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-02-e0",
+            "timestamp": 6.4,
+            "end": 7.4,
+            "description": "The incubator door is being opened.",
+            "kind": "video"
+          },
+          {
+            "id": "step-02-e1",
+            "timestamp": 11,
+            "end": 12,
+            "description": "The plate is taken out of the incubator, held at an angle.",
+            "kind": "video"
+          },
+          {
+            "id": "step-02-e2",
+            "timestamp": 15,
+            "end": 16,
+            "description": "The plate is carried toward the hood.",
+            "kind": "video"
+          },
+          {
+            "id": "step-02-e3",
+            "timestamp": 19,
+            "end": 20,
+            "description": "The plate sits inside the hood.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-03-agent",
+        "stepId": "step-03",
+        "timestampStart": 24,
+        "timestampEnd": 38.5,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Tilt of the plate and the tip position inside the well are unclear.",
+          "Not establishable from video: Whether cells are disturbed or detached cannot be confirmed on video",
+          "Not establishable from video: Sterility of the aspiration pipette cannot be verified"
+        ],
+        "confidence": 0.8,
+        "provenance": "claude_agent",
+        "summary": "A glass pipette on vacuum tubing is placed into the wells of the 6-well plate in the hood and the old medium is removed; by 38.5 s the wells look empty.",
+        "checkResults": [
+          {
+            "check": "The aspiration pipette tip is placed into the plate inside the hood",
+            "result": "confirmed",
+            "note": "The aspiration pipette, attached to tubing, goes into the wells at 26–35 s."
+          },
+          {
+            "check": "Medium is removed from the plate",
+            "result": "confirmed",
+            "note": "The pink medium in the wells is gone by 38.5 s."
+          },
+          {
+            "check": "The plate is tilted and the tip placed at the well edge rather than on the cell layer",
+            "result": "not_visible",
+            "note": "The left hand holds the plate, but neither a clear tilt nor the tip position against the well edge can be made out."
+          },
+          {
+            "check": "Aspiration happens before fresh medium is added",
+            "result": "confirmed",
+            "note": "Fresh medium is added later, from about 55 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-03-e0",
+            "timestamp": 26.5,
+            "end": 27.5,
+            "description": "The aspiration pipette is in a well while the left hand steadies the plate.",
+            "kind": "video"
+          },
+          {
+            "id": "step-03-e1",
+            "timestamp": 35.5,
+            "end": 36.5,
+            "description": "The pipette tip is in a well and medium is being drawn up.",
+            "kind": "video"
+          },
+          {
+            "id": "step-03-e2",
+            "timestamp": 38.5,
+            "end": 39.5,
+            "description": "The wells appear empty.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-04-agent",
+        "stepId": "step-04",
+        "timestampStart": 41,
+        "timestampEnd": 99,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Volume and whether the medium was pre-warmed cannot be verified.",
+          "Not establishable from video: Volume added cannot be verified",
+          "Not establishable from video: That the medium is pre-warmed and is the correct medium cannot be confirmed",
+          "Not establishable from video: Sterility of the pipette cannot be verified"
+        ],
+        "confidence": 0.8,
+        "provenance": "claude_agent",
+        "summary": "With a pipette controller and a serological pipette, the operator draws medium from the pink medium bottle and dispenses it into the wells. The bottle is recapped at about 97–99 s.",
+        "checkResults": [
+          {
+            "check": "Medium is drawn from a bottle with a serological pipette and pipette controller",
+            "result": "confirmed",
+            "note": "The pipette controller is picked up (41 s), the bottle is opened (44 s) and medium is drawn from it (47–50 s)."
+          },
+          {
+            "check": "Medium is dispensed into the culture plate",
+            "result": "confirmed",
+            "note": "The serological pipette dispenses into wells of the plate at 55–72 s, and pink medium is visible in the wells afterwards."
+          },
+          {
+            "check": "Medium is dispensed gently against the well wall rather than directly onto cells",
+            "result": "not_visible",
+            "note": "The tip is in the well, but at this resolution it cannot be seen whether it touches the wall."
+          },
+          {
+            "check": "The medium bottle is capped afterwards",
+            "result": "confirmed",
+            "note": "The cap is on the hood surface until about 96 s and is back on the bottle at 98.8 s."
+          },
+          {
+            "check": "Done after the old medium is aspirated",
+            "result": "confirmed",
+            "note": "This follows the aspiration that ended around 38 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-04-e0",
+            "timestamp": 41.4,
+            "end": 42.4,
+            "description": "The pipette controller is picked up.",
+            "kind": "video"
+          },
+          {
+            "id": "step-04-e1",
+            "timestamp": 46.9,
+            "end": 47.9,
+            "description": "Medium is drawn from the bottle.",
+            "kind": "video"
+          },
+          {
+            "id": "step-04-e2",
+            "timestamp": 64.3,
+            "end": 65.3,
+            "description": "The serological pipette dispenses into a well.",
+            "kind": "video"
+          },
+          {
+            "id": "step-04-e3",
+            "timestamp": 98.8,
+            "end": 99.8,
+            "description": "The medium bottle has its cap back on.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-05-agent",
+        "stepId": "step-05",
+        "timestampStart": 79,
+        "timestampEnd": 93,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The tube contents cannot be identified as cytokine.",
+          "A brief swirl could fall between sampled frames.",
+          "Not establishable from video: Cytokine identity cannot be confirmed without reading labels",
+          "Not establishable from video: Volume and working concentration cannot be verified",
+          "Not establishable from video: Whether multiple cytokines are added correctly cannot be confirmed"
+        ],
+        "confidence": 0.75,
+        "provenance": "claude_agent",
+        "summary": "A micropipette draws liquid from a small tube held in the left hand and dispenses it into the medium-containing wells. No swirling of the plate is seen afterwards.",
+        "checkResults": [
+          {
+            "check": "A micropipette draws liquid from a small tube",
+            "result": "confirmed",
+            "note": "The micropipette tip goes into a small tube at 83.8 and 88.8 s."
+          },
+          {
+            "check": "The liquid is dispensed into the plate containing medium",
+            "result": "confirmed",
+            "note": "The micropipette dispenses into a well of the plate at 86.3 and 91.3 s."
+          },
+          {
+            "check": "Done after the fresh medium has been added",
+            "result": "confirmed",
+            "note": "This happens after the fresh medium was added at 55–72 s."
+          },
+          {
+            "check": "The plate is gently swirled or rocked afterwards to distribute the cytokine",
+            "result": "contradicted",
+            "note": "Between 93 and 101 s the lid is put on and the plate is carried away; no swirling or rocking is seen."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-05-e0",
+            "timestamp": 83.8,
+            "end": 84.8,
+            "description": "The micropipette draws from a small tube.",
+            "kind": "video"
+          },
+          {
+            "id": "step-05-e1",
+            "timestamp": 91.3,
+            "end": 92.3,
+            "description": "The micropipette dispenses into a well.",
+            "kind": "video"
+          },
+          {
+            "id": "step-05-e2",
+            "timestamp": 96.3,
+            "end": 97.3,
+            "description": "The lid is on the plate; no swirling is seen.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-06-agent",
+        "stepId": "step-06",
+        "timestampStart": 101,
+        "timestampEnd": 126,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Not establishable from video: The actual judgement of cell health, density and morphology cannot be verified from video"
+        ],
+        "confidence": 0.9,
+        "provenance": "claude_agent",
+        "summary": "The plate is taken out of the hood, put on the stage of the EVOS M5000 inverted microscope with its lid on, and the cells are shown on the screen.",
+        "checkResults": [
+          {
+            "check": "The culture plate is placed on the inverted microscope stage",
+            "result": "confirmed",
+            "note": "The plate sits on the EVOS stage from 108 to 122 s."
+          },
+          {
+            "check": "The cells are viewed on the microscope",
+            "result": "confirmed",
+            "note": "The screen shows cell images at 108–122 s."
+          },
+          {
+            "check": "The plate stays covered with its lid during imaging",
+            "result": "confirmed",
+            "note": "The lid is visible on the plate at 104.6 s and again when it is lifted off the stage at 125.8 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-06-e0",
+            "timestamp": 104.6,
+            "end": 105.6,
+            "description": "The lidded plate is carried to the EVOS.",
+            "kind": "video"
+          },
+          {
+            "id": "step-06-e1",
+            "timestamp": 111.6,
+            "end": 112.6,
+            "description": "The plate is on the stage with cells on the screen.",
+            "kind": "video"
+          },
+          {
+            "id": "step-06-e2",
+            "timestamp": 125.8,
+            "end": 126.8,
+            "description": "The lidded plate is removed from the stage.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-07-agent",
+        "stepId": "step-07",
+        "timestampStart": 128,
+        "timestampEnd": 139,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Whether the outer door latched fully is not certain.",
+          "How much the plate is tilted is a judgement call.",
+          "Not establishable from video: Incubator conditions (temperature, CO2) cannot be confirmed on video"
+        ],
+        "confidence": 0.75,
+        "provenance": "claude_agent",
+        "summary": "The plate is carried to the HERAcell CO2 incubator and put on a shelf inside, and the door is closed.",
+        "checkResults": [
+          {
+            "check": "The plate is placed inside the CO2 incubator",
+            "result": "confirmed",
+            "note": "The plate is inserted into the incubator at 131 s and is no longer in the hand at 133 s."
+          },
+          {
+            "check": "The incubator door is closed afterwards",
+            "result": "confirmed",
+            "note": "The door is pushed shut at 137 s."
+          },
+          {
+            "check": "The plate is kept level during transfer",
+            "result": "contradicted",
+            "note": "At 131 s the plate is held visibly tilted as it goes into the incubator."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-07-e0",
+            "timestamp": 129.4,
+            "end": 130.4,
+            "description": "The plate is carried to the incubator.",
+            "kind": "video"
+          },
+          {
+            "id": "step-07-e1",
+            "timestamp": 131,
+            "end": 132,
+            "description": "The plate is inserted, held at an angle.",
+            "kind": "video"
+          },
+          {
+            "id": "step-07-e2",
+            "timestamp": 137,
+            "end": 138,
+            "description": "The incubator door is being closed.",
+            "kind": "video"
+          }
+        ]
+      }
+    ],
+    "absences": [],
+    "log": [
+      "Reviewed 40 overview frames",
+      "I'm mapping out the sequence into distinct time windows — initial setup, aspiration, serological pipette use, micropipette steps, and final stages — so I can examine each segment of the video closely.",
+      "Inspected 00:00.0–00:07.0 (6 frames)",
+      "Inspected 00:08.0–00:22.0 (7 frames)",
+      "I'm spotting the blue spray bottle around 1.8-2.9 and rubbing action near 4-5. Checking whether the incubator door is closing around 11-15, since one hand is near the door at 11s while the plate gets carried tilted toward the hood between 11-13. Now I'll look at the aspiration segment from 22-40.",
+      "Inspected 00:22.0–00:40.0 (6 frames)",
+      "Looking at the aspiration setup, it seems to be a glass Pasteur pipette connected to vacuum tubing, with the plate held and tilted in the left hand. The wells appear emptied of medium by 38.5 seconds, so I'll check the tilting angle more closely before moving on to the medium addition around 40-75 seconds.",
+      "Inspected 00:40.0–01:02.0 (8 frames)",
+      "I'm tracking the timeline of the pipette action, noting it draws liquid from the bottle around frame 47-50, then dispenses into plate wells from 55-72. The cap gets set down on the hood surface, and later the bottle appears recapped around frame 97, so I want to double-check the 62-77 and 95-100 ranges for accuracy.",
+      "Inspected 01:03.0–01:18.0 (6 frames)",
+      "I'm watching medium get dispensed into just the left column of wells near the wall, and checking whether the bottle gets capped — it looks still on around 76.8 and hands are at the bottle around 97.5, likely capping it. Next I'll look at the cytokine step spanning roughly 78 to 97.",
+      "Inspected 01:20.0–01:40.0 (8 frames)",
+      "I'm noting the bottle got capped around 98.8 and the plate lid was placed around 96, but I don't see the plate being swirled in that window. Now I want to check whether the incubator door closes properly around 130-141.",
+      "Inspected 02:10.0–02:20.0 (5 frames)",
+      "Looking at the frames, the plate is held at a noticeable tilt (~20°) both during insertion around frame 131 and earlier around frames 11-13, which seems to contradict the level-handling claim. I'm leaning toward marking this as contradicted with moderate confidence, though the door closure timing around frames 137-139 is a bit ambiguous.\n\nGoing through the remaining steps: door closed at step 2 isn't visible in frame 15, so that's not_visible; the tilt at step 3 is also unclear since the plate appears held flat with the tip in the well, so not_visible; step 4's positioning against the wall is ambiguous around frames 64-72, so not_visible as well. Step 6, however, shows the lid clearly on the plate at frame 104.6, so I can confirm that one.",
+      "Submitted findings for 7 steps"
+    ],
+    "usage": {
+      "input": 16,
+      "cacheWrite": 30044,
+      "cacheRead": 127252,
+      "output": 4793
+    },
+    "generatedAt": "2026-10-04T03:08:57.876Z"
+  },
+  "DJI_11": {
+    "method": {
+      "schemaVersion": 1,
+      "title": "CRISPR Component Delivery into 293T Cells",
+      "version": "1.0",
+      "source": "Mock-Cas9-Delivery.pdf",
+      "summary": "Three reagents are added in turn to a sterile 1.5 mL EP tube, mixed, and incubated at room temperature for 20 min. The mixture is then added dropwise to a 10 cm dish of 293T cells (~70-80% confluent), and the dish is gently rocked to distribute it.",
+      "requirements": [
+        {
+          "id": "step-01",
+          "title": "Add reagent 1 to tube",
+          "description": "Add reagent 1 into a sterile 1.5 mL EP tube.",
+          "order": 1,
+          "checks": [
+            "Liquid is drawn by pipette from a reagent container",
+            "The liquid is dispensed into a 1.5 mL microcentrifuge tube",
+            "This is the first addition to the tube, before the other reagents"
+          ],
+          "details": [
+            "This is the first addition to the tube, before the other reagents"
+          ],
+          "definingAction": "Pipette draws liquid from the first reagent container and dispenses it into an empty 1.5 mL microcentrifuge tube.",
+          "visualGroup": "reagent addition",
+          "caveats": [
+            "Identity of reagent 1 cannot be confirmed without reading labels",
+            "Volume of reagent 1 is not specified and cannot be verified from video",
+            "Sterility of the tube cannot be verified"
+          ],
+          "criticality": "critical",
+          "category": "identity"
+        },
+        {
+          "id": "step-02",
+          "title": "Add reagent 2 to tube",
+          "description": "Add reagent 2 into the EP tube.",
+          "order": 2,
+          "checks": [
+            "Liquid is drawn by pipette from a reagent container different from the first",
+            "The liquid is dispensed into the same 1.5 mL tube",
+            "Occurs after reagent 1 addition and before reagent 3 addition",
+            "A fresh pipette tip is used for the new reagent"
+          ],
+          "details": [
+            "Occurs after reagent 1 addition and before reagent 3 addition",
+            "A fresh pipette tip is used for the new reagent"
+          ],
+          "definingAction": "Pipette draws liquid from a second reagent container and dispenses it into the same 1.5 mL tube that already holds reagent 1.",
+          "visualGroup": "reagent addition",
+          "caveats": [
+            "Identity of reagent 2 cannot be confirmed without reading labels",
+            "Volume of reagent 2 is not specified and cannot be verified from video"
+          ],
+          "criticality": "critical",
+          "category": "identity"
+        },
+        {
+          "id": "step-03",
+          "title": "Add reagent 3 to tube",
+          "description": "Add reagent 3 into the EP tube.",
+          "order": 3,
+          "checks": [
+            "Liquid is drawn by pipette from a third reagent container",
+            "The liquid is dispensed into the same 1.5 mL tube",
+            "Occurs after reagent 2 addition and before mixing",
+            "A fresh pipette tip is used for the new reagent"
+          ],
+          "details": [
+            "Occurs after reagent 2 addition and before mixing",
+            "A fresh pipette tip is used for the new reagent"
+          ],
+          "definingAction": "Pipette draws liquid from a third reagent container and dispenses it into the same 1.5 mL tube.",
+          "visualGroup": "reagent addition",
+          "caveats": [
+            "Identity of reagent 3 cannot be confirmed without reading labels",
+            "Volume of reagent 3 is not specified and cannot be verified from video"
+          ],
+          "criticality": "critical",
+          "category": "identity"
+        },
+        {
+          "id": "step-04",
+          "title": "Mix tube contents",
+          "description": "Mix well.",
+          "order": 4,
+          "checks": [
+            "The tube contents are mixed by pipetting up and down, flicking, inverting or vortexing",
+            "No liquid is drawn from another container during this action",
+            "Mixing occurs after all three reagents are added"
+          ],
+          "details": [
+            "Mixing occurs after all three reagents are added"
+          ],
+          "definingAction": "The contents are mixed within the one tube, by pipetting up and down in it, flicking or inverting it, without drawing from any other container.",
+          "caveats": [
+            "Thoroughness of mixing cannot be confirmed visually",
+            "Number of mixing repetitions is not specified"
+          ],
+          "criticality": "important",
+          "category": "action"
+        },
+        {
+          "id": "step-05",
+          "title": "Incubate mixture at room temperature",
+          "description": "Incubate at room temperature for 20 min.",
+          "order": 5,
+          "checks": [
+            "The tube is placed on the bench or in a rack and left",
+            "The tube is not moved to the dish straight away",
+            "The tube is not placed in a heating or cooling device"
+          ],
+          "details": [
+            "The tube is not placed in a heating or cooling device"
+          ],
+          "definingAction": "The tube is set down on the bench or in a rack and left untouched, rather than used straight away.",
+          "caveats": [
+            "Exact 20 min duration cannot be verified from sampled frames",
+            "Room temperature cannot be verified visually"
+          ],
+          "criticality": "important",
+          "category": "timing"
+        },
+        {
+          "id": "step-06",
+          "title": "Add mixture dropwise to cells",
+          "description": "Add the mixture dropwise into a 10 cm dish of 293T cells (~70-80% confluency).",
+          "order": 6,
+          "checks": [
+            "The mixture is drawn by pipette from the 1.5 mL tube",
+            "The mixture is dispensed into a 10 cm culture dish containing medium",
+            "The mixture is released as separate drops rather than one stream",
+            "Drops are distributed across different areas of the dish",
+            "This occurs after the incubation period"
+          ],
+          "details": [
+            "The mixture is released as separate drops rather than one stream",
+            "Drops are distributed across different areas of the dish",
+            "This occurs after the incubation period"
+          ],
+          "definingAction": "Pipette draws the mixture from the 1.5 mL tube and releases it drop by drop over a 10 cm culture dish.",
+          "caveats": [
+            "Cell confluency (~70-80%) cannot be verified from video",
+            "Identity of cells as 293T cannot be confirmed",
+            "Volume transferred cannot be verified"
+          ],
+          "criticality": "critical",
+          "category": "action"
+        },
+        {
+          "id": "step-07",
+          "title": "Rock dish to mix",
+          "description": "Gently rock the dish forward and backward to mix.",
+          "order": 7,
+          "checks": [
+            "The dish is rocked forward and backward",
+            "The rocking is gentle, without the medium splashing or spilling",
+            "The dish stays on or near the bench surface while rocked",
+            "Rocking occurs after the mixture has been added"
+          ],
+          "details": [
+            "The rocking is gentle, without the medium splashing or spilling",
+            "The dish stays on or near the bench surface while rocked",
+            "Rocking occurs after the mixture has been added"
+          ],
+          "definingAction": "The 10 cm dish is moved forward and backward (tilted or slid) on the bench without any liquid being added.",
+          "caveats": [
+            "Even distribution of the mixture in the medium cannot be confirmed visually"
+          ],
+          "criticality": "important",
+          "category": "action"
+        }
+      ]
+    },
+    "observations": [
+      {
+        "id": "step-01-agent",
+        "stepId": "step-01",
+        "timestampStart": 3.5,
+        "timestampEnd": 10.5,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Can't tell draw events apart from dispense events",
+          "Can't tell which tube is the stock and which is the reaction tube",
+          "Not establishable from video: Identity of reagent 1 cannot be confirmed without reading labels",
+          "Not establishable from video: Volume of reagent 1 is not specified and cannot be verified from video",
+          "Not establishable from video: Sterility of the tube cannot be verified"
+        ],
+        "confidence": 0.35,
+        "provenance": "claude_agent",
+        "summary": "After loading a fresh tip from the yellow tip box, the operator puts the pipette tip to a small tube held in the left hand near the tip-box/rack area. This looks like the first liquid transfer, but I can't tell which tube is the source and which is the destination.",
+        "checkResults": [
+          {
+            "check": "Liquid is drawn by pipette from a reagent container",
+            "result": "not_visible",
+            "note": "The pipette tip goes into a small tube held in the left hand (6.1–8.8 s), but the frames don't show whether it is drawing liquid."
+          },
+          {
+            "check": "The liquid is dispensed into a 1.5 mL microcentrifuge tube",
+            "result": "not_visible",
+            "note": "The receiving vessel is small and partly hidden by the hand, so I can't confirm that it is a 1.5 mL tube."
+          },
+          {
+            "check": "This is the first addition to the tube, before the other reagents",
+            "result": "not_visible",
+            "note": "This is the first pipetting cycle in the recording. Whether the tube was empty before this can't be established."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-01-e0",
+            "timestamp": 4.4,
+            "end": 5.4,
+            "description": "The pipette with a tip approaches the tubes while the left hand reaches toward the tip box and rack.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e1",
+            "timestamp": 7.9,
+            "end": 8.9,
+            "description": "The pipette tip is inserted into a small tube held in the left hand.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e2",
+            "timestamp": 11.4,
+            "end": 12.4,
+            "description": "The left hand puts a tube down near the front of the tip boxes.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-02-agent",
+        "stepId": "step-02",
+        "timestampStart": 14,
+        "timestampEnd": 18.5,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "How the pipetting cycles map onto reagents 1–3 is inferred",
+          "Not establishable from video: Identity of reagent 2 cannot be confirmed without reading labels",
+          "Not establishable from video: Volume of reagent 2 is not specified and cannot be verified from video"
+        ],
+        "confidence": 0.3,
+        "provenance": "claude_agent",
+        "summary": "A second pipetting cycle: the operator again brings the pipette tip to a tube held in the left hand, then ejects the tip at about 17.8 s.",
+        "checkResults": [
+          {
+            "check": "Liquid is drawn by pipette from a reagent container different from the first",
+            "result": "not_visible",
+            "note": "The tube is held in the hand and its identity can't be made out, so I can't confirm that the source differs from the first."
+          },
+          {
+            "check": "The liquid is dispensed into the same 1.5 mL tube",
+            "result": "not_visible",
+            "note": "I can't confirm that this is the same tube as in step 1."
+          },
+          {
+            "check": "Occurs after reagent 1 addition and before reagent 3 addition",
+            "result": "confirmed",
+            "note": "It comes after the first cycle (3.5–10 s) and before the later cycles."
+          },
+          {
+            "check": "A fresh pipette tip is used for the new reagent",
+            "result": "not_visible",
+            "note": "Tips are ejected and picked up between cycles (tip ejected at ~17.8 s), but a fresh tip going on just before this cycle isn't clearly seen."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-02-e0",
+            "timestamp": 15.5,
+            "end": 16.5,
+            "description": "The pipette tip is at the top of a tube held in the left hand.",
+            "kind": "video"
+          },
+          {
+            "id": "step-02-e1",
+            "timestamp": 17.8,
+            "end": 18.8,
+            "description": "The pipette is raised vertically, apparently ejecting its tip.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-03-agent",
+        "stepId": "step-03",
+        "timestampStart": 21,
+        "timestampEnd": 36,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "More pipetting cycles were seen than the method's three reagents",
+          "Can't tell which cycle corresponds to reagent 3",
+          "Not establishable from video: Identity of reagent 3 cannot be confirmed without reading labels",
+          "Not establishable from video: Volume of reagent 3 is not specified and cannot be verified from video"
+        ],
+        "confidence": 0.25,
+        "provenance": "claude_agent",
+        "summary": "Further pipetting cycles at about 22–27 s and 30–35 s, each to a tube held in the left hand. These probably include the third reagent addition. A later transfer at about 40–48 s draws from a box-like container on the left and dispenses into the tube.",
+        "checkResults": [
+          {
+            "check": "Liquid is drawn by pipette from a third reagent container",
+            "result": "not_visible",
+            "note": "I can't identify which container the liquid is drawn from."
+          },
+          {
+            "check": "The liquid is dispensed into the same 1.5 mL tube",
+            "result": "not_visible",
+            "note": "I can't confirm that it is the same tube."
+          },
+          {
+            "check": "Occurs after reagent 2 addition and before mixing",
+            "result": "not_visible",
+            "note": "There are more pipetting cycles than the method's three reagents, so I can't establish the order."
+          },
+          {
+            "check": "A fresh pipette tip is used for the new reagent",
+            "result": "not_visible",
+            "note": "Tip changes aren't clearly visible for each cycle."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-03-e0",
+            "timestamp": 24.5,
+            "end": 25.5,
+            "description": "The pipette tip goes into a tube held in the left hand.",
+            "kind": "video"
+          },
+          {
+            "id": "step-03-e1",
+            "timestamp": 33.5,
+            "end": 34.5,
+            "description": "Another transfer into a tube held in the left hand.",
+            "kind": "video"
+          },
+          {
+            "id": "step-03-e2",
+            "timestamp": 41.4,
+            "end": 42.4,
+            "description": "The pipette draws from a container at the left side of the hood.",
+            "kind": "video"
+          },
+          {
+            "id": "step-03-e3",
+            "timestamp": 46.6,
+            "end": 47.6,
+            "description": "The pipette tip is in the tube held in the left hand.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-06-agent",
+        "stepId": "step-06",
+        "timestampStart": 50.5,
+        "timestampEnd": 55,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Dish size",
+          "The draw source isn't seen",
+          "Not establishable from video: Cell confluency (~70-80%) cannot be verified from video",
+          "Not establishable from video: Identity of cells as 293T cannot be confirmed",
+          "Not establishable from video: Volume transferred cannot be verified"
+        ],
+        "confidence": 0.5,
+        "provenance": "claude_agent",
+        "summary": "The operator pipettes liquid into a culture dish of pink medium. The tip stays at roughly one spot near the centre. Neither the draw from the tube nor drop-by-drop release can be confirmed.",
+        "checkResults": [
+          {
+            "check": "The mixture is drawn by pipette from the 1.5 mL tube",
+            "result": "not_visible",
+            "note": "The draw from the tube in the rack, at about 50–51 s, isn't clearly seen."
+          },
+          {
+            "check": "The mixture is dispensed into a 10 cm culture dish containing medium",
+            "result": "confirmed",
+            "note": "Dispensed into a dish containing pink medium. The dish looks small, so 10 cm size can't be confirmed."
+          },
+          {
+            "check": "The mixture is released as separate drops rather than one stream",
+            "result": "not_visible",
+            "note": "I can't make out individual drops."
+          },
+          {
+            "check": "Drops are distributed across different areas of the dish",
+            "result": "contradicted",
+            "note": "From 52.3 to 54.1 s the tip stays at about the same central position over the dish."
+          },
+          {
+            "check": "This occurs after the incubation period",
+            "result": "contradicted",
+            "note": "This happens within seconds of the tube being set down, with no incubation."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-06-e0",
+            "timestamp": 52.3,
+            "end": 53.3,
+            "description": "The pipette tip is lowered into the dish of pink medium.",
+            "kind": "video"
+          },
+          {
+            "id": "step-06-e1",
+            "timestamp": 54.1,
+            "end": 55.1,
+            "description": "The tip is still at the same central spot in the dish.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-07-agent",
+        "stepId": "step-07",
+        "timestampStart": 56.5,
+        "timestampEnd": 66,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Not establishable from video: Even distribution of the mixture in the medium cannot be confirmed visually"
+        ],
+        "confidence": 0.75,
+        "provenance": "claude_agent",
+        "summary": "With the dish flat on the bench, the operator slides it back and forth by hand for several seconds after adding the mixture.",
+        "checkResults": [
+          {
+            "check": "The dish is rocked forward and backward",
+            "result": "confirmed",
+            "note": "The dish changes position from frame to frame between 58.5 and 65.5 s, moving back and forth."
+          },
+          {
+            "check": "The rocking is gentle, without the medium splashing or spilling",
+            "result": "confirmed",
+            "note": "No splashing or spilling is visible."
+          },
+          {
+            "check": "The dish stays on or near the bench surface while rocked",
+            "result": "confirmed",
+            "note": "The dish stays on the bench surface the whole time."
+          },
+          {
+            "check": "Rocking occurs after the mixture has been added",
+            "result": "confirmed",
+            "note": "Rocking follows the addition at 52–54 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-07-e0",
+            "timestamp": 58.5,
+            "end": 59.5,
+            "description": "The right hand holds the dish on the bench.",
+            "kind": "video"
+          },
+          {
+            "id": "step-07-e1",
+            "timestamp": 61.5,
+            "end": 62.5,
+            "description": "The dish has been slid to the left.",
+            "kind": "video"
+          },
+          {
+            "id": "step-07-e2",
+            "timestamp": 64.5,
+            "end": 65.5,
+            "description": "The dish has been moved back to the right.",
+            "kind": "video"
+          }
+        ]
+      }
+    ],
+    "absences": [
+      {
+        "stepId": "step-04",
+        "reason": "not_visible",
+        "confidence": 0.3,
+        "note": "No clear mixing within the single tube (flicking, inverting, or pipetting up and down without a new draw) was established. At about 44.9–48.4 s the tip stays in the tube, which might be up-and-down pipetting, but the motion couldn't be resolved, and it directly follows a draw from another container."
+      },
+      {
+        "stepId": "step-05",
+        "reason": "not_performed",
+        "confidence": 0.6,
+        "note": "At about 50 s the tube is set in the blue rack, and within about 1–2 s the pipette is moving to the dish and dispensing (51–54 s). No incubation period appears in the continuous footage."
+      }
+    ],
+    "log": [
+      "Reviewed 23 overview frames",
+      "I'm scanning through key windows with a 48-frame budget, noting the pipetting activity near the orange tube rack early on, something happening with a container around 40 seconds, then another pipette-to-dish moment, followed by what looks like rocking a small dish later in the sequence.",
+      "Inspected 00:00.0–00:14.0 (8 frames)",
+      "Inspected 00:14.0–00:38.0 (8 frames)",
+      "It's hard to make out the details clearly, but I can see tips being picked from the yellow tip box and a tube held in the left hand near it, suggesting a draw-and-dispense pattern. I want to look more closely at frames 4-10 to confirm which motion is drawing versus dispensing.",
+      "Inspected 00:08.0–00:20.0 (8 frames)",
+      "I'm trying to trace the repeated pick-up, pipette, and tip-eject motions, noting the hand picking up a small tube and returning it, with a tip ejection around 17.8. It looks like there are roughly four cycles happening around 3.5-10, 14-18, 22-27, and a fourth starting after that, though drawing versus dispensing is hard to distinguish.\n\nNow I'm checking around 37.5 where the pipette appears to be swapped, then at 40.5 moving into a container at the left that could be an ice box or reservoir, followed by another cycle around 43-50 and a possible dish interaction around 52 — I'll look closer at the 37-56 range to confirm.",
+      "Inspected 00:37.0–00:51.0 (8 frames)",
+      "At 40 seconds the pipette draws from a container on the left, likely a reservoir of medium, then dispenses into a tube held in hand around 43-48 seconds, possibly mixing by pipetting up and down. The tube then goes into a blue rack around 50 seconds, and the pipette moves toward a dish around 52 seconds — I want to check the 51-66 second window next.",
+      "Inspected 00:51.0–00:58.0 (8 frames)",
+      "I'm trying to trace where the pipette draws from between frames 50-54 — it looks like the tube is in the blue rack at the front, and the pipette descends toward that area before dispensing into the small dish, though the dish size looks closer to 6 cm than 10 cm.\n\nDispensing happens at a single spot near the center of the dish around 52.3-54.1, then I shift to checking the rocking motion that occurs from roughly 56 to 66.",
+      "Inspected 00:58.0–01:06.0 (8 frames)",
+      "I'm out of budget, but I confirmed the dish rocked back and forth on the bench, though it's actually small (~6cm) rather than 10cm. Looking at the reagent handling now, there seem to be multiple cycles of drawing and dispensing between 3-35 seconds, with the left hand holding a tube while the pipette tip interacts at its top, though I can't distinguish each draw from each dispense clearly.\n\nTrying to map out the timeline: cycles around 3.5-10, 14-18, and 22-35 seconds could be three separate reagent additions matching a three-reagent protocol, with the 40-48 second window possibly being a fourth addition like Opti-MEM, and maybe mixing by pipetting during 44.9-48.4. Confidence is low throughout since I can't clearly confirm the draw-and-mix motion versus drawing from a separate container, so I'm leaning toward marking mixing as not confirmed but noting the possibility.\n\nFor incubation, the tube goes into a blue rack at 50 seconds but then gets used again almost immediately at 51-54 for the dish step, which contradicts a real incubation period, so I'm marking that step as not performed.\n\nFor the dispensing step into the dish around 51-55 seconds, I can't clearly confirm the source tube or establish discrete drops, and the dish size looks smaller than expected relative to the rack, though I can't be fully certain. The sequence also contradicts the expected order since incubation didn't actually happen before this step.",
+      "Submitted findings for 7 steps"
+    ],
+    "usage": {
+      "input": 14,
+      "cacheWrite": 27013,
+      "cacheRead": 87030,
+      "output": 5337
+    },
+    "generatedAt": "2026-10-04T03:10:33.496Z"
+  }
+}

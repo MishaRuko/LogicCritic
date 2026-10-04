@@ -1,2 +1,2 @@
-import { ResearchWorkspace } from '../components/research/ResearchWorkspace';
-export default function Page() { return <ResearchWorkspace/>; }
+import { Landing } from '../components/Landing';
+export default function Page() { return <Landing/>; }

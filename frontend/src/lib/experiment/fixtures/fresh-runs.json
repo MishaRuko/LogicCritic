@@ -1,0 +1,1574 @@
+{
+  "DJI_09": {
+    "method": {
+      "schemaVersion": 1,
+      "title": "CRISPR Component Delivery into 293T Cells",
+      "version": "1.0",
+      "source": "Mock-Cas9-Delivery.pdf",
+      "summary": "Three reagents are added in sequence to a sterile 1.5 mL EP tube and mixed. The mixture is incubated at room temperature for 20 min, then added dropwise to a 10 cm dish of 293T cells, and the dish is gently rocked to distribute it.",
+      "requirements": [
+        {
+          "id": "step-01",
+          "title": "Add reagent 1 to tube",
+          "description": "Add reagent 1 into a sterile 1.5 mL EP tube.",
+          "order": 1,
+          "checks": [
+            "Liquid is drawn by pipette from a reagent container",
+            "The liquid is dispensed into a 1.5 mL EP tube that was previously empty",
+            "This addition happens before any other reagent is added to the tube"
+          ],
+          "details": [
+            "This addition happens before any other reagent is added to the tube"
+          ],
+          "definingAction": "Pipette draws liquid from the first reagent container and dispenses it into an empty 1.5 mL EP tube.",
+          "visualGroup": "reagent addition",
+          "caveats": [
+            "Identity of reagent 1 cannot be confirmed without reading labels",
+            "Volume added is not specified and cannot be verified",
+            "Sterility of the EP tube cannot be verified on video"
+          ],
+          "criticality": "critical",
+          "category": "identity"
+        },
+        {
+          "id": "step-02",
+          "title": "Add reagent 2 to tube",
+          "description": "Add reagent 2 into the EP tube.",
+          "order": 2,
+          "checks": [
+            "Liquid is drawn by pipette from a different reagent container than the previous addition",
+            "The liquid is dispensed into the same EP tube",
+            "Occurs after reagent 1 addition and before reagent 3 addition"
+          ],
+          "details": [
+            "Occurs after reagent 1 addition and before reagent 3 addition"
+          ],
+          "definingAction": "Pipette draws liquid from a second reagent container and dispenses it into the same EP tube that already holds reagent 1.",
+          "visualGroup": "reagent addition",
+          "caveats": [
+            "Identity of reagent 2 cannot be confirmed without reading labels",
+            "Volume added is not specified and cannot be verified",
+            "Whether a fresh tip is used to avoid cross-contamination may not be clearly visible"
+          ],
+          "criticality": "critical",
+          "category": "identity"
+        },
+        {
+          "id": "step-03",
+          "title": "Add reagent 3 to tube",
+          "description": "Add reagent 3 into the EP tube.",
+          "order": 3,
+          "checks": [
+            "Liquid is drawn by pipette from a third reagent container",
+            "The liquid is dispensed into the same EP tube",
+            "Occurs after reagent 2 addition and before mixing"
+          ],
+          "details": [
+            "Occurs after reagent 2 addition and before mixing"
+          ],
+          "definingAction": "Pipette draws liquid from a third reagent container and dispenses it into the same EP tube already containing reagents 1 and 2.",
+          "visualGroup": "reagent addition",
+          "caveats": [
+            "Identity of reagent 3 cannot be confirmed without reading labels",
+            "Volume added is not specified and cannot be verified"
+          ],
+          "criticality": "critical",
+          "category": "identity"
+        },
+        {
+          "id": "step-04",
+          "title": "Mix tube contents",
+          "description": "Mix well.",
+          "order": 4,
+          "checks": [
+            "The EP tube contents are agitated by pipetting up and down, flicking, inverting or vortexing",
+            "No liquid is drawn from another container during this action",
+            "Mixing occurs after all three reagents have been added"
+          ],
+          "details": [
+            "Mixing occurs after all three reagents have been added"
+          ],
+          "definingAction": "The contents of the EP tube are mixed within the tube itself (pipetting up and down in the tube, flicking, or inverting) without drawing from any other container.",
+          "caveats": [
+            "Thoroughness of mixing ('well') cannot be confirmed visually",
+            "Number of pipetting strokes or flicks cannot be reliably counted"
+          ],
+          "criticality": "important",
+          "category": "action"
+        },
+        {
+          "id": "step-05",
+          "title": "Incubate mixture at room temperature",
+          "description": "Incubate at room temperature for 20 min.",
+          "order": 5,
+          "checks": [
+            "The EP tube is placed down in a rack or on the bench and left there",
+            "The tube is not moved to an incubator, heat block or ice",
+            "The mixture is not added to the dish immediately after mixing"
+          ],
+          "details": [
+            "The mixture is not added to the dish immediately after mixing"
+          ],
+          "definingAction": "The mixed EP tube is set down on the bench or in a rack and left undisturbed rather than used immediately.",
+          "caveats": [
+            "Exact incubation duration of 20 min cannot be verified from sampled frames",
+            "Room temperature cannot be confirmed visually"
+          ],
+          "criticality": "important",
+          "category": "timing"
+        },
+        {
+          "id": "step-06",
+          "title": "Add mixture dropwise to dish",
+          "description": "Add the mixture dropwise into a 10 cm dish of 293T cells (~70-80% confluency).",
+          "order": 6,
+          "checks": [
+            "Liquid is drawn from the EP tube by pipette",
+            "The liquid is dispensed into a 10 cm culture dish containing medium",
+            "The mixture is released drop by drop rather than as a single stream",
+            "Drops are distributed across different areas of the dish"
+          ],
+          "details": [
+            "The mixture is released drop by drop rather than as a single stream",
+            "Drops are distributed across different areas of the dish"
+          ],
+          "definingAction": "Pipette draws the mixture from the EP tube and releases it in drops over the 10 cm cell culture dish.",
+          "caveats": [
+            "Cell confluency (~70-80%) cannot be verified on video",
+            "Identity of cells as 293T cannot be confirmed visually",
+            "Volume of mixture transferred cannot be verified"
+          ],
+          "criticality": "critical",
+          "category": "action"
+        },
+        {
+          "id": "step-07",
+          "title": "Rock dish to mix",
+          "description": "Gently rock the dish forward and backward to mix.",
+          "order": 7,
+          "checks": [
+            "The dish is moved back and forth on the bench surface",
+            "Rocking is gentle, with no medium splashing or spilling",
+            "Rocking occurs after the mixture has been added"
+          ],
+          "details": [
+            "Rocking is gentle, with no medium splashing or spilling",
+            "Rocking occurs after the mixture has been added"
+          ],
+          "definingAction": "The 10 cm dish is moved forward and backward along the bench surface, without pipetting into it.",
+          "caveats": [
+            "Adequacy of distribution across the dish cannot be confirmed visually"
+          ],
+          "criticality": "important",
+          "category": "action"
+        }
+      ]
+    },
+    "observations": [
+      {
+        "id": "step-01-agent",
+        "stepId": "step-01",
+        "timestampStart": 17,
+        "timestampEnd": 28,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Not clear whether the pipette was aspirating or dispensing",
+          "The tube's identity and the reagent source are not visible",
+          "Not establishable from video: Identity of reagent 1 cannot be confirmed without reading labels",
+          "Not establishable from video: Volume added is not specified and cannot be verified",
+          "Not establishable from video: Sterility of the EP tube cannot be verified on video"
+        ],
+        "confidence": 0.3,
+        "provenance": "claude_agent",
+        "summary": "After fitting a tip (~17.6 s), the operator puts the pipette tip into a small tube held in the left hand (~22–26 s). The source the liquid came from is not shown, and it cannot be established that this tube is the reaction tube used later.",
+        "checkResults": [
+          {
+            "check": "Liquid is drawn by pipette from a reagent container",
+            "result": "not_visible",
+            "note": "No aspiration from a reagent container is visible. The pipette goes from the tip box straight to the held tube."
+          },
+          {
+            "check": "The liquid is dispensed into a 1.5 mL EP tube that was previously empty",
+            "result": "not_visible",
+            "note": "The tip enters a small tube held in the left hand, but whether the tube was empty, and whether it is a 1.5 mL EP tube, cannot be seen."
+          },
+          {
+            "check": "This addition happens before any other reagent is added to the tube",
+            "result": "not_visible",
+            "note": "The order of additions into a single reaction tube cannot be established."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-01-e0",
+            "timestamp": 17.6,
+            "end": 18.6,
+            "description": "Pipette is pressed into the purple tip box to pick up a tip.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e1",
+            "timestamp": 22.1,
+            "end": 23.1,
+            "description": "Left hand holds a small tube while the pipette tip is inserted into it.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e2",
+            "timestamp": 24.4,
+            "end": 25.4,
+            "description": "Pipette tip is still inside the held tube.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-06-agent",
+        "stepId": "step-06",
+        "timestampStart": 79,
+        "timestampEnd": 88,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Source tube not confirmed",
+          "Dish size appears small; 10 cm not confirmed",
+          "Dropwise release not resolvable",
+          "Not establishable from video: Cell confluency (~70-80%) cannot be verified on video",
+          "Not establishable from video: Identity of cells as 293T cannot be confirmed visually",
+          "Not establishable from video: Volume of mixture transferred cannot be verified"
+        ],
+        "confidence": 0.55,
+        "provenance": "claude_agent",
+        "summary": "The operator, holding a different pipette, dispenses liquid into the medium-containing culture dish at the front of the hood, with the tip moving between positions over the dish. The aspiration from the EP tube and the drop-by-drop release are not clearly visible.",
+        "checkResults": [
+          {
+            "check": "Liquid is drawn from the EP tube by pipette",
+            "result": "not_visible",
+            "note": "At ~80 s the left hand holds a tube near the pipette, but the aspiration itself is not clearly seen."
+          },
+          {
+            "check": "The liquid is dispensed into a 10 cm culture dish containing medium",
+            "result": "confirmed",
+            "note": "Pipette tip is over or in the pink-medium culture dish at 82.9–87.6 s. Whether the dish is 10 cm cannot be judged."
+          },
+          {
+            "check": "The mixture is released drop by drop rather than as a single stream",
+            "result": "not_visible",
+            "note": "Individual drops cannot be resolved in the frames."
+          },
+          {
+            "check": "Drops are distributed across different areas of the dish",
+            "result": "not_visible",
+            "note": "The tip position shifts slightly across frames, but distribution across the dish is not clearly shown."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-06-e0",
+            "timestamp": 79.8,
+            "end": 80.8,
+            "description": "Left hand holds a tube while the pipette tip is nearby.",
+            "kind": "video"
+          },
+          {
+            "id": "step-06-e1",
+            "timestamp": 82.9,
+            "end": 83.9,
+            "description": "Pipette tip is directed into the culture dish containing pink medium.",
+            "kind": "video"
+          },
+          {
+            "id": "step-06-e2",
+            "timestamp": 86.1,
+            "end": 87.1,
+            "description": "Pipette tip is still over the dish at a slightly different position.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-07-agent",
+        "stepId": "step-07",
+        "timestampStart": 89,
+        "timestampEnd": 97,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Without denser frames, side-to-side movement cannot be ruled out in addition to forward/back",
+          "Not establishable from video: Adequacy of distribution across the dish cannot be confirmed visually"
+        ],
+        "confidence": 0.75,
+        "provenance": "claude_agent",
+        "summary": "After the addition, the operator moves the dish back and forth on the bench surface with the right hand. No splashing is seen.",
+        "checkResults": [
+          {
+            "check": "The dish is moved back and forth on the bench surface",
+            "result": "confirmed",
+            "note": "The dish position shifts back and forth between frames 91.9, 93.0, 94.1 and 95.3 s while the hand stays on the dish."
+          },
+          {
+            "check": "Rocking is gentle, with no medium splashing or spilling",
+            "result": "confirmed",
+            "note": "Small, slow movements, with no visible spilling or splashing of the medium."
+          },
+          {
+            "check": "Rocking occurs after the mixture has been added",
+            "result": "confirmed",
+            "note": "Rocking starts at ~89 s, after the pipetting into the dish at ~83–88 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-07-e0",
+            "timestamp": 89.6,
+            "end": 90.6,
+            "description": "Hand grips the dish right after the addition.",
+            "kind": "video"
+          },
+          {
+            "id": "step-07-e1",
+            "timestamp": 93,
+            "end": 94,
+            "description": "Dish is shifted toward the operator.",
+            "kind": "video"
+          },
+          {
+            "id": "step-07-e2",
+            "timestamp": 94.1,
+            "end": 95.1,
+            "description": "Dish is shifted further back on the bench.",
+            "kind": "video"
+          },
+          {
+            "id": "step-07-e3",
+            "timestamp": 95.3,
+            "end": 96.3,
+            "description": "Dish is moved forward again.",
+            "kind": "video"
+          }
+        ]
+      }
+    ],
+    "absences": [
+      {
+        "stepId": "step-02",
+        "reason": "not_visible",
+        "confidence": 0.3,
+        "note": "Between ~29 and 60 s the operator repeats a cycle: take a tube from the blue rack, put the pipette tip into it (same tip, no new aspiration from a separate container visible), then put it back. This looks more like distributing one liquid across several tubes than adding a second reagent to one tube, so step 2 cannot be clearly located."
+      },
+      {
+        "stepId": "step-03",
+        "reason": "not_visible",
+        "confidence": 0.25,
+        "note": "A possible addition happens at ~61–78 s: the operator holds a magenta-capped tube, switches pipettes, fits a new tip (~68 s) and inserts it into the tube (~71–77 s). However, no draw from a third reagent container is seen, so a third addition into the same tube cannot be confirmed."
+      },
+      {
+        "stepId": "step-04",
+        "reason": "not_visible",
+        "confidence": 0.35,
+        "note": "No clear mixing of the tube contents (pipetting up and down, flicking, inverting or vortexing) is seen. At ~71–77 s the tip sits in the magenta-capped tube with no visible movement in the sampled frames."
+      },
+      {
+        "stepId": "step-05",
+        "reason": "not_visible",
+        "confidence": 0.35,
+        "note": "No 20-minute room-temperature incubation is visible. The recording runs from tube handling (~78 s) to pipetting into the dish (~82 s) within seconds, but it is unclear whether the liquid added to the dish is the same mixture or whether the recording is an edited excerpt."
+      }
+    ],
+    "log": [
+      "Reviewed 33 overview frames",
+      "I'm scanning through the timeline, noting the repeating pattern of picking tubes from the blue rack, pipetting liquid, and dispensing into tubes at various timestamps throughout the video.\n\nThen around 62-65 seconds there's a switch to a magenta-capped tube with a different pipette, followed by what looks like mixing into that tube between 71-77, then pipetting into a dish with yet another pipette around 83-86, and finally rocking the dish from 89-95. I should pull up these specific windows to confirm what's happening.",
+      "Inspected 00:12.0–00:30.0 (8 frames)",
+      "Inspected 01:00.0–01:20.0 (8 frames)",
+      "I'm trying to piece together the sequence of hand movements—picking tubes from the blue rack, dispensing with the pipette, and returning tubes—to figure out what reagent transfer process is happening between the racks.",
+      "Inspected 00:29.0–00:45.0 (8 frames)",
+      "I'm tracking the sequence of hand movements — picking a tube from the blue rack, drawing with the pipette, moving near the magenta tube and yellow tip box area, then returning the tube to the blue rack, trying to piece together the overall pattern of actions.",
+      "Inspected 00:40.5–00:43.5 (6 frames)",
+      "The same tip keeps being reused across tube after tube without changing, which suggests the person is dispensing the same reagent into multiple tubes rather than transferring different samples — possibly aliquoting something like Opti-MEM across many cycles of tubes from the blue rack.\n\nThen around 61-66 there's a switch: a magenta-cap tube appears, the pipette changes, and a new draw-and-dispense cycle starts around 68-77, possibly into a dish by 83-86. I need to check frames 80-90 to confirm what's happening there.",
+      "Inspected 01:19.0–01:30.0 (7 frames)",
+      "Around frames 83-87, I'm tracking a pipette dispensing into the small front dish, trying to trace back where it drew from—likely a tube near the blue rack around frame 80, since the left hand was holding something there just before moving to the dish. The tip position shifts slightly between frames, from center-left to a bit further left.",
+      "Inspected 01:29.0–01:37.0 (7 frames)",
+      "The dish shifts position across the bench frames, confirming the rocking motion, though its exact size is uncertain—could be smaller than 10 cm. I'll look at frames 66-71 next to see if the pipette draws from a tube before moving into the magenta tube.",
+      "Inspected 01:06.5–01:11.0 (4 frames)",
+      "I'm watching the hand pick a tip and then insert the pipette into a magenta-capped tube, but I can't tell for certain whether it's drawing liquid out or dispensing it in. The earlier segment with tubes from the blue rack also looks like repeated reagent additions, but the sequence of three separate reagents going into one tube isn't clearly confirmed—it stays genuinely ambiguous from the footage.\n\nI'll lean toward marking step-01 as found around frames 19-28 but with low confidence since I never see a draw from a distinct source container, and treat steps 2 and 3 similarly uncertain given the repeated cycles with the same tip don't clearly show separate reagents being pulled. The later segment around 61-78 might represent a third reagent addition with a fresh tip, but I can't be fully sure either.\n\nFor mixing, the tip just sits static in the tube from roughly 71-78, so I'll call that not found/not visible. Incubation isn't evident either since the recording seems continuous without a time gap, so I'll mark it not_visible with moderate confidence rather than assuming an edit occurred. For the dish-addition step around 80-88, I'll note it as found but flag details like dropwise dispensing and distribution across the small dish as uncertain since the tip position changes aren't fully clear.\n\nThen for 89-97, I confirm this step is found — the back-and-forth motion is gentle with no splashing after the addition.",
+      "Submitted findings for 7 steps"
+    ],
+    "usage": {
+      "input": 16,
+      "cacheWrite": 30081,
+      "cacheRead": 126426,
+      "output": 6354
+    },
+    "generatedAt": "2026-10-04T03:14:19.594Z"
+  },
+  "DJI_12": {
+    "method": {
+      "schemaVersion": 1,
+      "title": "CRISPR component delivery into 293T cells",
+      "version": "1.0",
+      "source": "Mock-Cas9-Delivery.pdf",
+      "summary": "Three reagents are combined in a sterile 1.5 mL EP tube, mixed, and incubated at room temperature for 20 min. The mixture is then added dropwise to a 10 cm dish of 293T cells, and the dish is gently rocked to distribute it.",
+      "requirements": [
+        {
+          "id": "step-01",
+          "title": "Add reagent 1 to tube",
+          "description": "Add reagent 1 into a sterile 1.5 mL EP tube.",
+          "order": 1,
+          "checks": [
+            "A pipette draws liquid from a reagent container",
+            "The liquid is dispensed into a 1.5 mL microcentrifuge tube",
+            "The tube is empty before this addition",
+            "This is the first addition, before the other two reagents"
+          ],
+          "details": [
+            "The tube is empty before this addition",
+            "This is the first addition, before the other two reagents"
+          ],
+          "definingAction": "Pipette draws liquid from the first reagent container and dispenses it into an empty 1.5 mL microcentrifuge tube.",
+          "visualGroup": "reagent addition",
+          "caveats": [
+            "Identity of reagent 1 cannot be confirmed without reading labels",
+            "Volume added is not specified and cannot be verified",
+            "Sterility of the tube cannot be verified"
+          ],
+          "criticality": "critical",
+          "category": "identity"
+        },
+        {
+          "id": "step-02",
+          "title": "Add reagent 2 to tube",
+          "description": "Add reagent 2 into the EP tube.",
+          "order": 2,
+          "checks": [
+            "A pipette draws liquid from a different reagent container",
+            "The liquid is dispensed into the same 1.5 mL tube",
+            "A fresh pipette tip is used for this reagent",
+            "Occurs after reagent 1 and before reagent 3"
+          ],
+          "details": [
+            "A fresh pipette tip is used for this reagent",
+            "Occurs after reagent 1 and before reagent 3"
+          ],
+          "definingAction": "Pipette draws liquid from a second reagent container and dispenses it into the same 1.5 mL tube already containing reagent 1.",
+          "visualGroup": "reagent addition",
+          "caveats": [
+            "Identity of reagent 2 cannot be confirmed without reading labels",
+            "Volume added cannot be verified"
+          ],
+          "criticality": "critical",
+          "category": "identity"
+        },
+        {
+          "id": "step-03",
+          "title": "Add reagent 3 to tube",
+          "description": "Add reagent 3 into the EP tube.",
+          "order": 3,
+          "checks": [
+            "A pipette draws liquid from a third reagent container",
+            "The liquid is dispensed into the same 1.5 mL tube",
+            "A fresh pipette tip is used for this reagent",
+            "Occurs after reagents 1 and 2"
+          ],
+          "details": [
+            "A fresh pipette tip is used for this reagent",
+            "Occurs after reagents 1 and 2"
+          ],
+          "definingAction": "Pipette draws liquid from a third reagent container and dispenses it into the same 1.5 mL tube.",
+          "visualGroup": "reagent addition",
+          "caveats": [
+            "Identity of reagent 3 cannot be confirmed without reading labels",
+            "Volume added cannot be verified"
+          ],
+          "criticality": "critical",
+          "category": "identity"
+        },
+        {
+          "id": "step-04",
+          "title": "Mix the tube contents",
+          "description": "Mix well.",
+          "order": 4,
+          "checks": [
+            "The tube contents are mixed by pipetting up and down within the tube, flicking, or inverting",
+            "Mixing occurs after all three reagents have been added"
+          ],
+          "details": [
+            "Mixing occurs after all three reagents have been added"
+          ],
+          "definingAction": "Contents are mixed within the single tube by pipetting up and down in it, flicking, or inverting, without drawing from any other container.",
+          "caveats": [
+            "Thoroughness of mixing cannot be verified",
+            "Number of mixing repetitions not specified or countable reliably"
+          ],
+          "criticality": "important",
+          "category": "action"
+        },
+        {
+          "id": "step-05",
+          "title": "Incubate at room temperature",
+          "description": "Incubate at room temperature for 20 min.",
+          "order": 5,
+          "checks": [
+            "The tube is placed on the bench or in a rack and left there",
+            "The tube is not moved to a heat block, incubator, or ice",
+            "The mixture is not added to the cells immediately after mixing"
+          ],
+          "details": [
+            "The tube is not moved to a heat block, incubator, or ice",
+            "The mixture is not added to the cells immediately after mixing"
+          ],
+          "definingAction": "The tube is set down on the bench or in a rack and left undisturbed rather than used immediately.",
+          "caveats": [
+            "Exact 20 min duration cannot be verified from sampled frames",
+            "Room temperature cannot be confirmed"
+          ],
+          "criticality": "important",
+          "category": "timing"
+        },
+        {
+          "id": "step-06",
+          "title": "Add mixture dropwise to dish",
+          "description": "Add the mixture dropwise into a 10 cm dish of 293T cells (~70-80% confluency).",
+          "order": 6,
+          "checks": [
+            "The mixture is drawn from the 1.5 mL tube with a pipette",
+            "The mixture is dispensed into a 10 cm culture dish",
+            "The mixture is released as separate drops rather than a single stream",
+            "Drops are distributed across different areas of the dish",
+            "Occurs after the incubation period"
+          ],
+          "details": [
+            "The mixture is released as separate drops rather than a single stream",
+            "Drops are distributed across different areas of the dish",
+            "Occurs after the incubation period"
+          ],
+          "definingAction": "Pipette draws the mixture from the 1.5 mL tube and releases it drop by drop into a 10 cm culture dish.",
+          "caveats": [
+            "Cell confluency (~70-80%) cannot be verified on video",
+            "Cell line identity (293T) cannot be confirmed visually",
+            "Whether the entire mixture is transferred cannot be verified"
+          ],
+          "criticality": "critical",
+          "category": "action"
+        },
+        {
+          "id": "step-07",
+          "title": "Rock dish to mix",
+          "description": "Gently rock the dish forward and backward to mix.",
+          "order": 7,
+          "checks": [
+            "The 10 cm dish is rocked forward and backward",
+            "The motion is gentle, without medium splashing or spilling",
+            "Rocking occurs after the mixture has been added"
+          ],
+          "details": [
+            "The motion is gentle, without medium splashing or spilling",
+            "Rocking occurs after the mixture has been added"
+          ],
+          "definingAction": "The dish is tilted or slid forward and backward on the surface to distribute the medium, without any pipette involvement.",
+          "caveats": [
+            "Adequacy of distribution cannot be verified"
+          ],
+          "criticality": "important",
+          "category": "action"
+        }
+      ]
+    },
+    "observations": [
+      {
+        "id": "step-01-agent",
+        "stepId": "step-01",
+        "timestampStart": 2,
+        "timestampEnd": 27,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Source and destination tubes can't be told apart, and no labels are legible.",
+          "Not establishable from video: Identity of reagent 1 cannot be confirmed without reading labels",
+          "Not establishable from video: Volume added is not specified and cannot be verified",
+          "Not establishable from video: Sterility of the tube cannot be verified"
+        ],
+        "confidence": 0.45,
+        "provenance": "claude_agent",
+        "summary": "After loading a tip (~2–6 s), the operator holds a 1.5 mL tube in the left hand above the blue rack and puts the pipette tip into it several times, then returns the tube to the blue rack (~26–32 s). This is the first pipetting cycle seen.",
+        "checkResults": [
+          {
+            "check": "A pipette draws liquid from a reagent container",
+            "result": "not_visible",
+            "note": "The tip goes into small tubes held in the hand. I can't tell which container is the reagent source and which receives the liquid."
+          },
+          {
+            "check": "The liquid is dispensed into a 1.5 mL microcentrifuge tube",
+            "result": "confirmed",
+            "note": "The pipette tip enters a small microcentrifuge-type tube held in the left hand (12–22 s)."
+          },
+          {
+            "check": "The tube is empty before this addition",
+            "result": "not_visible",
+            "note": "The tube contents are too small to see."
+          },
+          {
+            "check": "This is the first addition, before the other two reagents",
+            "result": "confirmed",
+            "note": "This is the first pipetting cycle in the recording. Two more follow at 33–49 s and 55–68 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-01-e0",
+            "timestamp": 4.4,
+            "end": 5.4,
+            "description": "The pipette is raised near the tip boxes, apparently loading a tip.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e1",
+            "timestamp": 12.3,
+            "end": 13.3,
+            "description": "The pipette tip is inserted into a small tube held in the left hand.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e2",
+            "timestamp": 22.3,
+            "end": 23.3,
+            "description": "Pipetting into the hand-held tube continues.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e3",
+            "timestamp": 32,
+            "end": 33,
+            "description": "The tube is placed into the blue rack.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-02-agent",
+        "stepId": "step-02",
+        "timestampStart": 28,
+        "timestampEnd": 50,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Tube identity across cycles is uncertain.",
+          "Not establishable from video: Identity of reagent 2 cannot be confirmed without reading labels",
+          "Not establishable from video: Volume added cannot be verified"
+        ],
+        "confidence": 0.4,
+        "provenance": "claude_agent",
+        "summary": "A second pipetting cycle: the pipette is reloaded at about 28–30 s, then the operator pipettes into a hand-held small tube taken from the blue rack (34–47 s).",
+        "checkResults": [
+          {
+            "check": "A pipette draws liquid from a different reagent container",
+            "result": "not_visible",
+            "note": "No source container with a legible label is seen."
+          },
+          {
+            "check": "The liquid is dispensed into the same 1.5 mL tube",
+            "result": "not_visible",
+            "note": "Several similar tubes sit in the blue rack, so I can't confirm it is the same tube."
+          },
+          {
+            "check": "A fresh pipette tip is used for this reagent",
+            "result": "confirmed",
+            "note": "The pipette is raised to the tip-box area before this cycle (~28–30 s), which looks like a tip change."
+          },
+          {
+            "check": "Occurs after reagent 1 and before reagent 3",
+            "result": "confirmed",
+            "note": "This cycle falls between the first (7–25 s) and third (55–68 s) cycles."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-02-e0",
+            "timestamp": 30,
+            "end": 31,
+            "description": "The pipette is held upright near the tip boxes.",
+            "kind": "video"
+          },
+          {
+            "id": "step-02-e1",
+            "timestamp": 36.8,
+            "end": 37.8,
+            "description": "The tip is inserted into a hand-held tube.",
+            "kind": "video"
+          },
+          {
+            "id": "step-02-e2",
+            "timestamp": 46.8,
+            "end": 47.8,
+            "description": "Pipetting into the hand-held tube continues.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-03-agent",
+        "stepId": "step-03",
+        "timestampStart": 50,
+        "timestampEnd": 70,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Tube identity and reagent source are not visible.",
+          "Not establishable from video: Identity of reagent 3 cannot be confirmed without reading labels",
+          "Not establishable from video: Volume added cannot be verified"
+        ],
+        "confidence": 0.4,
+        "provenance": "claude_agent",
+        "summary": "A third pipetting cycle: the pipette is reloaded at about 50–53 s, then the operator pipettes into a hand-held small tube (55–68 s).",
+        "checkResults": [
+          {
+            "check": "A pipette draws liquid from a third reagent container",
+            "result": "not_visible",
+            "note": "No source container with a legible label is seen."
+          },
+          {
+            "check": "The liquid is dispensed into the same 1.5 mL tube",
+            "result": "not_visible",
+            "note": "I can't establish that the receiving tube is the same one."
+          },
+          {
+            "check": "A fresh pipette tip is used for this reagent",
+            "result": "confirmed",
+            "note": "The pipette is raised near the tip boxes at about 49–53 s, which looks like a tip change."
+          },
+          {
+            "check": "Occurs after reagents 1 and 2",
+            "result": "confirmed",
+            "note": "This cycle comes after the first two."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-03-e0",
+            "timestamp": 51.8,
+            "end": 52.8,
+            "description": "The pipette is held upright near the tip boxes.",
+            "kind": "video"
+          },
+          {
+            "id": "step-03-e1",
+            "timestamp": 60.7,
+            "end": 61.7,
+            "description": "The tip is inserted into a hand-held tube.",
+            "kind": "video"
+          },
+          {
+            "id": "step-03-e2",
+            "timestamp": 66,
+            "end": 67,
+            "description": "The tube is held up while the pipette approaches.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-04-agent",
+        "stepId": "step-04",
+        "timestampStart": 72,
+        "timestampEnd": 82,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "This could be another addition rather than mixing.",
+          "Not establishable from video: Thoroughness of mixing cannot be verified",
+          "Not establishable from video: Number of mixing repetitions not specified or countable reliably"
+        ],
+        "confidence": 0.3,
+        "provenance": "claude_agent",
+        "summary": "The operator picks up a different pipette (~72–76 s), then holds its tip in the hand-held tube for several seconds (77–81 s). This may be mixing by pipetting up and down.",
+        "checkResults": [
+          {
+            "check": "The tube contents are mixed by pipetting up and down within the tube, flicking, or inverting",
+            "result": "not_visible",
+            "note": "The tip stays in the tube for 77–81 s, but the sampled frames don't show up-and-down plunger motion clearly."
+          },
+          {
+            "check": "Mixing occurs after all three reagents have been added",
+            "result": "confirmed",
+            "note": "This happens after the three pipetting cycles."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-04-e0",
+            "timestamp": 74.1,
+            "end": 75.1,
+            "description": "A different pipette is taken up near the back left of the cabinet.",
+            "kind": "video"
+          },
+          {
+            "id": "step-04-e1",
+            "timestamp": 78.9,
+            "end": 79.9,
+            "description": "The pipette tip is held in the small tube held by the left hand.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-07-agent",
+        "stepId": "step-07",
+        "timestampStart": 85,
+        "timestampEnd": 92,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The handling may only be repositioning the dish, not rocking it.",
+          "The dish looks smaller than 10 cm.",
+          "Not establishable from video: Adequacy of distribution cannot be verified"
+        ],
+        "confidence": 0.3,
+        "provenance": "claude_agent",
+        "summary": "The right hand holds the culture dish on the bench and shifts it slightly over several seconds, which may be rocking. No addition to the dish is seen beforehand.",
+        "checkResults": [
+          {
+            "check": "The 10 cm dish is rocked forward and backward",
+            "result": "not_visible",
+            "note": "The dish position shifts a little between frames, but a clear forward-and-backward rocking motion can't be established."
+          },
+          {
+            "check": "The motion is gentle, without medium splashing or spilling",
+            "result": "confirmed",
+            "note": "No splashing or spilling is visible."
+          },
+          {
+            "check": "Rocking occurs after the mixture has been added",
+            "result": "not_visible",
+            "note": "No mixture addition to the dish is seen before this handling."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-07-e0",
+            "timestamp": 86.4,
+            "end": 87.4,
+            "description": "The right hand grips the pink dish on the bench.",
+            "kind": "video"
+          },
+          {
+            "id": "step-07-e1",
+            "timestamp": 90.6,
+            "end": 91.6,
+            "description": "The dish has shifted slightly under the hand.",
+            "kind": "video"
+          }
+        ]
+      }
+    ],
+    "absences": [
+      {
+        "stepId": "step-05",
+        "reason": "not_visible",
+        "confidence": 0.4,
+        "note": "The tube is not seen being set aside for 20 min. The recording is only 94 s long, and right after pipetting the operator turns to the dish."
+      },
+      {
+        "stepId": "step-06",
+        "reason": "not_visible",
+        "confidence": 0.45,
+        "note": "No pipette is seen drawing the mixture and releasing it into the dish. The recording ends shortly after the dish is handled."
+      }
+    ],
+    "log": [
+      "Reviewed 31 overview frames",
+      "The video looks like it shows a sequence of pipetting steps across multiple tubes and racks, with actions like placing tubes, adding liquids, mixing, and handling a dish at various timestamps. I'm going to scan through the key frames to pin down what's happening at each stage, working within a 48-frame budget.",
+      "Inspected 00:06.0–00:26.0 (8 frames)",
+      "Inspected 00:33.0–00:53.0 (8 frames)",
+      "I'm watching the person pick up tubes from the blue rack and pipette into a tube held in their left hand, though the source containers aren't fully visible. I should check the specific frame ranges more closely to figure out which tube is being drawn from and which is being dispensed into.",
+      "Inspected 00:00.0–00:07.0 (4 frames)",
+      "Inspected 00:25.0–00:33.0 (4 frames)",
+      "Inspected 00:54.0–01:10.0 (6 frames)",
+      "I'm noticing three distinct cycles of tube handling with tip changes in between, suggesting three separate reagent additions using fresh tips each time, followed by what looks like a mixing step and then transfer to a dish. I want to look more closely at the later segment to confirm this.",
+      "Inspected 01:10.0–01:23.0 (8 frames)",
+      "Inspected 01:23.0–01:34.0 (8 frames)",
+      "I'm noticing a small pink dish in front, with a hand near it that seems to shift its position slightly rather than rock it—nothing appears to be dropped or pipetted into it. There's also a different pipette with a blue plunger being used near a tip box, followed by what might be mixing motions in a held tube, though it's difficult to confirm.\n\nGiven the ambiguity, I'd estimate steps 1-3 (pipetting cycles with tip changes) are found with moderate confidence, while step 4 (pipetting into the held tube) is less certain since it could be mixing or adding something else entirely. The tube seems placed in a rack around frame 83, but the dish itself is never pipetted into, so that step may simply not have occurred—though the recording might just be an excerpt that cuts off an incubation period.\n\nThe hand on the dish at 85-91 could be a rocking motion for mixing check, but since nothing was visibly added before that, I'm leaning toward marking the addition step as not_visible rather than not_performed, since I can't be sure if the video is continuous or has cuts. I'll note the rocking check with low confidence and move forward with these uncertain calls.",
+      "Submitted findings for 7 steps"
+    ],
+    "usage": {
+      "input": 10,
+      "cacheWrite": 27794,
+      "cacheRead": 49587,
+      "output": 4522
+    },
+    "generatedAt": "2026-10-04T03:15:35.231Z"
+  },
+  "DJI_14": {
+    "method": {
+      "schemaVersion": 1,
+      "title": "CRISPR component delivery into 293T cells",
+      "version": "1.0",
+      "source": "Mock-Cas9-Delivery.pdf",
+      "summary": "Three reagents are added sequentially to a sterile 1.5 mL EP tube, mixed, incubated at room temperature for 20 min, then added dropwise to a 10 cm dish of 293T cells, which is gently rocked to distribute the mixture.",
+      "requirements": [
+        {
+          "id": "step-01",
+          "title": "Add reagent 1 to tube",
+          "description": "Add reagent 1 into a sterile 1.5 mL EP tube.",
+          "order": 1,
+          "checks": [
+            "Liquid is drawn with a pipette from a reagent container",
+            "The liquid is dispensed into a 1.5 mL microcentrifuge (EP) tube",
+            "This is the first addition into the empty tube, before the other reagents"
+          ],
+          "details": [
+            "This is the first addition into the empty tube, before the other reagents"
+          ],
+          "definingAction": "Pipette draws liquid from the first reagent container and dispenses it into an empty 1.5 mL EP tube.",
+          "visualGroup": "reagent addition",
+          "caveats": [
+            "Identity of reagent 1 cannot be confirmed without reading labels",
+            "Volume of reagent 1 not specified and cannot be verified on video",
+            "Sterility of the EP tube cannot be verified"
+          ],
+          "criticality": "critical",
+          "category": "identity"
+        },
+        {
+          "id": "step-02",
+          "title": "Add reagent 2 to tube",
+          "description": "Add reagent 2 into the EP tube.",
+          "order": 2,
+          "checks": [
+            "Liquid is drawn with a pipette from a reagent container",
+            "The liquid is dispensed into the same EP tube used in the previous step",
+            "Occurs after reagent 1 addition and before reagent 3 addition"
+          ],
+          "details": [
+            "Occurs after reagent 1 addition and before reagent 3 addition"
+          ],
+          "definingAction": "Pipette draws liquid from a second reagent container and dispenses it into the same EP tube.",
+          "visualGroup": "reagent addition",
+          "caveats": [
+            "Identity of reagent 2 cannot be confirmed without reading labels",
+            "Volume not specified and cannot be verified",
+            "Whether a fresh tip is used to avoid cross-contamination may not be clearly visible"
+          ],
+          "criticality": "critical",
+          "category": "identity"
+        },
+        {
+          "id": "step-03",
+          "title": "Add reagent 3 to tube",
+          "description": "Add reagent 3 into the EP tube.",
+          "order": 3,
+          "checks": [
+            "Liquid is drawn with a pipette from a reagent container",
+            "The liquid is dispensed into the same EP tube",
+            "Occurs after reagents 1 and 2 have been added and before mixing"
+          ],
+          "details": [
+            "Occurs after reagents 1 and 2 have been added and before mixing"
+          ],
+          "definingAction": "Pipette draws liquid from a third reagent container and dispenses it into the same EP tube.",
+          "visualGroup": "reagent addition",
+          "caveats": [
+            "Identity of reagent 3 cannot be confirmed without reading labels",
+            "Volume not specified and cannot be verified",
+            "Correct order of the three reagents depends on container identity, which video cannot confirm"
+          ],
+          "criticality": "critical",
+          "category": "identity"
+        },
+        {
+          "id": "step-04",
+          "title": "Mix tube contents",
+          "description": "Mix well.",
+          "order": 4,
+          "checks": [
+            "The EP tube contents are mixed by pipetting up and down, flicking, inverting or vortexing",
+            "No liquid is drawn from another container during this step",
+            "Mixing occurs after all three reagents have been added"
+          ],
+          "details": [
+            "Mixing occurs after all three reagents have been added"
+          ],
+          "definingAction": "The contents of the EP tube are mixed within the tube itself (pipetting up and down in the tube, flicking, inverting or vortexing) without drawing from any other container.",
+          "caveats": [
+            "Thoroughness of mixing ('well') cannot be confirmed visually",
+            "Number of pipetting strokes or flicks is not specified or verifiable"
+          ],
+          "criticality": "important",
+          "category": "action"
+        },
+        {
+          "id": "step-05",
+          "title": "Incubate at room temperature",
+          "description": "Incubate at room temperature for 20 min.",
+          "order": 5,
+          "checks": [
+            "The tube is placed on the bench or in a rack and left there",
+            "The tube is not taken to an incubator, heat block or ice",
+            "The mixture is not added to the cells straight after mixing"
+          ],
+          "details": [
+            "The mixture is not added to the cells straight after mixing"
+          ],
+          "definingAction": "The mixed tube is set down on the bench or in a rack and left untouched rather than used immediately.",
+          "caveats": [
+            "Exact 20 min duration cannot be verified from sampled frames",
+            "Room temperature cannot be confirmed visually"
+          ],
+          "criticality": "important",
+          "category": "timing"
+        },
+        {
+          "id": "step-06",
+          "title": "Add mixture dropwise to dish",
+          "description": "Add the mixture dropwise into a 10 cm dish of 293T cells (~70-80% confluency).",
+          "order": 6,
+          "checks": [
+            "Mixture is drawn from the EP tube with a pipette",
+            "The mixture is dispensed into a 10 cm culture dish containing medium",
+            "Liquid is released in separate drops rather than as a single stream",
+            "Drops are distributed across different areas of the dish",
+            "Dish lid is removed for addition and replaced afterwards"
+          ],
+          "details": [
+            "Liquid is released in separate drops rather than as a single stream",
+            "Drops are distributed across different areas of the dish",
+            "Dish lid is removed for addition and replaced afterwards"
+          ],
+          "definingAction": "Pipette draws the mixture from the EP tube and releases it drop by drop over the medium in the 10 cm cell culture dish.",
+          "caveats": [
+            "Cell line identity (293T) cannot be verified on video",
+            "70-80% confluency cannot be judged from video",
+            "Whether the entire mixture is transferred cannot be confirmed",
+            "Sterility of the transfer cannot be verified"
+          ],
+          "criticality": "critical",
+          "category": "action"
+        },
+        {
+          "id": "step-07",
+          "title": "Rock dish to mix",
+          "description": "Gently rock the dish forward and backward to mix.",
+          "order": 7,
+          "checks": [
+            "The 10 cm dish is moved forward and backward",
+            "No liquid is added or removed during this movement",
+            "Movement is gentle and the dish is kept level so medium does not spill",
+            "Rocking occurs after the mixture has been added"
+          ],
+          "details": [
+            "Movement is gentle and the dish is kept level so medium does not spill",
+            "Rocking occurs after the mixture has been added"
+          ],
+          "definingAction": "The dish, kept flat on the surface or held level, is moved gently back and forth without any pipette involvement.",
+          "caveats": [
+            "Adequacy of distribution of the mixture cannot be confirmed visually",
+            "Number of rocking motions is not specified"
+          ],
+          "criticality": "important",
+          "category": "action"
+        }
+      ]
+    },
+    "observations": [
+      {
+        "id": "step-01-agent",
+        "stepId": "step-01",
+        "timestampStart": 1.9,
+        "timestampEnd": 4.2,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "No draw from a reagent container is visible, so this may not be a reagent addition at all.",
+          "Reagent identity and volume are unknown.",
+          "Not establishable from video: Identity of reagent 1 cannot be confirmed without reading labels",
+          "Not establishable from video: Volume of reagent 1 not specified and cannot be verified on video",
+          "Not establishable from video: Sterility of the EP tube cannot be verified"
+        ],
+        "confidence": 0.35,
+        "provenance": "claude_agent",
+        "summary": "After loading a fresh tip from the pink tip box, the operator picks up a 1.5 mL EP tube and puts the pipette tip into it. I did not see liquid being drawn from a reagent container before this.",
+        "checkResults": [
+          {
+            "check": "Liquid is drawn with a pipette from a reagent container",
+            "result": "not_visible",
+            "note": "The tip goes straight from the pink tip box (0.4–1.3 s) to the EP tube (2.7–3.9 s). No aspiration from a reagent container is seen."
+          },
+          {
+            "check": "The liquid is dispensed into a 1.5 mL microcentrifuge (EP) tube",
+            "result": "confirmed",
+            "note": "The pipette tip is inside a hand-held conical 1.5 mL microcentrifuge tube at 2.7–3.9 s."
+          },
+          {
+            "check": "This is the first addition into the empty tube, before the other reagents",
+            "result": "not_visible",
+            "note": "I can't tell whether the tube was empty beforehand, or whether the tip was dispensing or drawing liquid."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-01-e0",
+            "timestamp": 0.4,
+            "end": 1.4,
+            "description": "Pipette loads a tip from the pink tip box.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e1",
+            "timestamp": 2.3,
+            "end": 3.3,
+            "description": "Left hand picks up an EP tube near the yellow-labelled rack.",
+            "kind": "video"
+          },
+          {
+            "id": "step-01-e2",
+            "timestamp": 3.1,
+            "end": 4.1,
+            "description": "Pipette tip inserted into the hand-held EP tube.",
+            "kind": "video"
+          }
+        ]
+      },
+      {
+        "id": "step-02-agent",
+        "stepId": "step-02",
+        "timestampStart": 5.7,
+        "timestampEnd": 8.8,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "Whether this is the same tube as step 1.",
+          "Whether liquid was drawn or dispensed in the blue-capped tube.",
+          "No tip change was seen between steps 1 and 2.",
+          "Not establishable from video: Identity of reagent 2 cannot be confirmed without reading labels",
+          "Not establishable from video: Volume not specified and cannot be verified",
+          "Not establishable from video: Whether a fresh tip is used to avoid cross-contamination may not be clearly visible"
+        ],
+        "confidence": 0.35,
+        "provenance": "claude_agent",
+        "summary": "The pipette tip goes into one of the blue-capped tubes behind the racks, apparently to draw liquid, and then into a hand-held EP tube. The EP tube seems to have been picked from the white rack, so it may not be the same tube as in step 1.",
+        "checkResults": [
+          {
+            "check": "Liquid is drawn with a pipette from a reagent container",
+            "result": "confirmed",
+            "note": "Tip enters a blue-capped tube at 6.1–6.8 s."
+          },
+          {
+            "check": "The liquid is dispensed into the same EP tube used in the previous step",
+            "result": "not_visible",
+            "note": "At 6.6 s the hand picks a tube from the white rack. Whether it is the same tube used at 3 s cannot be established."
+          },
+          {
+            "check": "Occurs after reagent 1 addition and before reagent 3 addition",
+            "result": "not_visible",
+            "note": "The overall sequence is ambiguous. Tubes are repeatedly picked from the rack, which looks more like aliquoting than three additions to one tube."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-02-e0",
+            "timestamp": 6.1,
+            "end": 7.1,
+            "description": "Pipette tip in a blue-capped reagent tube.",
+            "kind": "video"
+          },
+          {
+            "id": "step-02-e1",
+            "timestamp": 6.8,
+            "end": 7.8,
+            "description": "Left hand picks a tube from the white rack.",
+            "kind": "video"
+          },
+          {
+            "id": "step-02-e2",
+            "timestamp": 8,
+            "end": 9,
+            "description": "Pipette tip inserted into the hand-held EP tube.",
+            "kind": "video"
+          }
+        ]
+      }
+    ],
+    "absences": [
+      {
+        "stepId": "step-03",
+        "reason": "not_visible",
+        "confidence": 0.3,
+        "note": "At 15.4–16.5 s another EP tube is taken from the rack and the tip goes into it, then into a blue-capped tube (17.5 s), then into a strip tube in the white rack (18.5–19.5 s). The order is the reverse of a draw-then-add into the same tube, so I could not identify a clear third-reagent addition to the original tube."
+      },
+      {
+        "stepId": "step-04",
+        "reason": "not_visible",
+        "confidence": 0.5,
+        "note": "I saw no flicking, inverting, vortexing or pipetting up and down of a single EP tube anywhere in the recording."
+      },
+      {
+        "stepId": "step-05",
+        "reason": "not_visible",
+        "confidence": 0.5,
+        "note": "I saw no mixed tube being set aside for incubation. Later activity (24–31 s) is pipetting into strip tubes in the white rack."
+      },
+      {
+        "stepId": "step-06",
+        "reason": "not_visible",
+        "confidence": 0.55,
+        "note": "No 10 cm culture dish of cells receives a dropwise addition. Only a small round dish is partly visible under the left hand at the bottom edge of the frame (23–34 s), and it is never pipetted into."
+      },
+      {
+        "stepId": "step-07",
+        "reason": "not_visible",
+        "confidence": 0.55,
+        "note": "No rocking of a culture dish is seen. The recording ends with the hand resting near the white rack."
+      }
+    ],
+    "log": [
+      "Reviewed 12 overview frames",
+      "This recording is brief, just 34.5 seconds, so I'm scanning through key moments: a pipette with tip around 1.4s, dispensing into an EP tube at 4.3s, drawing from blue-cap tubes between 7-13s, holding the EP tube with pipette near 15.8s, another dispense at 18.7s, what looks like a tip ejection at 21.6s, and grabbing a new tip from a pink box around 24.5s.\n\nI should break this into segments and examine frames 0-6s, 6-14s, 14-22s, and 22-34s more closely to pin down exactly what's happening at each stage.",
+      "Inspected 00:00.0–00:07.0 (8 frames)",
+      "Inspected 00:07.0–00:20.0 (8 frames)",
+      "I'm tracing the sequence: the tip gets loaded from the pink box first, then the hand moves to the rack to pick up a tube, and the pipette dispenses into the EP tube being held—trying to pin down exactly when the reagent was drawn before that second step.",
+      "Inspected 00:01.3–00:03.3 (5 frames)",
+      "Inspected 00:16.0–00:24.0 (8 frames)",
+      "This seems like a different sequence than before—around 16.5 the pipette appears to draw from the EP tube, then at 17.5 it moves to the blue-cap tube, and by 18.5-19.5 it's dispensing into tubes in the white rack. It looks like a distinct procedure, possibly preparing serial dilutions.\n\nAt 21.5 the pipette lifts, likely ejecting its tip. At 23.5 there's a hand handling what looks like a small round dish in front of the rack. From 24-34 the pipette moves between the pink box and the rack, so I should look closer at this range.",
+      "Inspected 00:24.0–00:34.4 (8 frames)",
+      "In the 24-34 segment, I'm watching a new tip get picked up and used to pipette into strip tubes held in a white rack, dispensing around 28.5-29.9 before ejecting the tip at 31. A hand holds a small round dish, possibly a petri dish or pink-capped tube, though I don't see clear dosing into a 10cm dish. This looks like it could be a first addition into an EP tube, with the tip originally sourced from a pink box at time 0.\n\nMoving into the 4-14 range, I'm trying to pin down whether the pipette draws from an unseen reagent source or just moves tip-to-tube. Around 1.3-1.9 it seems to load a tip from the pink box then move toward a tube; by 3.1 it enters an EP tube without a visible draw step, suggesting it might already contain reagent. Then there's activity around 5.7-6.6 at blue-capped tubes, back to the EP tube at 7.8, and what might be a tip exchange at the blue tip box between 9.4-14.3 — I need to look closer at the 5-8 window to confirm whether the pipette actually enters a blue-cap tube.",
+      "Inspected 00:05.8–00:09.0 (5 frames)",
+      "I'm tracking the tube movements — one enters a blue-cap tube around 6.1-6.8, then gets dispensed into an EP tube around 7.4-8.7. I'm trying to figure out whether this is the same tube picked from the white rack earlier or a different one from near the yellow box at 2.2, then shifting focus to what the pipette does between 9.4 and 14.3.\n\nLooking at the 16-19s window, I see the pipette moving between an EP tube, a blue-cap tube, and a tube in the white rack, suggesting a repeated pattern of drawing from the blue-cap tube and dispensing into the EP tube across multiple tubes, followed by a tip change around 24-30s for the strip tubes. I'm having trouble confidently mapping the early 3.1-6.8 sequence to the three-reagent addition steps since the draw and dispense directions aren't fully clear, so I'm settling on a best guess for step-01 starting around 2-4 seconds.\n\nI should double-check frames 9-15 to see if there's a tip change, and look closer at 14.5-16.5 to clarify what's happening there.",
+      "Inspected 00:14.6–00:16.8 (4 frames)",
+      "I'm trying to figure out the pipetting sequence between the EP tubes and blue-cap tubes picked from the white rack — whether the operator draws from one and dispenses into the other, or the reverse, based on the timing pattern observed.\n\nGiven the ambiguity, I'll mark step-02 as found (draw from blue-cap, dispense into EP tube, though tube identity is uncertain), and step-03 as not found/not_visible due to inconsistent ordering. Steps 4-7 weren't observed at all, no mixing, incubation, or 10 cm dish handling appeared before the recording ends around 34.5, so I'll record those as not_visible and submit.",
+      "Submitted findings for 7 steps"
+    ],
+    "usage": {
+      "input": 14,
+      "cacheWrite": 31452,
+      "cacheRead": 98212,
+      "output": 6364
+    },
+    "generatedAt": "2026-10-04T03:17:18.849Z"
+  },
+  "DJI_15": {
+    "method": {
+      "schemaVersion": 1,
+      "title": "CRISPR Component Delivery into 293T Cells",
+      "version": "1.0",
+      "source": "Mock-Cas9-Delivery.pdf",
+      "summary": "Three reagents are added in sequence to a sterile 1.5 mL EP tube, mixed, and incubated at room temperature for 20 min. The mixture is then added dropwise to a 10 cm dish of 293T cells, and the dish is rocked gently to distribute it.",
+      "requirements": [
+        {
+          "id": "step-01",
+          "title": "Add reagent 1 to tube",
+          "description": "Add reagent 1 into a sterile 1.5 mL EP tube.",
+          "order": 1,
+          "checks": [
+            "A pipette draws liquid from a reagent container",
+            "The liquid is dispensed into a 1.5 mL EP tube",
+            "This is the first liquid dispensed into the tube, which is empty beforehand"
+          ],
+          "details": [
+            "This is the first liquid dispensed into the tube, which is empty beforehand"
+          ],
+          "definingAction": "Pipette draws liquid from the first reagent container and dispenses it into an empty 1.5 mL EP tube.",
+          "visualGroup": "reagent addition",
+          "caveats": [
+            "Identity of reagent 1 cannot be confirmed without reading labels",
+            "Volume of reagent 1 is not specified and cannot be verified on video",
+            "Sterility of the EP tube cannot be confirmed visually"
+          ],
+          "criticality": "critical",
+          "category": "identity"
+        },
+        {
+          "id": "step-02",
+          "title": "Add reagent 2 to tube",
+          "description": "Add reagent 2 into the EP tube.",
+          "order": 2,
+          "checks": [
+            "A pipette draws liquid from a reagent container different from the first",
+            "The liquid is dispensed into the same EP tube",
+            "Occurs after reagent 1 has been added",
+            "A fresh pipette tip is used, as seen by a tip being ejected and a new one attached"
+          ],
+          "details": [
+            "Occurs after reagent 1 has been added",
+            "A fresh pipette tip is used, as seen by a tip being ejected and a new one attached"
+          ],
+          "definingAction": "Pipette draws liquid from a second reagent container and dispenses it into the same EP tube that already holds reagent 1.",
+          "visualGroup": "reagent addition",
+          "caveats": [
+            "Identity of reagent 2 cannot be confirmed without reading labels",
+            "Volume is not specified and cannot be verified on video"
+          ],
+          "criticality": "critical",
+          "category": "identity"
+        },
+        {
+          "id": "step-03",
+          "title": "Add reagent 3 to tube",
+          "description": "Add reagent 3 into the EP tube.",
+          "order": 3,
+          "checks": [
+            "A pipette draws liquid from a third reagent container",
+            "The liquid is dispensed into the same EP tube",
+            "Occurs after reagents 1 and 2 have been added",
+            "A fresh pipette tip is used, as seen by a tip being ejected and a new one attached"
+          ],
+          "details": [
+            "Occurs after reagents 1 and 2 have been added",
+            "A fresh pipette tip is used, as seen by a tip being ejected and a new one attached"
+          ],
+          "definingAction": "Pipette draws liquid from a third reagent container and dispenses it into the same EP tube.",
+          "visualGroup": "reagent addition",
+          "caveats": [
+            "Identity of reagent 3 cannot be confirmed without reading labels",
+            "Volume is not specified and cannot be verified on video",
+            "That reagents were added in the order 1, 2, 3 depends on container identity, which may not be distinguishable"
+          ],
+          "criticality": "critical",
+          "category": "ordering"
+        },
+        {
+          "id": "step-04",
+          "title": "Mix the tube contents",
+          "description": "Mix well.",
+          "order": 4,
+          "checks": [
+            "The EP tube contents are mixed by pipetting up and down, flicking, inverting or vortexing",
+            "No liquid is drawn from another container during mixing",
+            "Mixing occurs after all three reagents have been added"
+          ],
+          "details": [
+            "Mixing occurs after all three reagents have been added"
+          ],
+          "definingAction": "The contents are mixed within the EP tube by pipetting up and down, flicking or inverting the tube, without drawing from another container.",
+          "caveats": [
+            "Whether mixing is thorough ('well') cannot be confirmed visually",
+            "Number of mixing repetitions is not specified"
+          ],
+          "criticality": "important",
+          "category": "action"
+        },
+        {
+          "id": "step-05",
+          "title": "Incubate at room temperature",
+          "description": "Incubate at room temperature for 20 min.",
+          "order": 5,
+          "checks": [
+            "The EP tube is placed on the bench or in a rack and left there",
+            "The tube is not moved on to the dish straight away",
+            "The tube is not placed in an incubator, fridge or heat block"
+          ],
+          "details": [
+            "The tube is not placed in an incubator, fridge or heat block"
+          ],
+          "definingAction": "The EP tube is set down on the bench or in a rack and left untouched rather than used straight away.",
+          "caveats": [
+            "The exact 20 min duration cannot be verified from sampled frames",
+            "Room temperature cannot be confirmed visually"
+          ],
+          "criticality": "important",
+          "category": "timing"
+        },
+        {
+          "id": "step-06",
+          "title": "Add mixture dropwise to dish",
+          "description": "Add the mixture dropwise into a 10 cm dish of 293T cells (~70-80% confluency).",
+          "order": 6,
+          "checks": [
+            "A pipette draws liquid from the EP tube",
+            "The liquid is dispensed into a 10 cm cell culture dish",
+            "The liquid is released as separate drops rather than one stream",
+            "Drops are spread over different areas of the dish",
+            "The dish lid is removed for the addition and replaced afterwards"
+          ],
+          "details": [
+            "The liquid is released as separate drops rather than one stream",
+            "Drops are spread over different areas of the dish",
+            "The dish lid is removed for the addition and replaced afterwards"
+          ],
+          "definingAction": "Pipette draws the mixture from the EP tube and releases it drop by drop over the medium in a 10 cm culture dish.",
+          "caveats": [
+            "Cell confluency of ~70-80% cannot be verified on video",
+            "Identity of the cell line (293T) cannot be confirmed visually",
+            "Whether the whole mixture is transferred cannot be confirmed"
+          ],
+          "criticality": "critical",
+          "category": "action"
+        },
+        {
+          "id": "step-07",
+          "title": "Rock dish to mix",
+          "description": "Gently rock the dish forward and backward to mix.",
+          "order": 7,
+          "checks": [
+            "The 10 cm dish is gently rocked forward and backward",
+            "Rocking follows the dropwise addition",
+            "The dish is not swirled vigorously in a circle"
+          ],
+          "details": [
+            "Rocking follows the dropwise addition",
+            "The dish is not swirled vigorously in a circle"
+          ],
+          "definingAction": "The covered dish is gently tilted forward and backward on the bench surface with no liquid being added.",
+          "caveats": [
+            "Gentleness is subjective and may be hard to judge on video",
+            "Number of rocking motions is not specified"
+          ],
+          "criticality": "important",
+          "category": "action"
+        }
+      ]
+    },
+    "observations": [
+      {
+        "id": "step-06-agent",
+        "stepId": "step-06",
+        "timestampStart": 8.5,
+        "timestampEnd": 31,
+        "observed": {},
+        "establishes": [],
+        "uncertain": [
+          "The dispensing point is out of frame.",
+          "There are three separate transfers; these may be the reagent additions themselves, not one transfer of a pre-made mixture.",
+          "The 10 cm size of the dish isn't confirmed.",
+          "Not establishable from video: Cell confluency of ~70-80% cannot be verified on video",
+          "Not establishable from video: Identity of the cell line (293T) cannot be confirmed visually",
+          "Not establishable from video: Whether the whole mixture is transferred cannot be confirmed"
+        ],
+        "confidence": 0.5,
+        "provenance": "claude_agent",
+        "summary": "Three times, the operator draws from an EP tube in the rack and lowers the pipette to a pink-medium culture dish at the bottom right, changing tips between transfers. The left hand holds the dish lid during the additions, and the lid appears to be set back over the dish at about 29–31 s. The actual release into the dish is out of frame, so I can't tell whether it was dropwise.",
+        "checkResults": [
+          {
+            "check": "A pipette draws liquid from the EP tube",
+            "result": "confirmed",
+            "note": "At 11.0, 17.9 and 26.4 s the tip goes into open EP tubes in the rack."
+          },
+          {
+            "check": "The liquid is dispensed into a 10 cm cell culture dish",
+            "result": "not_visible",
+            "note": "The pipette is lowered toward the pink-medium dish (seen at 22.2 s), but the tip entering the dish is out of frame. The dish size can't be confirmed."
+          },
+          {
+            "check": "The liquid is released as separate drops rather than one stream",
+            "result": "not_visible",
+            "note": "The dispensing is out of frame."
+          },
+          {
+            "check": "Drops are spread over different areas of the dish",
+            "result": "not_visible",
+            "note": "The dispensing is out of frame."
+          },
+          {
+            "check": "The dish lid is removed for the addition and replaced afterwards",
+            "result": "confirmed",
+            "note": "The left hand holds the clear lid from about 9 to 28 s, then puts it back over the dish at about 29–31 s."
+          }
+        ],
+        "evidence": [
+          {
+            "id": "step-06-e0",
+            "timestamp": 11,
+            "end": 12,
+            "description": "The tip is in an EP tube in the rack.",
+            "kind": "video"
+          },
+          {
+            "id": "step-06-e1",
+            "timestamp": 12.3,
+            "end": 13.3,
+            "description": "The pipette is lowered toward the dish at the bottom right.",
+            "kind": "video"
+          },
+          {
+            "id": "step-06-e2",
+            "timestamp": 13.9,
+            "end": 14.9,
+            "description": "The used tip is ejected into the waste beaker.",
+            "kind": "video"
+          },
+          {
+            "id": "step-06-e3",
+            "timestamp": 22.2,
+            "end": 23.2,
+            "description": "The pink-medium dish is visible at the bottom, and the left hand holds its lid.",
+            "kind": "video"
+          },
+          {
+            "id": "step-06-e4",
+            "timestamp": 28.2,
+            "end": 29.2,
+            "description": "The last tip is ejected after the third transfer.",
+            "kind": "video"
+          },
+          {
+            "id": "step-06-e5",
+            "timestamp": 29.1,
+            "end": 30.1,
+            "description": "The left hand brings the lid back over the dish.",
+            "kind": "video"
+          }
+        ]
+      }
+    ],
+    "absences": [
+      {
+        "stepId": "step-01",
+        "reason": "not_visible",
+        "confidence": 0.55,
+        "note": "I never see reagents being combined into one empty EP tube. Every pipette transfer in the clip draws from tubes in the white rack and goes toward a culture dish at the bottom right of the frame. Any mixture preparation probably happened before this excerpt starts."
+      },
+      {
+        "stepId": "step-02",
+        "reason": "not_visible",
+        "confidence": 0.5,
+        "note": "I don't see a second reagent being added to a tube that already holds reagent 1. The transfers in the clip go from rack tubes to the dish."
+      },
+      {
+        "stepId": "step-03",
+        "reason": "not_visible",
+        "confidence": 0.5,
+        "note": "I don't see a third reagent being added to an EP tube."
+      },
+      {
+        "stepId": "step-04",
+        "reason": "not_visible",
+        "confidence": 0.5,
+        "note": "I see no flicking, inverting, vortexing or up-and-down pipetting of a combined mixture in an EP tube."
+      },
+      {
+        "stepId": "step-05",
+        "reason": "not_visible",
+        "confidence": 0.45,
+        "note": "The clip is 38 s long and starts with tubes already sitting in the rack. No 20 min incubation is shown."
+      },
+      {
+        "stepId": "step-07",
+        "reason": "not_visible",
+        "confidence": 0.5,
+        "note": "I see no rocking of the dish after the additions. From about 31 s to the end, the hands are closing tubes in the rack, and the dish is mostly out of frame. Rocking could have happened after the recording ends."
+      }
+    ],
+    "log": [
+      "Reviewed 13 overview frames",
+      "With a 38-second recording, I'm scanning through key moments - I can see tubes in a rack, a pipette drawing from blue-capped reagent tubes and dispensing into EP tubes, and I'm trying to make out what might be a petri dish or round object appearing later in the clip.",
+      "Inspected 00:03.0–00:13.0 (8 frames)",
+      "Inspected 00:13.0–00:27.0 (8 frames)",
+      "I'm tracking the pipette's movements—picking a tip from the pink box around 7.4, then watching it approach the rack of tubes near the front by 11.1, trying to figure out whether it dispensed into a reagent box or directly into the EP tubes first.\n\nContinuing to follow the sequence: a tip ejects into the waste beaker around 13.9, a new one is grabbed from the pink box at 15.6, and the pipette moves between the tube rack and what looks like blue-capped reagent tubes around 20.9, suggesting a draw-then-dispense cycle. By 28 another tip ejects into the beaker, then hands appear holding a dish and tubes afterward—I need to look more closely at the 8-12 and 17-22 ranges to nail down the exact ordering.",
+      "Inspected 00:08.0–00:12.0 (6 frames)",
+      "Inspected 00:16.5–00:22.0 (6 frames)",
+      "I'm trying to figure out the source of what's in the left hand, maybe a small tube, and whether the pipette is drawing from or dispensing into the open-cap tubes in the rack — it's hard to tell from the frames.\n\nNow I'm noticing a round transparent lid in the left hand later, plus a pink dish visible at the bottom, suggesting the left hand has been holding a dish lid since early on. Tracing the pipette's movements, it seems to draw from tubes in the rack and dispense into the pink dish repeatedly across several tip changes, with new tips picked up and old ones ejected between cycles. I want to double-check the frames around 11.5-13.5 to confirm the dish is actually there, since the description mentioned reagents being added to a tube rather than a dish.",
+      "Inspected 00:11.8–00:13.6 (5 frames)",
+      "Inspected 00:26.0–00:33.0 (8 frames)",
+      "I'm trying to figure out what's happening with the tubes in the rack versus the dish at bottom right — possibly reagents being transferred from the EP tubes into the pink dish seen earlier, though the left hand holding the lid complicates the interpretation.\n\nI need to look more closely at 22-23 seconds to confirm the dish's contents and check 19.5-20.5 for the dispensing action itself.",
+      "Inspected 00:22.0–00:23.4 (3 frames)",
+      "Inspected 00:33.5–00:38.0 (4 frames)",
+      "I'm watching the video show three draws from EP tubes in a rack, each dispensed into a pink-medium dish at the bottom right while the left hand holds the lid, with tips changed between draws. The lid goes back on around 29-31 seconds, then the tubes close in the rack, though the actual dispensing target stays out of frame so I can't confirm it's dropwise.\n\nSo steps 1-3, adding reagents into a single EP tube, don't match what I'm seeing here -- the transfers go from rack tubes into a dish instead. I'll mark steps 1-3 and steps 4-5 as not found/not_visible since the recording may be an excerpt that misses those actions, but step 6 I can mark as found, spanning roughly 9.5 to 28 seconds, showing three draws from EP tubes dispensed toward the dish with the lid held aside.\n\nAfter that, the lid gets replaced around 29-31, but dropwise addition and the rocking step aren't visible in the remaining footage through 38 seconds -- hands stay on the rack rather than the dish. Since the recording ends there, the rocking step could still happen afterward, so I'll mark it not_visible with moderate confidence rather than ruling it out entirely.",
+      "Submitted findings for 7 steps"
+    ],
+    "usage": {
+      "input": 12,
+      "cacheWrite": 32061,
+      "cacheRead": 72233,
+      "output": 5705
+    },
+    "generatedAt": "2026-10-04T03:18:57.774Z"
+  }
+}
