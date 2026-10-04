@@ -1,4 +1,4 @@
-import type { Context, Graph, Job, PatchOperation, Snapshot, SourceWithExcerpts, Validity, Verification, Workspace } from '../../types/api';
+import type { AgentEvent, AgentRun, AgentRunInput, Context, Graph, Job, PatchOperation, Snapshot, Source, SourceWithExcerpts, Validity, Verification, Workspace } from '../../types/api';
 export const userProvenance = { actor_type: 'user', actor_id: 'workspace-reviewer' } as const;
 export class ApiError extends Error {
   constructor(message: string, public status: number, public detail: unknown) { super(message); }
@@ -12,7 +12,7 @@ function describe(detail: unknown): string {
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try { response = await fetch(`/api${path}`, { ...init, cache: 'no-store' }); }
-  catch { throw new Error('Cannot reach the API. Check that the backend is running, then retry.'); }
+  catch (error) { if (init?.signal?.aborted) throw error; throw new Error('Cannot reach the API. Check that the backend is running, then retry.'); }
   if (response.status === 204) return undefined as T;
   const body = await response.text();
   let data: unknown;
@@ -38,6 +38,15 @@ export const deleteWorkspace = (id: string) => request<void>(`/workspaces/${id}`
 export const fetchGraph = (id: string) => request<Graph>(`/workspaces/${id}/graph`);
 export const fetchContext = (workspace: string, statement: string) => request<Context>(`/workspaces/${workspace}/statements/${statement}/context`);
 export const health = () => request<{ status: string; database: string; redis: string }>('/health/ready');
+export const listAgentRuns = (workspace: string) => request<AgentRun[]>(`/workspaces/${workspace}/agent-runs`);
+export const startAgentRun = (workspace: string, input: AgentRunInput) => post<AgentRun>(`/workspaces/${workspace}/agent-runs`, { ...input }, true);
+export const cancelAgentRun = (id: string) => request<AgentRun>(`/agent-runs/${id}`, { method: 'DELETE' });
+export const listAgentEvents = (id: string, after = 0, signal?: AbortSignal) => request<AgentEvent[]>(`/agent-runs/${id}/events?after=${after}&limit=500`, { signal });
+export const listSources = (workspace: string) => request<Source[]>(`/workspaces/${workspace}/sources`);
+export async function fetchValidity(source: string): Promise<Validity | undefined> {
+  try { return await request<Validity>(`/sources/${source}/validity`); }
+  catch (error) { if (error instanceof ApiError && error.status === 404) return undefined; throw error; }
+}
 export interface UploadProgress {
   stage: 'uploading' | 'processing' | 'queued' | 'saved' | 'failed';
   percent: number;
@@ -146,14 +155,16 @@ function remember(workspace: string, kind: 'sourceIds' | 'jobIds', id: string) {
   const registry = readRegistry(workspace); registry[kind] = [...new Set([...registry[kind], id])]; writeRegistry(workspace, registry);
 }
 export async function fetchSnapshot(id: string): Promise<Snapshot> {
-  const [workspace, graph] = await Promise.all([request<Workspace>(`/workspaces/${id}`), fetchGraph(id)]);
+  const [workspace, graph, sourceList] = await Promise.all([request<Workspace>(`/workspaces/${id}`), fetchGraph(id), listSources(id)]);
   const registry = readRegistry(id);
-  const [contexts, sources, jobs] = await Promise.all([
+  const [contexts, sources, jobs, decisions] = await Promise.all([
     Promise.all(graph.statements.map(s => fetchContext(id, s.id))),
-    Promise.all(registry.sourceIds.map(source => attachSource(id, source))),
+    Promise.all(sourceList.map(source => attachSource(id, source.id))),
     Promise.all(registry.jobIds.map(job => request<Job>(`/extraction-jobs/${job}`))),
+    Promise.all(sourceList.map(source => fetchValidity(source.id))),
   ]);
-  return { workspace, graph, contexts, sources, jobs, validity: registry.validity };
+  const validity = Object.fromEntries(decisions.filter((decision): decision is Validity => !!decision).map(decision => [decision.source_id, decision]));
+  return { workspace, graph, contexts, sources, jobs, validity };
 }
 export function downloadSnapshot(state: Snapshot) {
   const url = URL.createObjectURL(new Blob([JSON.stringify({ format: 'logiccritic-snapshot-v1', exported_at: new Date().toISOString(), ...state }, null, 2)], { type: 'application/json' }));

@@ -1,3 +1,5 @@
+import uuid
+
 import httpx
 import pytest
 
@@ -31,6 +33,23 @@ async def upload(api, name: str, content: bytes, content_type: str):
         f"/api/workspaces/{api.workspace}/sources",
         files={"file": (name, content, content_type)},
     )
+
+
+async def test_workspace_sources_are_discovered_and_isolated(api) -> None:
+    source = (await upload(api, "evidence.md", b"Evidence from a study.", "text/markdown")).json()
+    other = (await api.post("/api/workspaces", json={"title": "other sources"})).json()["id"]
+    try:
+        listed = await api.get(f"/api/workspaces/{api.workspace}/sources")
+        assert listed.status_code == 200
+        assert [item["id"] for item in listed.json()] == [source["id"]]
+        assert listed.json()[0]["workspace_id"] == api.workspace
+        assert (await api.get(f"/api/workspaces/{other}/sources")).json() == []
+    finally:
+        await api.delete(f"/api/workspaces/{other}")
+
+
+async def test_listing_sources_requires_an_existing_workspace(api) -> None:
+    assert (await api.get(f"/api/workspaces/{uuid.uuid4()}/sources")).status_code == 404
 
 
 async def test_pdf_upload_creates_a_source_with_located_excerpts(api, tmp_path) -> None:

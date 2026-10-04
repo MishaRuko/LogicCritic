@@ -20,28 +20,29 @@ from app.schemas import (
 router = APIRouter(tags=["agent"])
 
 
-async def _present(session: AsyncSession, runs: list[AgentRun]) -> list[AgentRunResponse]:
-    """Runs with their goal attached, so the question and criteria are readable."""
-    goals = {
-        g.id: g
-        for g in await session.scalars(
-            select(ResearchGoal).where(ResearchGoal.id.in_({r.goal_id for r in runs}))
-        )
-    }
-    out = []
-    for run in runs:
-        view = AgentRunResponse.model_validate(run)
-        goal = goals.get(run.goal_id)
-        view.goal = AgentGoalResponse.model_validate(goal) if goal else None
-        out.append(view)
-    return out
-
-
 async def _run_or_404(session: AsyncSession, run_id: uuid.UUID) -> AgentRun:
     run = await session.get(AgentRun, run_id)
     if run is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent run not found")
     return run
+
+
+def _response(run: AgentRun, goal: ResearchGoal) -> AgentRunResponse:
+    return AgentRunResponse(
+        **{
+            name: getattr(run, name)
+            for name in AgentRunResponse.model_fields
+            if name not in {"question", "kind", "goal"}
+        },
+        goal=AgentGoalResponse.model_validate(goal),
+        question=goal.question,
+        kind=goal.kind,
+    )
+
+
+async def _with_goal(session: AsyncSession, run: AgentRun) -> AgentRunResponse:
+    goal = await session.get(ResearchGoal, run.goal_id)
+    return _response(run, goal)
 
 
 @router.post(
@@ -61,7 +62,7 @@ async def start_agent_run(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="The research agent is unavailable until CLAUDE_API_KEY is configured.",
         )
-    return (await _present(session, [await create_run(session, workspace_id, payload)]))[0]
+    return await _with_goal(session, await create_run(session, workspace_id, payload))
 
 
 @router.get("/workspaces/{workspace_id}/agent-runs", response_model=list[AgentRunResponse])
@@ -69,21 +70,20 @@ async def list_agent_runs(
     workspace_id: uuid.UUID, session: AsyncSession = Depends(get_session)
 ) -> list[AgentRunResponse]:
     await require_workspace(workspace_id, session)
-    runs = list(
-        await session.scalars(
-            select(AgentRun)
-            .where(AgentRun.workspace_id == workspace_id)
-            .order_by(AgentRun.created_at.desc())
-        )
+    rows = await session.execute(
+        select(AgentRun, ResearchGoal)
+        .join(ResearchGoal, AgentRun.goal_id == ResearchGoal.id)
+        .where(AgentRun.workspace_id == workspace_id)
+        .order_by(AgentRun.created_at.desc(), AgentRun.id.desc())
     )
-    return await _present(session, runs)
+    return [_response(run, goal) for run, goal in rows]
 
 
 @router.get("/agent-runs/{run_id}", response_model=AgentRunResponse)
 async def get_agent_run(
     run_id: uuid.UUID, session: AsyncSession = Depends(get_session)
 ) -> AgentRunResponse:
-    return (await _present(session, [await _run_or_404(session, run_id)]))[0]
+    return await _with_goal(session, await _run_or_404(session, run_id))
 
 
 @router.get("/agent-runs/{run_id}/events", response_model=list[AgentEventResponse])
@@ -109,8 +109,7 @@ async def list_agent_events(
 async def cancel_agent_run(
     run_id: uuid.UUID, session: AsyncSession = Depends(get_session)
 ) -> AgentRunResponse:
-    run = await cancel_run(session, await _run_or_404(session, run_id))
-    return (await _present(session, [run]))[0]
+    return await _with_goal(session, await cancel_run(session, await _run_or_404(session, run_id)))
 
 
 @router.get("/agent-runs/{run_id}/verdicts", response_model=list[AgentVerdictResponse])

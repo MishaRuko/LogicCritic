@@ -44,6 +44,9 @@ async def test_starting_a_run_queues_it_with_its_goal_and_default_budgets(api) -
 
     assert response.status_code == 202
     run = response.json()
+    assert run["question"] == body()["question"] and run["kind"] == "question"
+    listed = (await api.get(start_url(api))).json()
+    assert listed[0]["question"] == run["question"] and listed[0]["kind"] == "question"
     assert (run["status"], run["mode"], run["model"]) == (
         "queued",
         "guarded",

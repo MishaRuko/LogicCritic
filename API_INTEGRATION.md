@@ -64,6 +64,9 @@ A live research agent assesses an open question, a claim or a hypothesis. It sea
 
 Runs cost real model tokens, so one only starts on an explicit `POST`, and each has a budget. Requires `CLAUDE_API_KEY` (503 otherwise). `AMASS_API_KEY` enables paper search. Web search needs no key.
 
+- All run responses include the goal's `question` and `kind` for durable history labels. `GET /workspaces/{workspaceId}/sources` lists all workspace sources, including papers and web pages imported by the agent; fetch their excerpts through the existing source endpoints.
+- Chat messages use the same start endpoint, including while another run is active. Workers process queued messages in order within a workspace. Each new run receives earlier completed questions and answers plus the current workspace’s source and graph index, so follow-ups can reuse evidence and extend the graph. The worker ignores a model response that arrives after its run was cancelled.
+
 ### Endpoints
 
 | Call | Returns |

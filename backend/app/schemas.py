@@ -453,6 +453,8 @@ class AgentRunResponse(APIModel):
     id: uuid.UUID
     workspace_id: uuid.UUID
     goal_id: uuid.UUID
+    question: str
+    kind: Literal["question", "claim", "hypothesis"]
     mode: str
     model: str
     status: str

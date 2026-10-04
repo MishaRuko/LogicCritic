@@ -37,8 +37,8 @@ export interface AgentGoal { id: string; question: string; kind: AgentKind; comp
 export type AssuranceLevel = 'unexplored' | 'exploring' | 'contested' | 'provisional' | 'well_supported' | 'settled';
 export interface Assurance { level: AssuranceLevel; label: string; scale: AssuranceLevel[]; holding_back: { kind: string; description: string }[] }
 
-export interface AgentUsage { turns: number; input_tokens: number; output_tokens: number; web_searches: number; cost_usd: number | null; judge?: { calls: number; input_tokens: number; output_tokens: number }; judge_cost_usd?: number | null; assurance: Assurance | null }
-export interface AgentRun { id: string; workspace_id: string; goal_id: string; goal: AgentGoal | null; mode: 'guarded' | 'baseline'; model: string; status: AgentStatus; budgets: { max_turns: number; max_web_searches: number; max_total_output_tokens: number }; usage: AgentUsage; error: string | null; final_report: string | null; final_statement_id: string | null; certainty: AgentCertainty | null; created_at: string; started_at: string | null; completed_at: string | null }
+export interface AgentUsage { turns?: number; input_tokens?: number; output_tokens?: number; web_searches?: number; cost_usd?: number | null; judge?: { calls: number; input_tokens: number; output_tokens: number }; judge_cost_usd?: number | null; assurance?: Assurance | null }
+export interface AgentRun { id: string; workspace_id: string; goal_id: string; goal?: AgentGoal | null; question: string; kind: AgentKind; mode: 'guarded' | 'baseline'; model: string; status: AgentStatus; budgets: { max_turns: number; max_web_searches: number; max_total_output_tokens: number }; usage: AgentUsage; error: string | null; final_report: string | null; final_statement_id: string | null; certainty: AgentCertainty | null; created_at: string; started_at: string | null; completed_at: string | null }
 
 export interface GuardObligation { kind: string; severity: 'critical' | 'advisory'; description: string; required_condition: string; applies_to: string }
 export interface CheckPacket {
@@ -56,7 +56,7 @@ export type GraphChange =
   | { change: 'claim_superseded' | 'claim_withdrawn'; statement_id: string; replaced_by_id: string | null; reason: string; position: boolean };
 
 /** One entry of a run's trace. Poll GET /agent-runs/{id}/events?after={seq}. */
-export type AgentEvent = { seq: number; created_at: string } & (
+export type KnownAgentEvent = { seq: number; created_at: string } & (
   | { type: 'run_started'; payload: { mode: string; model: string; budgets: AgentRun['budgets'] } }
   | { type: 'criteria_given' | 'criteria_proposed' | 'criteria_default'; payload: { criteria: string[]; falsifiers?: string[] } }
   | { type: 'turn'; payload: { turn: number; stop_reason: string; model: string | null; latency_s: number; usage: { input_tokens: number; output_tokens: number; cache_read_tokens: number; cache_write_tokens: number; web_searches: number } } }
@@ -77,3 +77,17 @@ export type AgentEvent = { seq: number; created_at: string } & (
 
 /** GET /agent-runs/{id}/verdicts: the independent reviewer's judgements; the last is current. */
 export interface AgentVerdict { id: string; created_at: string; criteria: { index: number; criterion: string; met: boolean; rationale: string; supporting_statement_ids: string[] }[]; designs: { statement_id: string; design_shown: boolean; rationale: string }[]; searches: string[] }
+
+export type AgentRunStatus = AgentStatus;
+export interface AgentRunInput {
+  question: string;
+  kind: 'question' | 'claim' | 'hypothesis';
+  mode: 'guarded' | 'baseline';
+  completion_criteria: string[];
+  falsifiers: string[];
+  max_turns?: number;
+  max_web_searches?: number;
+}
+
+// Preserve unknown future trace events for display and replay.
+export interface AgentEvent { seq: number; type: string; payload: Record<string, unknown>; created_at: string }

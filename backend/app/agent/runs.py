@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import get_settings
 from app.database import session_factory
-from app.models import AgentEvent, AgentRun, ResearchGoal
+from app.models import AgentEvent, AgentRun, ResearchGoal, Workspace
 from app.schemas import AgentRunCreate
 
 MAX_PAYLOAD_CHARS = 20_000
@@ -81,10 +81,40 @@ async def claim_next_agent_run() -> uuid.UUID | None:
     now = datetime.now(UTC)
     async with session_factory() as session:
         async with session.begin():
+            queued = (
+                select(AgentRun.created_at)
+                .where(AgentRun.workspace_id == Workspace.id, AgentRun.status == "queued")
+                .order_by(AgentRun.created_at, AgentRun.id)
+                .limit(1)
+                .correlate(Workspace)
+                .scalar_subquery()
+            )
+            running = (
+                select(AgentRun.id)
+                .where(AgentRun.workspace_id == Workspace.id, AgentRun.status == "running")
+                .correlate(Workspace)
+                .exists()
+            )
+            # Lock the workspace so two workers cannot race to claim separate follow-ups.
+            workspace_id = await session.scalar(
+                select(Workspace.id)
+                .where(queued.is_not(None), ~running)
+                .order_by(queued, Workspace.id)
+                .with_for_update(skip_locked=True)
+                .limit(1)
+            )
+            if workspace_id is None:
+                return None
+            if await session.scalar(
+                select(AgentRun.id)
+                .where(AgentRun.workspace_id == workspace_id, AgentRun.status == "running")
+                .limit(1)
+            ):
+                return None
             run = await session.scalar(
                 select(AgentRun)
-                .where(AgentRun.status == "queued")
-                .order_by(AgentRun.created_at)
+                .where(AgentRun.status == "queued", AgentRun.workspace_id == workspace_id)
+                .order_by(AgentRun.created_at, AgentRun.id)
                 .with_for_update(skip_locked=True)
                 .limit(1)
             )

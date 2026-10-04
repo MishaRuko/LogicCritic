@@ -11,9 +11,11 @@ from datetime import UTC, datetime
 from typing import Any
 
 import anthropic
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.agent import assurance, prompts
+from app.agent.conversation import conversation_messages, workspace_context
 from app.agent.runs import EventLog
 from app.agent.tool_models import GUARD_TOOLS, RECORDING_TOOLS, RESEARCH_TOOLS
 from app.agent.toolbox import Toolbox, tool_result_text
@@ -155,17 +157,15 @@ class _State:
 
     async def _save(self, heartbeat: bool = False, **fields: Any) -> AgentRun:
         async with self.sessions() as session:
-            run = await session.get(AgentRun, self.run_id)
-            run.usage = {
-                **run.usage,
-                **self.usage,
-                **self._cost(),
-                "assurance": self.assurance,
-            }
+            run = await session.scalar(
+                select(AgentRun).where(AgentRun.id == self.run_id).with_for_update()
+            )
+            run.usage = {**run.usage, **self.usage, **self._cost(), "assurance": self.assurance}
             if heartbeat:
                 run.heartbeat_at = datetime.now(UTC)
             for name, value in fields.items():
-                setattr(run, name, value)
+                if run.status != "cancelled":
+                    setattr(run, name, value)
             await session.commit()
             return run
 
@@ -214,7 +214,7 @@ class _State:
         run = await self._save(**fields)
         await self.events.add(
             "run_finished",
-            {"status": status, "error": error, "certainty": run.certainty, "usage": run.usage},
+            {"status": run.status, "error": error, "certainty": run.certainty, "usage": run.usage},
         )
 
 
@@ -249,14 +249,17 @@ async def _settle_criteria(state: _State, goal: ResearchGoal, judge: Judge) -> N
 async def _drive(state: _State, client: Any, goal: ResearchGoal) -> None:
     settings = get_settings()
     budgets = state.budgets
-    messages: list[dict[str, Any]] = [
+    async with state.sessions() as session:
+        messages = await conversation_messages(session, state.run_id)
+        context = await workspace_context(session, state.run_id)
+    messages.append(
         {
             "role": "user",
             "content": prompts.opening_message(
                 goal, state.mode, budgets["max_turns"], budgets["max_web_searches"]
-            ),
+            ) + context,
         }
-    ]
+    )
     tools = build_tools(state.mode, budgets["max_web_searches"])
     system = prompts.system_prompt(state.mode)
     nudges = 0
@@ -282,6 +285,8 @@ async def _drive(state: _State, client: Any, goal: ResearchGoal) -> None:
         response = await client.messages.create(**request)
         latency = time.monotonic() - started
         turn_usage = await state.tick(response)
+        if await state.cancelled():
+            return
         await state.events.add(
             "turn",
             {
@@ -344,6 +349,8 @@ async def _drive(state: _State, client: Any, goal: ResearchGoal) -> None:
 async def _run_tools(state: _State, response: Any) -> tuple[list[dict], bool]:
     results, concluded = [], False
     for block in response.content:
+        if await state.cancelled():
+            break
         if block.type != "tool_use":
             continue
         result = await state.toolbox.call(block.name, dict(block.input), block.id)

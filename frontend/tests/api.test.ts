@@ -4,6 +4,44 @@ import type { SourceWithExcerpts } from '../src/types/api';
 afterEach(() => { vi.unstubAllGlobals(); });
 function response(value: unknown, status = 200) { return new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } }); }
 describe('backend contract', () => {
+  it('reuses the agent idempotency key after a failed request and preserves a zero search budget', async () => {
+    const fetch = vi.fn().mockResolvedValueOnce(response({ detail: 'temporary failure' }, 502)).mockResolvedValueOnce(response({ id: 'run' }, 202));
+    vi.stubGlobal('fetch', fetch);
+    const input = { question: 'Can this claim be supported?', kind: 'claim' as const, mode: 'guarded' as const, completion_criteria: [], falsifiers: [], max_web_searches: 0 };
+    await expect(api.startAgentRun('agent-workspace', input)).rejects.toThrow('temporary failure');
+    await api.startAgentRun('agent-workspace', input);
+    expect(fetch.mock.calls[0][0]).toBe('/api/workspaces/agent-workspace/agent-runs');
+    const first = JSON.parse(fetch.mock.calls[0][1].body);
+    expect(first).toMatchObject({ ...input, idempotency_key: expect.any(String) });
+    expect(JSON.parse(fetch.mock.calls[1][1].body).idempotency_key).toBe(first.idempotency_key);
+  });
+
+  it('loads agent-imported sources and exact excerpts even with an empty browser registry', async () => {
+    const workspace = { id: 'agent-source-workspace', title: 'Research' };
+    const source = { id: 'agent-source', workspace_id: workspace.id, original_filename: 'web-page.txt' };
+    const excerpts = [{ id: 'agent-excerpt', source_id: source.id, text: 'Exact evidence imported by the agent.' }];
+    const validity = { id: 'validity', source_id: source.id, status: 'invalidated', reason: 'Retracted paper', provenance: { actor_type: 'integration' } };
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async (path: string) => {
+      const responses: Record<string, unknown> = {
+        [`/api/workspaces/${workspace.id}`]: workspace,
+        [`/api/workspaces/${workspace.id}/graph`]: { statements: [], reasoning_steps: [], relations: [] },
+        [`/api/workspaces/${workspace.id}/sources`]: [source],
+        [`/api/sources/${source.id}`]: source,
+        [`/api/sources/${source.id}/excerpts`]: excerpts,
+        [`/api/sources/${source.id}/validity`]: validity,
+      };
+      return response(responses[path]);
+    }));
+    expect(api.readRegistry(workspace.id).sourceIds).toEqual([]);
+    const snapshot = await api.fetchSnapshot(workspace.id);
+    expect(snapshot.sources).toEqual([{ ...source, excerpts }]);
+    expect(snapshot.validity[source.id]).toEqual(validity);
+  });
+  it('treats a missing source-validity decision as unknown and surfaces other backend failures', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(response({ detail: 'No validity decision recorded' }, 404)).mockResolvedValueOnce(response({ detail: 'Database unavailable' }, 503)));
+    expect(await api.fetchValidity('new-source')).toBeUndefined();
+    await expect(api.fetchValidity('new-source')).rejects.toThrow('Database unavailable');
+  });
   it('posts user-only review provenance and preserves an idempotency key across failed retries', async () => {
     const fetch = vi.fn().mockResolvedValueOnce(response({ detail: 'temporary failure' }, 502)).mockResolvedValueOnce(response({ lifecycle: 'accepted' })).mockResolvedValueOnce(response({ lifecycle: 'rejected' }));
     vi.stubGlobal('fetch', fetch);

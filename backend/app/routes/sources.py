@@ -139,11 +139,13 @@ async def upload_source(
 async def list_workspace_sources(
     workspace_id: uuid.UUID, session: AsyncSession = Depends(get_session)
 ) -> list[Source]:
-    """Every source in the workspace, however it got there: upload, Amass import or an agent run."""
+    """Every source in the workspace: upload, Amass import or an agent run."""
     await require_workspace(workspace_id, session)
     return list(
         await session.scalars(
-            select(Source).where(Source.workspace_id == workspace_id).order_by(Source.created_at)
+            select(Source)
+            .where(Source.workspace_id == workspace_id)
+            .order_by(Source.created_at, Source.id)
         )
     )
 

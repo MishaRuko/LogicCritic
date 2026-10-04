@@ -14,7 +14,7 @@ make up
 
 Open [localhost](http://localhost). Choose **Try a demo** to get started without an API key.
 
-For Claude extraction, argument checks and synthesis, add `CLAUDE_API_KEY` to `.env` before starting the app. To search and import papers from Amass, add `AMASS_API_KEY`. You can still edit graphs, review statements and run verification without it.
+Use the mode switch in the chat box: **Add material** (the default) accepts pasted research text and PDF, Markdown, or text attachments and extracts their argument graph. Switch to **Agent** to ask research questions directly to a model. The composer stays centred below the graph in both modes. Open **Agent details** to see replies and research activity in the optional right-hand panel; closing it preserves your draft and attachments. A compact agent summary remains above the composer while the panel is closed.
 
 Attatch text or Markdown files (`.txt`, `.md`, `.markdown`) or text-based PDFs, up to 10 MB each. Scanned PDFs need OCR, which isn't supported yet. Click a node to inspect its source and reasoning, then accept or reject it. Use **Checks** to run verification and **Export** to save a snapshot.
 

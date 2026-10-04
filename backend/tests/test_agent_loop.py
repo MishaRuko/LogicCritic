@@ -47,6 +47,22 @@ async def events_of(world) -> list[AgentEvent]:
         )
 
 
+async def test_cancellation_during_a_model_call_does_not_write_claims_or_finish_the_run():
+    world = await make_world(mode="baseline", sources=SOURCES)
+
+    async def cancel_during_call(request):
+        async with session_factory() as session:
+            run = await session.get(AgentRun, world.run_id)
+            run.status = "cancelled"
+            await session.commit()
+        return reply(text("This answer arrived after cancellation."))
+
+    await execute_run(world.run_id, client=FakeClaude(cancel_during_call))
+    run = await run_of(world)
+    assert run.status == "cancelled" and run.final_report is None
+    assert "assistant_text" not in types(await events_of(world))
+
+
 def types(events) -> list[str]:
     return [e.type for e in events]
 
