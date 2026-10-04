@@ -617,6 +617,10 @@ async def test_a_flagged_reasoning_step_blocks_until_it_is_replaced(monkeypatch)
 
     blocked = await check(toolbox, conclusion)
     assert kinds(blocked) == ["missing_premise"] and blocked["obligations"][0]["applies_to"] == weak
+    # the agent is told what the critic found missing, and how to supply it
+    assert "Needs a human trial." in blocked["obligations"][0]["description"]
+    assert "revises_step_id" in blocked["obligations"][0]["required_condition"]
+    assert "weighing field" in blocked["obligations"][0]["required_condition"]
 
     human = await record(toolbox, world, "Drug X reduced mortality in a human trial.", "trial")
     await reason(toolbox, [premise, human], conclusion, revises_step_id=weak)

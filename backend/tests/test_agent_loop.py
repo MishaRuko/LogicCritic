@@ -389,9 +389,9 @@ def test_tools_are_strict_and_the_search_tool_follows_the_budget() -> None:
     assert custom and all(
         t["strict"] is True and t["input_schema"]["additionalProperties"] is False for t in custom
     )
-    assert guarded[-1] == {"type": "web_search_20260209", "name": "web_search", "max_uses": 5}
+    assert guarded[-1] == {"type": "web_search_20250305", "name": "web_search", "max_uses": 5}
     assert not any(t["name"] == "web_search" for t in build_tools("guarded", 0))
-    assert len(build_tools("baseline", 1)) == 5 and len(build_tools("guarded", 1)) == 10
+    assert len(build_tools("baseline", 1)) == 5 and len(build_tools("guarded", 1)) == 11
 
 
 def test_cost_estimates_use_list_prices_and_cache_discounts() -> None:

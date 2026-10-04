@@ -30,11 +30,12 @@ from app.agent.tool_models import (
     ReadSourceInput,
     RecordClaimInput,
     RecordReasoningInput,
+    ReviseClaimInput,
     SearchPapersInput,
 )
 from app.agent.web import FetchError, fetch_public, html_to_text
 from app.config import get_settings
-from app.models import AgentRun, Excerpt, ResearchGoal, Source
+from app.models import AgentRun, Excerpt, GraphEvent, ResearchGoal, Source, Statement
 from app.schemas import (
     AnnotationCreateOperation,
     GraphPatchRequest,
@@ -59,7 +60,7 @@ log = logging.getLogger(__name__)
 
 READ_PAGE_CHARS = 14_000
 EXCERPT_PREVIEW_CHARS = 140
-PROMPT_VERSION = "research_agent_v2"
+PROMPT_VERSION = "research_agent_v6"
 
 
 class ToolError(Exception):
@@ -87,6 +88,8 @@ class Toolbox:
         self._run_id = run_id
         self._amass = amass
         self._judge = judge
+        self._reads = 0  # read_source calls so far
+        self._position_id: str | None = None  # the agent's current conclusion-role claim
 
     async def call(self, name: str, arguments: dict[str, Any], tool_use_id: str) -> dict:
         handlers = {
@@ -96,6 +99,7 @@ class Toolbox:
             "read_source": (ReadSourceInput, self.read_source),
             "record_claim": (RecordClaimInput, self.record_claim),
             "record_reasoning": (RecordReasoningInput, self.record_reasoning),
+            "revise_claim": (ReviseClaimInput, self.revise_claim),
             "check_conclusion": (CheckConclusionInput, self.check_conclusion),
             "finalize_conclusion": (FinalizeConclusionInput, self.finalize_conclusion),
             "abstain": (AbstainInput, self.abstain),
@@ -234,12 +238,30 @@ class Toolbox:
             )
             used += len(item.text)
         following = shown[-1]["n"] + 1 if shown else args.offset
-        return {
+        self._reads += 1
+        page = {
             "source_id": args.source_id,
             "title": source.title,
             "excerpts": shown,
             "next_offset": following if len(shown) < len(excerpts) else None,
         }
+        if run.mode == "guarded":
+            page["note"] = self._recording_note()
+        return page
+
+    def _recording_note(self) -> str:
+        """A reminder to build the graph while reading, not after. A hint, never a refusal."""
+        note = (
+            "Record the claims you will rely on from these excerpts with record_claim now, "
+            "before you read further."
+        )
+        if self._position_id is None and self._reads >= 2:
+            note += (
+                " You have no working position yet: record your current best answer as a "
+                "claim with role 'conclusion', and when later evidence changes your view, "
+                "record the new position and call revise_claim on the old one."
+            )
+        return note
 
     # -- recording ----------------------------------------------------------------------------
 
@@ -315,10 +337,17 @@ class Toolbox:
                     idempotency_key=f"agent:{run.id}:{tool_use_id}", operations=operations
                 )
             )
-        return {
-            "statement_id": str(patch.id_map["claim"]),
-            "note": "Recorded. Use this statement_id in record_reasoning and check_conclusion.",
-        }
+        statement_id = str(patch.id_map["claim"])
+        note = "Recorded. Use this statement_id in record_reasoning and check_conclusion."
+        if args.role == "conclusion":
+            if self._position_id is not None:
+                note += (
+                    f" You already hold a conclusion ({self._position_id}). If this one replaces "
+                    f"it, call revise_claim on {self._position_id} with replaced_by_id "
+                    f"{statement_id} and say why; otherwise both will count as your conclusions."
+                )
+            self._position_id = statement_id
+        return {"statement_id": statement_id, "note": note}
 
     async def record_reasoning(self, args: RecordReasoningInput, tool_use_id: str) -> dict:
         premise_ids = [_uuid(i, "premise_ids") for i in args.premise_ids]
@@ -326,6 +355,15 @@ class Toolbox:
         revises = _uuid(args.revises_step_id, "revises_step_id") if args.revises_step_id else None
         async with self._sessions() as session:
             run = await session.get(AgentRun, self._run_id)
+            used = await session.scalars(
+                select(Statement).where(Statement.id.in_([*premise_ids, conclusion_id]))
+            )
+            for statement in used:
+                if statement.lifecycle == "rejected":
+                    raise ToolError(
+                        f"Claim {statement.id} was withdrawn. Record reasoning from the corrected "
+                        "claim instead."
+                    )
             provenance = self._provenance(run)
             operations: list[Any] = [
                 ReasoningStepCreateOperation(
@@ -352,6 +390,17 @@ class Toolbox:
                         provenance=provenance,
                     )
                 )
+            if args.weighing and args.weighing.strip():
+                operations.append(
+                    AnnotationCreateOperation(
+                        op="create_annotation",
+                        subject_type="reasoning_step",
+                        subject_id="step",
+                        type="custom:weighing",
+                        value={"principle": args.weighing.strip()},
+                        provenance=provenance,
+                    )
+                )
             if revises:
                 operations.append(
                     RelationCreateOperation(
@@ -369,6 +418,83 @@ class Toolbox:
                 )
             )
         return {"step_id": str(patch.id_map["step"])}
+
+    async def revise_claim(self, args: ReviseClaimInput, tool_use_id: str) -> dict:
+        old_id = _uuid(args.statement_id, "statement_id")
+        new_id = _uuid(args.replaced_by_id, "replaced_by_id") if args.replaced_by_id else None
+        if not args.reason.strip():
+            raise ToolError("Say why the claim is being revised.")
+        key = f"agent:{self._run_id}:{tool_use_id}"
+        async with self._sessions() as session:
+            run = await session.get(AgentRun, self._run_id)
+            if await session.scalar(
+                select(GraphEvent.id).where(
+                    GraphEvent.workspace_id == run.workspace_id, GraphEvent.idempotency_key == key
+                )
+            ):
+                return {"withdrawn": str(old_id), "replaced_by": str(new_id) if new_id else None}
+            old = await session.get(Statement, old_id)
+            if old is None or old.workspace_id != run.workspace_id:
+                raise ToolError(f"No recorded claim {old_id}. Use an id returned by record_claim.")
+            if (old.provenance or {}).get("run_id") != str(run.id):
+                raise ToolError("Only claims recorded in this run can be revised.")
+            if old.lifecycle == "rejected":
+                raise ToolError("That claim was already withdrawn.")
+            if new_id is not None:
+                new = await session.get(Statement, new_id)
+                if (
+                    new is None
+                    or new.workspace_id != run.workspace_id
+                    or new.lifecycle == "rejected"
+                ):
+                    raise ToolError(
+                        f"The replacement {new_id} must be a claim you recorded and have not "
+                        "withdrawn. Record it first with record_claim."
+                    )
+                if new_id == old_id:
+                    raise ToolError("A claim cannot replace itself.")
+                await GraphPatchExecutor(session, run.workspace_id).apply(
+                    GraphPatchRequest(
+                        idempotency_key=f"{key}:link",
+                        operations=[
+                            RelationCreateOperation(
+                                op="create_relation",
+                                source_node_kind="statement",
+                                source_node_id=new_id,
+                                relation="revises",
+                                target_node_kind="statement",
+                                target_node_id=old_id,
+                                metadata={"reason": args.reason.strip()},
+                            )
+                        ],
+                    )
+                )
+            old_role = old.role
+            if self._position_id == str(old_id):
+                self._position_id = str(new_id) if new_id else None
+            old.lifecycle = "rejected"
+            old.superseded_by = new_id
+            session.add(
+                GraphEvent(
+                    workspace_id=run.workspace_id,
+                    event_type="agent_revision",
+                    idempotency_key=key,
+                    payload={
+                        "withdrawn": str(old_id),
+                        "replaced_by": str(new_id) if new_id else None,
+                        "reason": args.reason.strip(),
+                    },
+                    provenance=self._provenance(run).model_dump(mode="json", exclude_none=True),
+                )
+            )
+            await session.commit()
+        return {
+            "withdrawn": str(old_id),
+            "replaced_by": str(new_id) if new_id else None,
+            "role": old_role,
+            "next": "Re-record any reasoning that used this claim (record_reasoning with "
+            "revises_step_id), then check your conclusion again.",
+        }
 
     # -- guardrail ----------------------------------------------------------------------------
 

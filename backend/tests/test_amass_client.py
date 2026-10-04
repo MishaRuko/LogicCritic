@@ -180,3 +180,12 @@ async def test_limiter_spaces_out_requests_beyond_the_window() -> None:
     assert clock.slept == [pytest.approx(60.0)]
     await limiter.acquire()  # the fourth is already clear
     assert len(clock.slept) == 1
+
+
+async def test_a_network_failure_says_what_kind_even_when_it_has_no_message() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("")  # timeouts carry no text of their own
+
+    with pytest.raises(AmassError) as caught:
+        await make_client(handler).search_biomedcore("x", 5)
+    assert caught.value.status == 502 and "ReadTimeout" in caught.value.message

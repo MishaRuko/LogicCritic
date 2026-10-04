@@ -157,7 +157,11 @@ class AmassClient:
                     method, f"{self._base_url}{path}", headers=self._headers, **kwargs
                 )
             except httpx.HTTPError as error:
-                raise AmassError(502, "UNREACHABLE", f"Could not reach Amass: {error}") from error
+                raise AmassError(
+                    502,
+                    "UNREACHABLE",
+                    f"Could not reach Amass ({type(error).__name__}): {error}".rstrip(": "),
+                ) from error
             if response.is_success:
                 return response.json()
             error = _error_from(response)

@@ -73,9 +73,20 @@ async def check_arguments(
     excerpts = {item: [] for item in statement_ids}
     for statement_id, text in excerpt_rows:
         excerpts[statement_id].append(text[:2000])
+    weighings = {
+        row.subject_id: str(row.value.get("principle", "")).strip()
+        for row in await session.scalars(
+            select(Annotation).where(
+                Annotation.subject_type == "reasoning_step",
+                Annotation.subject_id.in_([item.id for item in steps]),
+                Annotation.type == "custom:weighing",
+            )
+        )
+    }
     steps_payload = [
         {
             "reasoning_step_id": str(step.id),
+            "declared_weighing": weighings.get(step.id) or None,
             "premises": [
                 {"statement": statements[item], "excerpts": excerpts[item]}
                 for item in premises[step.id]

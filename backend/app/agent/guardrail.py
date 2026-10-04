@@ -27,6 +27,7 @@ from app.models import (
     Excerpt,
     GraphEdge,
     Issue,
+    JudgeVerdict,
     ProofObligation,
     ReasoningPremise,
     ReasoningStep,
@@ -56,9 +57,11 @@ CRITICAL_RULES = {
     "unmet_criteria",
     "causal_design_not_shown",
     "judge_unavailable",
+    "withdrawn_premise",
+    "unreasoned_conclusion",
 }
 # Even a conditional conclusion cannot rest on these.
-HARD_BLOCKERS = {"invalidated_source", "ungrounded_statement"}
+HARD_BLOCKERS = {"invalidated_source", "ungrounded_statement", "withdrawn_premise"}
 AGENT_RULES = [
     "unresolved_conflict",
     "unmet_criteria",
@@ -66,6 +69,7 @@ AGENT_RULES = [
     "judge_unavailable",
 ]
 MAX_CONE_STATEMENTS = 40
+MAX_GAP_CHARS = 900
 
 
 @dataclass
@@ -135,8 +139,19 @@ async def _active_steps(session: AsyncSession, workspace_id: uuid.UUID) -> list[
 async def upstream_cone(
     session: AsyncSession, workspace_id: uuid.UUID, statement_id: uuid.UUID
 ) -> tuple[set[uuid.UUID], list[ReasoningStep], dict[uuid.UUID, list[uuid.UUID]]]:
-    """The statement, the active steps concluding it, and, recursively, their premises."""
+    """The statement, the active steps concluding it, and, recursively, their premises.
+
+    A withdrawn (rejected) claim is not part of the argument, so the walk does not enter it. The
+    step that still lists it as a premise stays in the cone: `check` reports that step as stale.
+    """
     steps = await _active_steps(session, workspace_id)
+    withdrawn = set(
+        await session.scalars(
+            select(Statement.id).where(
+                Statement.workspace_id == workspace_id, Statement.lifecycle == "rejected"
+            )
+        )
+    )
     premise_rows = await session.execute(
         select(ReasoningPremise.reasoning_step_id, ReasoningPremise.statement_id).where(
             ReasoningPremise.reasoning_step_id.in_([step.id for step in steps])
@@ -157,7 +172,7 @@ async def upstream_cone(
             if step not in cone_steps:
                 cone_steps.append(step)
             for premise_id in premises[step.id]:
-                if premise_id not in statements:
+                if premise_id not in statements and premise_id not in withdrawn:
                     statements.add(premise_id)
                     queue.append(premise_id)
     return statements, cone_steps, premises
@@ -186,7 +201,26 @@ async def check(
     await run_verification(session, workspace_id)
     notes += await _link_sources(session, run, judge)
 
-    obligations = await _rule_obligations(session, workspace_id, cone, {s.id for s in cone_steps})
+    obligations = await _withdrawn_obligations(session, workspace_id, cone_steps, premises)
+    if target.assertion_mode == "asserted" and not any(
+        step.conclusion_id == statement_id for step in cone_steps
+    ):
+        obligations.append(
+            Obligation(
+                kind="unreasoned_conclusion",
+                severity="critical",
+                description=(
+                    "This conclusion is your own assertion, but no recorded reasoning leads to it, "
+                    "so nothing it rests on can be checked."
+                ),
+                required_condition=(
+                    "Record the claims it rests on, then record_reasoning from them to this "
+                    "conclusion. Citing excerpts directly does not replace the reasoning."
+                ),
+                statement_id=statement_id,
+            )
+        )
+    obligations += await _rule_obligations(session, workspace_id, cone, {s.id for s in cone_steps})
     obligations += await _conflict_obligations(session, workspace_id, cone)
     if judge is None:
         obligations += await _criteria_obligations(session, goal, cone, obligations)
@@ -298,20 +332,101 @@ async def _rule_obligations(
             owners: list[uuid.UUID | None] = sorted(set(cited.get(issue.node_id, [])), key=str)
         else:
             owners = [issue.node_id if issue.node_type == "statement" else None]
+        description = (
+            pending.description if pending else issue.details.get("message", issue.rule_code)
+        )
+        condition = pending.required_condition if pending else ""
+        if issue.rule_code == "missing_premise" and issue.node_type == "reasoning_step":
+            gap = await _critic_gap(session, issue.node_id)
+            if gap:
+                description = f"The critic says this step needs a premise it does not state: {gap}"
+                condition = (
+                    "State that premise as a claim you can support (record_claim, citing "
+                    "evidence), then re-record the reasoning with it, using revises_step_id to "
+                    "replace this step. If the gap is how you weigh the evidence (for example, "
+                    "randomised over observational), state that principle in the weighing field "
+                    "of record_reasoning instead. Or narrow the conclusion so the premises "
+                    "already establish it."
+                )
         for owner in owners:
             obligations.append(
                 Obligation(
                     kind=issue.rule_code,
                     severity="critical" if issue.rule_code in CRITICAL_RULES else "advisory",
-                    description=pending.description
-                    if pending
-                    else issue.details.get("message", issue.rule_code),
-                    required_condition=pending.required_condition if pending else "",
+                    description=description,
+                    required_condition=condition,
                     statement_id=owner,
                     step_id=issue.node_id if issue.node_type == "reasoning_step" else None,
                 )
             )
     return obligations
+
+
+async def _critic_gap(session: AsyncSession, step_id: uuid.UUID) -> str:
+    """What the critic said was missing from a step, so the agent knows what to supply."""
+    rows = await session.scalars(
+        select(Annotation).where(
+            Annotation.subject_type == "reasoning_step",
+            Annotation.subject_id == step_id,
+            Annotation.type == "required_premise",
+        )
+    )
+    said = [
+        str(row.value.get("description", "")).strip()
+        for row in rows
+        if not row.value.get("satisfied")
+    ]
+    return " ".join(part for part in said if part)[:MAX_GAP_CHARS]
+
+
+async def _withdrawn_obligations(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    cone_steps: list[ReasoningStep],
+    premises: dict[uuid.UUID, list[uuid.UUID]],
+) -> list[Obligation]:
+    """Steps that still rely on a claim the agent withdrew: the reasoning is stale."""
+    ids = {p for step in cone_steps for p in premises.get(step.id, [])}
+    withdrawn = {
+        s.id: s
+        for s in await session.scalars(
+            select(Statement).where(Statement.id.in_(ids), Statement.lifecycle == "rejected")
+        )
+    }
+    replacements = {
+        edge.target_node_id: edge.source_node_id
+        for edge in await session.scalars(
+            select(GraphEdge).where(
+                GraphEdge.workspace_id == workspace_id,
+                GraphEdge.relation == "revises",
+                GraphEdge.source_node_kind == "statement",
+                GraphEdge.target_node_id.in_(withdrawn),
+            )
+        )
+    }
+    found = []
+    for step in cone_steps:
+        for premise_id in premises.get(step.id, []):
+            if premise_id not in withdrawn:
+                continue
+            better = replacements.get(premise_id)
+            found.append(
+                Obligation(
+                    kind="withdrawn_premise",
+                    severity="critical",
+                    description=(
+                        f"This step relies on a claim you withdrew: "
+                        f"'{withdrawn[premise_id].text[:200]}'."
+                    ),
+                    required_condition=(
+                        "Record the reasoning again without that claim"
+                        + (f" (its replacement is {better})" if better else "")
+                        + ", using revises_step_id to replace this step."
+                    ),
+                    step_id=step.id,
+                )
+            )
+    return found
 
 
 async def _conflict_obligations(
@@ -457,14 +572,24 @@ async def _judged_obligations(
     if not material["criteria"] and not any(c["declared_design"] for c in material["claims"]):
         return []
     key = hashlib.sha256(json.dumps(material, sort_keys=True).encode()).hexdigest()
-    cache = dict(run.usage.get("judge_cache", {}))
     try:
-        if key in cache:
-            verdict = JudgeOutput.model_validate(cache[key])
+        saved = await session.scalar(
+            select(JudgeVerdict).where(
+                JudgeVerdict.run_id == run.id, JudgeVerdict.input_hash == key
+            )
+        )
+        if saved is not None:
+            verdict = JudgeOutput.model_validate(saved.verdict)
         else:
             verdict = await judge.assess(material)
-            cache[key] = verdict.model_dump()
-            run.usage = {**run.usage, "judge_cache": cache}
+            session.add(
+                JudgeVerdict(
+                    run_id=run.id,
+                    input_hash=key,
+                    material=material,
+                    verdict=verdict.model_dump(mode="json"),
+                )
+            )
             await session.commit()
     except ClaudeCallFailed as error:
         return [
@@ -616,7 +741,7 @@ async def _packet(
         "reasoning_steps": [
             {
                 "step_id": str(s.id),
-                "premises": [str(p) for p in premises.get(s.id, [])],
+                "premises": [str(p) for p in premises.get(s.id, []) if p in cone],
                 "explanation": s.explanation[:240],
             }
             for s in cone_steps

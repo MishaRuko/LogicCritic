@@ -133,6 +133,28 @@ class RecordReasoningInput(BaseModel):
     revises_step_id: str | None = Field(
         description="A step_id this one replaces (e.g. after adding a missing premise), or null."
     )
+    weighing: str | None = Field(
+        default=None,
+        description="When the conclusion depends on how you weigh the evidence, state the "
+        "principle, for example 'randomised trials outrank observational studies for causal "
+        "effects' or 'larger, lower-bias studies outrank smaller, weaker ones'. It must be a "
+        "recognised principle of evidence appraisal that fits these premises, not one chosen to "
+        "suit the conclusion. Null if the premises settle it without weighing.",
+    )
+
+
+class ReviseClaimInput(BaseModel):
+    statement_id: str = Field(
+        description="The statement_id of a claim you recorded and now retract."
+    )
+    reason: str = Field(
+        description="Why: contradicted by later evidence, rests on a retracted or unreliable "
+        "source, or worded more strongly than its source."
+    )
+    replaced_by_id: str | None = Field(
+        description="The statement_id of the corrected claim, recorded first with record_claim, "
+        "or null to withdraw the claim with no replacement."
+    )
 
 
 class CheckConclusionInput(BaseModel):
@@ -184,6 +206,14 @@ RECORDING_TOOLS: dict[str, tuple[str, type[BaseModel]]] = {
         "statement_id. Every claim you rely on must be recorded; claims you do not record do not "
         "count.",
         RecordClaimInput,
+    ),
+    "revise_claim": (
+        "Withdraw a claim you recorded earlier, optionally replacing it with a corrected one you "
+        "have already recorded. Use it when later evidence shows a claim is wrong, rests on a "
+        "retracted or unreliable source, or is worded too strongly. A withdrawn claim leaves your "
+        "argument: reasoning that used it must then be re-recorded with record_reasoning "
+        "(revises_step_id). You can only withdraw claims from this run.",
+        ReviseClaimInput,
     ),
     "record_reasoning": (
         "Record that a conclusion follows from premises, and why. Use scope_change whenever the "

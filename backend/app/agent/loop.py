@@ -42,6 +42,8 @@ TERMINAL_TOOLS = {"finalize_conclusion", "abstain"}
 
 
 def build_tools(mode: str, max_web_searches: int) -> list[dict]:
+    # The basic web search tool: the newer version lets the model call search from inside a code
+    # cell, where it mis-shaped the arguments and every search failed.
     specs = dict(RESEARCH_TOOLS)
     if mode == "guarded":
         specs |= RECORDING_TOOLS | GUARD_TOOLS
@@ -50,7 +52,7 @@ def build_tools(mode: str, max_web_searches: int) -> list[dict]:
     ]
     if max_web_searches > 0:
         tools.append(
-            {"type": "web_search_20260209", "name": "web_search", "max_uses": max_web_searches}
+            {"type": "web_search_20250305", "name": "web_search", "max_uses": max_web_searches}
         )
     return tools
 
@@ -340,9 +342,43 @@ async def _run_tools(state: _State, response: Any) -> tuple[list[dict], bool]:
             kind or "tool_result",
             {"tool_use_id": block.id, "name": block.name, "result": result, "is_error": is_error},
         )
+        change = None if is_error else _graph_change(block.name, dict(block.input), result)
+        if change:
+            await state.events.add("graph_change", change)
         if block.name in TERMINAL_TOOLS and result.get("accepted"):
             concluded = True
     return results, concluded
+
+
+def _graph_change(tool: str, args: dict, result: dict) -> dict | None:
+    """What a successful recording tool did to the graph, for a live or replayed view of it."""
+    if tool == "record_claim":
+        return {
+            "change": "claim_added",
+            "statement_id": result["statement_id"],
+            "text": args.get("text"),
+            "role": args.get("role"),
+            "claim_strength": args.get("claim_strength"),
+            "excerpt_ids": args.get("excerpt_ids"),
+            "position": args.get("role") == "conclusion",
+        }
+    if tool == "record_reasoning":
+        return {
+            "change": "step_added",
+            "step_id": result["step_id"],
+            "premise_ids": args.get("premise_ids"),
+            "conclusion_id": args.get("conclusion_id"),
+            "revises_step_id": args.get("revises_step_id"),
+        }
+    if tool == "revise_claim":
+        return {
+            "change": "claim_superseded" if result.get("replaced_by") else "claim_withdrawn",
+            "statement_id": result["withdrawn"],
+            "replaced_by_id": result.get("replaced_by"),
+            "reason": args.get("reason"),
+            "position": result.get("role") == "conclusion",
+        }
+    return None
 
 
 async def _record_blocks(state: _State, response: Any) -> None:
