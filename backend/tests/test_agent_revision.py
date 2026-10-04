@@ -115,7 +115,7 @@ async def test_repeating_the_same_call_changes_nothing_more() -> None:
     assert "error" not in first and again["withdrawn"] == old
 
 
-async def test_only_this_runs_own_claims_can_be_revised() -> None:
+async def test_only_claims_the_agent_recorded_can_be_revised() -> None:
     world = await make_world(sources=SOURCES)
     async with session_factory() as session:
         other = Statement(
@@ -128,7 +128,7 @@ async def test_only_this_runs_own_claims_can_be_revised() -> None:
         await session.commit()
         other_id = str(other.id)
     result = await revise(box(world), other_id)
-    assert "only claims recorded in this run" in result["error"].lower()
+    assert "only claims the research agent recorded" in result["error"].lower()
     assert await lifecycle_of(other_id) == "proposed"
 
 
@@ -404,3 +404,35 @@ async def test_withdrawing_the_position_means_the_agent_has_none() -> None:
     await read(toolbox, world, "trial")
     await revise(toolbox, position)
     assert "no working position yet" in (await read(toolbox, world, "review"))["note"]
+
+
+async def test_a_follow_up_run_can_correct_the_agents_own_earlier_answer() -> None:
+    from app.models import AgentRun, ResearchGoal
+
+    world = await make_world(sources=SOURCES)
+    old = await record(box(world), world, "Earlier answer.", "trial")
+    async with session_factory() as session:
+        run = await session.get(AgentRun, world.run_id)
+        goal = ResearchGoal(
+            workspace_id=run.workspace_id,
+            question="And now?",
+            completion_criteria=[],
+            falsifiers=[],
+        )
+        session.add(goal)
+        await session.flush()
+        follow_up = AgentRun(
+            workspace_id=run.workspace_id,
+            goal_id=goal.id,
+            idempotency_key=str(uuid.uuid4()),
+            mode="guarded",
+            model=run.model,
+            status="running",
+            budgets=run.budgets,
+            usage=run.usage,
+        )
+        session.add(follow_up)
+        await session.commit()
+        follow_up_id = follow_up.id
+    result = await revise(Toolbox(session_factory, follow_up_id, None), old)
+    assert "error" not in result and await lifecycle_of(old) == "rejected"

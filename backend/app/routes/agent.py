@@ -7,11 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agent.runs import cancel_run, create_run
 from app.config import get_settings
 from app.database import get_session
-from app.models import AgentEvent, AgentRun, JudgeVerdict, ResearchGoal
+from app.models import AgentEvent, AgentRun, JudgeVerdict, ResearchGoal, Source
 from app.routes.workspaces import require_workspace
 from app.schemas import (
     AgentEventResponse,
     AgentGoalResponse,
+    AgentProtocol,
     AgentRunCreate,
     AgentRunResponse,
     AgentVerdictResponse,
@@ -27,22 +28,50 @@ async def _run_or_404(session: AsyncSession, run_id: uuid.UUID) -> AgentRun:
     return run
 
 
-def _response(run: AgentRun, goal: ResearchGoal) -> AgentRunResponse:
+def _response(
+    run: AgentRun, goal: ResearchGoal, protocol: AgentProtocol | None = None
+) -> AgentRunResponse:
     return AgentRunResponse(
         **{
             name: getattr(run, name)
             for name in AgentRunResponse.model_fields
-            if name not in {"question", "kind", "goal"}
+            if name not in {"question", "kind", "goal", "protocol"}
         },
         goal=AgentGoalResponse.model_validate(goal),
+        protocol=protocol,
         question=goal.question,
         kind=goal.kind,
     )
 
 
+async def _protocols(session: AsyncSession, run_ids: list[uuid.UUID]) -> dict[str, AgentProtocol]:
+    """The latest protocol each run recorded (the agent may refine it), keyed by run id."""
+    if not run_ids:
+        return {}
+    rows = await session.scalars(
+        select(Source)
+        .where(
+            Source.origin == "agent",
+            Source.metadata_["parser"].astext == "agent_protocol_v1",
+            Source.metadata_["run_id"].astext.in_([str(i) for i in run_ids]),
+        )
+        .order_by(Source.created_at)
+    )
+    found = {}
+    for source in rows:
+        meta = source.metadata_
+        found[meta["run_id"]] = AgentProtocol(
+            source_id=source.id,
+            title=source.title,
+            basis=meta.get("basis", ""),
+            steps=meta.get("steps", []),
+        )
+    return found
+
+
 async def _with_goal(session: AsyncSession, run: AgentRun) -> AgentRunResponse:
     goal = await session.get(ResearchGoal, run.goal_id)
-    return _response(run, goal)
+    return _response(run, goal, (await _protocols(session, [run.id])).get(str(run.id)))
 
 
 @router.post(
@@ -76,7 +105,9 @@ async def list_agent_runs(
         .where(AgentRun.workspace_id == workspace_id)
         .order_by(AgentRun.created_at.desc(), AgentRun.id.desc())
     )
-    return [_response(run, goal) for run, goal in rows]
+    rows = list(rows)
+    protocols = await _protocols(session, [run.id for run, _ in rows])
+    return [_response(run, goal, protocols.get(str(run.id))) for run, goal in rows]
 
 
 @router.get("/agent-runs/{run_id}", response_model=AgentRunResponse)

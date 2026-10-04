@@ -53,7 +53,8 @@ export type AssuranceLevel = 'unexplored' | 'exploring' | 'contested' | 'provisi
 export interface Assurance { level: AssuranceLevel; label: string; scale: AssuranceLevel[]; holding_back: { kind: string; description: string }[] }
 
 export interface AgentUsage { turns?: number; input_tokens?: number; output_tokens?: number; web_searches?: number; cost_usd?: number | null; judge?: { calls: number; input_tokens: number; output_tokens: number }; judge_cost_usd?: number | null; assurance?: Assurance | null }
-export interface AgentRun { id: string; workspace_id: string; goal_id: string; goal?: AgentGoal | null; question: string; kind: AgentKind; mode: 'guarded' | 'baseline'; model: string; status: AgentStatus; budgets: { max_turns: number; max_web_searches: number; max_total_output_tokens: number }; usage: AgentUsage; error: string | null; final_report: string | null; final_statement_id: string | null; certainty: AgentCertainty | null; created_at: string; started_at: string | null; completed_at: string | null }
+export interface AgentProtocol { source_id: string; title: string | null; basis: string; steps: { n: number; action: string; excerpt_ids: string[] }[] }
+export interface AgentRun { id: string; workspace_id: string; goal_id: string; goal?: AgentGoal | null; protocol?: AgentProtocol | null; question: string; kind: AgentKind; mode: 'guarded' | 'baseline'; model: string; status: AgentStatus; budgets: { max_turns: number; max_web_searches: number; max_total_output_tokens: number }; usage: AgentUsage; error: string | null; final_report: string | null; final_statement_id: string | null; certainty: AgentCertainty | null; created_at: string; started_at: string | null; completed_at: string | null }
 
 export interface GuardObligation { kind: string; severity: 'critical' | 'advisory'; description: string; required_condition: string; applies_to: string }
 export interface CheckPacket {
@@ -83,6 +84,7 @@ export type KnownAgentEvent = { seq: number; created_at: string } & (
   | { type: 'tool_result'; payload: { tool_use_id: string; name: string; result: Record<string, unknown>; is_error: boolean } }
   | { type: 'graph_change'; payload: GraphChange }
   | { type: 'assurance'; payload: Assurance }
+  | { type: 'protocol'; payload: { source_id: string; title: string; basis: string; steps: { n: number; action: string; excerpt_ids: string[] }[] } }
   | { type: 'check'; payload: { tool_use_id: string; name: string; result: CheckPacket; is_error: boolean } }
   | { type: 'finalization'; payload: { tool_use_id: string; name: string; result: { accepted: boolean; certainty?: string; conclusion?: string; caveats?: GuardObligation[]; reason?: string; obligations?: GuardObligation[] }; is_error: boolean } }
   | { type: 'nudge'; payload: { reason: string; count: number } }

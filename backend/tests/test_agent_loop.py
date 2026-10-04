@@ -3,7 +3,7 @@ import httpx
 import pytest
 from sqlalchemy import select
 
-from app.agent.loop import build_tools, estimate_cost, execute_run
+from app.agent.loop import STRICT_TOOLS, build_tools, estimate_cost, execute_run
 from app.agent.runs import EventLog
 from app.config import get_settings
 from app.database import engine, session_factory
@@ -207,7 +207,9 @@ async def test_the_guardrail_stops_a_conclusion_that_rests_on_a_retracted_paper(
 
 async def test_an_abstention_ends_the_run_with_its_reason() -> None:
     world = await make_world(sources=SOURCES)
-    client = FakeClaude(reply(tool("abstain", reason="Only a mouse study exists."), stop="tool_use"))
+    client = FakeClaude(
+        reply(tool("abstain", reason="Only a mouse study exists."), stop="tool_use")
+    )
     await execute_run(world.run_id, client=client)
     run = await run_of(world)
     assert run.status == "succeeded" and run.certainty == "abstained"
@@ -419,18 +421,20 @@ async def test_a_run_that_is_not_running_is_left_alone() -> None:
 # -- helpers -----------------------------------------------------------------------------------
 
 
-def test_tools_are_strict_and_the_search_tool_follows_the_budget() -> None:
+def test_tools_are_closed_and_the_complex_ones_are_strict() -> None:
     guarded = build_tools("guarded", 5)
     custom = [t for t in guarded if t["name"] != "web_search"]
-    assert all(t["input_schema"]["additionalProperties"] is False for t in custom)
-    # The API caps the strict-tool grammar: only the original ten tools may be strict.
-    assert {t["name"] for t in custom if t["strict"]} == {
-        "search_papers", "read_paper", "fetch_url", "read_source", "record_claim",
-        "record_reasoning", "revise_claim", "check_conclusion", "finalize_conclusion", "abstain",
-    }
+    assert custom and all(t["input_schema"]["additionalProperties"] is False for t in custom)
+    # Strict mode shares one size-limited grammar, so it is kept for the nested-argument tools.
+    assert {t["name"] for t in custom if t.get("strict")} == STRICT_TOOLS
+    assert not any(t.get("strict") for t in custom if t["name"] not in STRICT_TOOLS)
+
+
+def test_the_search_tool_follows_the_budget() -> None:
+    guarded = build_tools("guarded", 5)
     assert guarded[-1] == {"type": "web_search_20250305", "name": "web_search", "max_uses": 5}
     assert not any(t["name"] == "web_search" for t in build_tools("guarded", 0))
-    assert len(build_tools("baseline", 1)) == 9 and len(build_tools("guarded", 1)) == 16
+    assert len(build_tools("baseline", 1)) == 9 and len(build_tools("guarded", 1)) == 17
 
 
 async def test_the_report_leads_with_the_verdict_given_at_finalization() -> None:
@@ -466,11 +470,20 @@ def test_verifier_caveats_become_short_public_limitations() -> None:
 
     lines = public_caveats(
         [
-            {"kind": "unmet_criteria", "description": "Completion criterion 0 is not met: "
-             "'The trial reports an equivalence margin'. Reviewer: internal detail."},
-            {"kind": "unmet_criteria", "description": "Completion criterion 1 is not met: "
-             "'Attrition is reported by arm'. Reviewer: more detail."},
-            {"kind": "unreasoned_conclusion", "description": "This conclusion is your own assertion"},
+            {
+                "kind": "unmet_criteria",
+                "description": "Completion criterion 0 is not met: "
+                "'The trial reports an equivalence margin'. Reviewer: internal detail.",
+            },
+            {
+                "kind": "unmet_criteria",
+                "description": "Completion criterion 1 is not met: "
+                "'Attrition is reported by arm'. Reviewer: more detail.",
+            },
+            {
+                "kind": "unreasoned_conclusion",
+                "description": "This conclusion is your own assertion",
+            },
         ]
     )
 

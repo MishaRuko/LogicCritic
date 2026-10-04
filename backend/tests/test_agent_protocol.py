@@ -1,0 +1,320 @@
+"""The agent hands over the procedure it found, as a source the experiment tools can follow."""
+
+import uuid
+
+import httpx
+import pytest
+from sqlalchemy import select
+
+from app.agent.loop import _protocol_event, build_tools, execute_run
+from app.agent.prompts import GUARDED_SYSTEM
+from app.agent.toolbox import Toolbox
+from app.config import get_settings
+from app.database import engine, session_factory
+from app.main import app
+from app.models import AgentEvent, Excerpt, ExperimentProtocol, Source
+from tests.agent_helpers import FakeClaude, FakeJudge, make_world, reply, tool
+
+METHODS = {
+    "paper": [
+        "Thaw the competent cells on ice.",
+        "Add 5 µL of plasmid DNA using a pipette.",
+        "Heat shock the tube in a water bath set to 42 °C for 45 seconds.",
+    ],
+    "other": ["A second paper describes something else."],
+    "bad": ["A retracted paper's procedure."],
+    "results": ["Experiment result."],
+}
+
+
+@pytest.fixture(autouse=True)
+async def fresh_engine(tmp_path, monkeypatch):
+    monkeypatch.setattr(get_settings(), "upload_dir", str(tmp_path))
+    monkeypatch.setattr(get_settings(), "claude_api_key", None)
+    monkeypatch.setattr("app.agent.loop.Judge", FakeJudge)
+    await engine.dispose()
+    yield
+    await engine.dispose()
+
+
+def steps_for(world, count=3, source="paper"):
+    actions = [
+        "Thaw the competent cells on ice.",
+        "Add 5 µL of plasmid DNA using a pipette.",
+        "Heat shock the tube in a water bath set to 42 °C for 45 seconds.",
+    ]
+    return [{"action": actions[i], "excerpt_ids": [world.excerpt(source, i)]} for i in range(count)]
+
+
+async def protocol(toolbox, world, **overrides) -> dict:
+    args = {
+        "title": "Heat-shock transformation",
+        "steps": steps_for(world),
+        "basis": "Follows the first paper.",
+        **overrides,
+    }
+    return await toolbox.call("record_protocol", args, f"toolu_{uuid.uuid4().hex[:8]}")
+
+
+async def source_of(result) -> Source:
+    async with session_factory() as session:
+        return await session.get(Source, uuid.UUID(result["source_id"]))
+
+
+# -- recording ---------------------------------------------------------------------------------
+
+
+async def test_a_protocol_becomes_a_source_with_numbered_steps_and_provenance() -> None:
+    world = await make_world(sources=METHODS)
+    result = await protocol(Toolbox(session_factory, world.run_id, None), world)
+    assert result["steps"] == 3
+    source = await source_of(result)
+    assert (source.origin, source.title) == ("agent", "Protocol: Heat-shock transformation")
+    assert source.metadata_["run_id"] == str(world.run_id)
+    assert source.metadata_["basis"] == "Follows the first paper."
+    assert [s["n"] for s in source.metadata_["steps"]] == [1, 2, 3]
+    assert source.metadata_["steps"][1]["excerpt_ids"] == [world.excerpt("paper", 1)]
+    async with session_factory() as session:
+        texts = [
+            e.text
+            for e in await session.scalars(
+                select(Excerpt).where(Excerpt.source_id == source.id).order_by(Excerpt.sequence)
+            )
+        ]
+    assert texts[0] == "# Methods" and texts[2].startswith("2. Add 5 µL")
+
+
+async def test_recording_the_same_protocol_again_changes_nothing() -> None:
+    world = await make_world(sources=METHODS)
+    toolbox = Toolbox(session_factory, world.run_id, None)
+    first, again = await protocol(toolbox, world), await protocol(toolbox, world)
+    assert first["source_id"] == again["source_id"]
+
+
+@pytest.mark.parametrize(
+    ("override", "message"),
+    [
+        ({"steps": []}, "at least one step"),
+        ({"steps": [{"action": "  ", "excerpt_ids": ["x"]}]}, "Step 1 is empty"),
+        ({"steps": [{"action": "Do it.", "excerpt_ids": []}]}, "must cite the excerpts"),
+        ({"steps": [{"action": "Do it.", "excerpt_ids": ["nope"]}]}, "must be an id"),
+    ],
+)
+async def test_a_protocol_must_be_made_of_cited_steps(override, message) -> None:
+    world = await make_world(sources=METHODS)
+    result = await protocol(Toolbox(session_factory, world.run_id, None), world, **override)
+    assert message in result["error"]
+
+
+async def test_steps_cannot_cite_excerpts_from_elsewhere() -> None:
+    world = await make_world(sources=METHODS)
+    stranger = await make_world(sources={"x": ["Not in this workspace."]})
+    foreign = [{"action": "Do it.", "excerpt_ids": [stranger.excerpt("x")]}]
+    result = await protocol(Toolbox(session_factory, world.run_id, None), world, steps=foreign)
+    assert "No such excerpts" in result["error"]
+
+
+async def test_a_protocol_cannot_rest_on_a_retracted_source() -> None:
+    world = await make_world(sources=METHODS, retracted=("bad",))
+    steps = [{"action": "Do the retracted thing.", "excerpt_ids": [world.excerpt("bad")]}]
+    result = await protocol(Toolbox(session_factory, world.run_id, None), world, steps=steps)
+    assert "retracted or invalidated" in result["error"]
+
+
+async def test_experiment_results_cannot_be_the_basis_of_a_protocol() -> None:
+    world = await make_world(sources=METHODS)
+    async with session_factory() as session:
+        source = await session.get(Source, world.sources["results"])
+        source.origin = "lab-vision"
+        await session.commit()
+    steps = [{"action": "Repeat it.", "excerpt_ids": [world.excerpt("results")]}]
+    result = await protocol(Toolbox(session_factory, world.run_id, None), world, steps=steps)
+    assert "not experiment results" in result["error"]
+
+
+# -- the handoff to the experiment tools --------------------------------------------------------
+
+
+@pytest.fixture
+async def api():
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        yield client
+
+
+async def test_the_experiment_tools_can_follow_the_protocol_without_a_model(api) -> None:
+    world = await make_world(sources=METHODS)
+    result = await protocol(Toolbox(session_factory, world.run_id, None), world)
+    base = f"/api/workspaces/{world.workspace_id}"
+    assert (await api.post(f"{base}/verify")).status_code == 200
+    response = await api.post(f"{base}/protocols", json={"source_id": result["source_id"]})
+    assert response.status_code == 201
+    body = response.json()
+    assert body["extraction_method"] == "numbered_instructions"  # verbatim, nothing invented
+    steps = body["protocol"]["steps"]
+    assert [s["description"] for s in steps] == [
+        "Thaw the competent cells on ice.",
+        "Add 5 µL of plasmid DNA using a pipette.",
+        "Heat shock the tube in a water bath set to 42 °C for 45 seconds.",
+    ]
+    assert [(c["expected"], c["unit"]) for c in steps[1]["checks"]] == [(5.0, "µL")]
+    assert [(c["expected"], c["unit"]) for c in steps[2]["checks"]] == [(42.0, "°C")]
+    async with session_factory() as session:
+        assert await session.scalar(select(ExperimentProtocol.id)) is not None
+
+
+# -- what the run reports -----------------------------------------------------------------------
+
+
+async def test_the_run_carries_the_protocol_it_recorded(api) -> None:
+    world = await make_world(sources=METHODS)
+    run_url = f"/api/agent-runs/{world.run_id}"
+    assert (await api.get(run_url)).json()["protocol"] is None
+    result = await protocol(Toolbox(session_factory, world.run_id, None), world)
+    shown = (await api.get(run_url)).json()["protocol"]
+    assert shown["source_id"] == result["source_id"] and shown["basis"].startswith("Follows")
+    assert [s["n"] for s in shown["steps"]] == [1, 2, 3]
+    listed = (await api.get(f"/api/workspaces/{world.workspace_id}/agent-runs")).json()
+    assert listed[0]["protocol"]["source_id"] == result["source_id"]
+
+
+async def test_a_refined_protocol_replaces_the_earlier_one(api) -> None:
+    world = await make_world(sources=METHODS)
+    toolbox = Toolbox(session_factory, world.run_id, None)
+    await protocol(toolbox, world)
+    better = await protocol(toolbox, world, steps=steps_for(world, count=2))
+    shown = (await api.get(f"/api/agent-runs/{world.run_id}")).json()["protocol"]
+    assert shown["source_id"] == better["source_id"] and len(shown["steps"]) == 2
+
+
+# -- the loop ------------------------------------------------------------------------------------
+
+
+async def test_a_recorded_protocol_appears_in_the_trace() -> None:
+    world = await make_world(sources=METHODS)
+    client = FakeClaude(
+        reply(
+            tool(
+                "record_protocol",
+                title="Heat-shock transformation",
+                steps=steps_for(world),
+                basis="Follows the first paper.",
+            ),
+            stop="tool_use",
+        ),
+        reply(stop="end_turn"),
+        reply(stop="end_turn"),
+        reply(stop="end_turn"),
+    )
+    await execute_run(world.run_id, client=client)
+    async with session_factory() as session:
+        events = list(
+            await session.scalars(
+                select(AgentEvent).where(
+                    AgentEvent.run_id == world.run_id, AgentEvent.type == "protocol"
+                )
+            )
+        )
+    assert len(events) == 1
+    assert [s["n"] for s in events[0].payload["steps"]] == [1, 2, 3]
+    assert events[0].payload["title"] == "Heat-shock transformation"
+
+
+def test_the_trace_event_numbers_steps_and_keeps_their_citations() -> None:
+    event = _protocol_event(
+        {"title": "T", "basis": "B", "steps": [{"action": "Mix.", "excerpt_ids": ["e1"]}]},
+        {"source_id": "s"},
+    )
+    assert event == {
+        "source_id": "s",
+        "title": "T",
+        "basis": "B",
+        "steps": [{"n": 1, "action": "Mix.", "excerpt_ids": ["e1"]}],
+    }
+
+
+def test_only_guarded_runs_offer_the_tool_and_the_contract_asks_for_it() -> None:
+    assert any(t["name"] == "record_protocol" for t in build_tools("guarded", 0))
+    assert not any(t["name"] == "record_protocol" for t in build_tools("baseline", 0))
+    assert "whether or not the question asked for one" in GUARDED_SYSTEM
+    assert "Never invent" in GUARDED_SYSTEM
+
+
+# -- the decision to hand a protocol over --------------------------------------------------------
+
+
+async def conclude(toolbox, world, **extra) -> dict:
+    claim = await toolbox.call(
+        "record_claim",
+        {
+            "text": "The answer.",
+            "excerpt_ids": [world.excerpt("other")],
+            "assertion_mode": "reported",
+            "role": "conclusion",
+            "claim_strength": None,
+            "causal_support": None,
+            "scope": None,
+            "criteria_satisfied": [],
+        },
+        f"toolu_{uuid.uuid4().hex[:8]}",
+    )
+    return await toolbox.call(
+        "finalize_conclusion",
+        {"statement_id": claim["statement_id"], "certainty": "established", **extra},
+        "toolu_final",
+    )
+
+
+async def read_methods(toolbox, world) -> None:
+    """The agent reads a paper whose text has a Methods section."""
+    async with session_factory() as session:
+        for excerpt in await session.scalars(
+            select(Excerpt).where(Excerpt.source_id == world.sources["paper"])
+        ):
+            excerpt.locator = {**excerpt.locator, "section": "Materials and Methods"}
+        await session.commit()
+    page = await toolbox.call(
+        "read_source", {"source_id": str(world.sources["paper"]), "offset": 0}, "toolu_read"
+    )
+    assert "excerpts" in page, page
+
+
+async def test_claiming_a_protocol_was_recorded_requires_having_recorded_one() -> None:
+    world = await make_world(sources=METHODS)
+    toolbox = Toolbox(session_factory, world.run_id, None)
+    result = await conclude(toolbox, world, protocol="recorded")
+    assert result["accepted"] is False and "have not called record_protocol" in result["reason"]
+    await protocol(toolbox, world)
+    assert (await conclude(toolbox, world, protocol="recorded"))["accepted"] is True
+
+
+async def test_no_procedure_in_the_evidence_means_no_protocol_is_asked_for() -> None:
+    world = await make_world(sources=METHODS)
+    assert (await conclude(Toolbox(session_factory, world.run_id, None), world))["accepted"]
+
+
+async def test_saying_none_after_reading_a_procedure_gets_one_push_then_goes_through() -> None:
+    world = await make_world(sources=METHODS)
+    toolbox = Toolbox(session_factory, world.run_id, None)
+    await read_methods(toolbox, world)
+    first = await conclude(toolbox, world, protocol="none")
+    assert first["accepted"] is False
+    assert "You read procedures" in first["reason"] and "record_protocol" in first["reason"]
+    assert (await conclude(toolbox, world, protocol="none"))["accepted"] is True  # never a loop
+
+
+async def test_handing_over_the_protocol_after_the_push_is_accepted() -> None:
+    world = await make_world(sources=METHODS)
+    toolbox = Toolbox(session_factory, world.run_id, None)
+    await read_methods(toolbox, world)
+    assert (await conclude(toolbox, world, protocol="none"))["accepted"] is False
+    await protocol(toolbox, world)
+    assert (await conclude(toolbox, world, protocol="recorded"))["accepted"] is True
+
+
+def test_the_finalize_tool_makes_the_agent_choose() -> None:
+    tool_def = next(t for t in build_tools("guarded", 0) if t["name"] == "finalize_conclusion")
+    schema = tool_def["input_schema"]
+    assert "protocol" in schema["required"]
+    assert schema["properties"]["protocol"]["enum"] == ["recorded", "none"]

@@ -47,7 +47,7 @@ short paragraphs or '- ' bullets; no Markdown headings or bold. Finish by callin
 
 
 def _tools() -> list[dict]:
-    tools = [{**strict_tool(name, description, model), "strict": False} for name, (description, model) in GRAPH_TOOLS.items()]
+    tools = [strict_tool(name, description, model, strict=False) for name, (description, model) in GRAPH_TOOLS.items()]
     tools.append(strict_tool("answer", "Give the final answer and the graph nodes it rests on.", GraphAnswer))
     return tools
 

@@ -17,18 +17,18 @@ def strict_input_schema(model: type[BaseModel]) -> dict[str, Any]:
     return schema
 
 
-def strict_tool(name: str, description: str, model: type[BaseModel]) -> dict[str, Any]:
+def strict_tool(
+    name: str, description: str, model: type[BaseModel], *, strict: bool = True
+) -> dict[str, Any]:
     """A tool definition whose input is guaranteed to match `model`.
 
     Without `strict`, Claude sometimes returns an array as a JSON-encoded string, or leaves a
     list out, and the answer is lost to a validation error.
     """
-    return {
-        "name": name,
-        "description": description,
-        "strict": True,
-        "input_schema": strict_input_schema(model),
-    }
+    tool = {"name": name, "description": description, "input_schema": strict_input_schema(model)}
+    if strict:
+        tool["strict"] = True
+    return tool
 
 
 def _require_every_property(node: Any) -> None:

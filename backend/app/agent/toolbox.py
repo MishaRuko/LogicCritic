@@ -31,6 +31,7 @@ from app.agent.tool_models import (
     ReadPaperInput,
     ReadSourceInput,
     RecordClaimInput,
+    RecordProtocolInput,
     RecordReasoningInput,
     ReviseClaimInput,
     SearchPapersInput,
@@ -45,6 +46,7 @@ from app.models import (
     GraphEvent,
     ResearchGoal,
     Source,
+    SourceValidity,
     Statement,
     StatementExcerpt,
 )
@@ -63,6 +65,7 @@ from app.services.amass_import import (
     import_biomed_record,
     split_block,
 )
+from app.services.experiments import METHOD_SECTION
 from app.services.graph_patches import GraphPatchExecutor
 from app.services.judge import Judge
 from app.services.pdf_ingestion import PdfIngestionError, parse_pdf
@@ -74,7 +77,7 @@ log = logging.getLogger(__name__)
 READ_PAGE_CHARS = 14_000
 MAX_VERDICT_CHARS = 300
 EXCERPT_PREVIEW_CHARS = 140
-PROMPT_VERSION = "research_agent_v6"
+PROMPT_VERSION = "research_agent_v9"
 
 
 class ToolError(Exception):
@@ -103,6 +106,9 @@ class Toolbox:
         self._amass = amass
         self._judge = judge
         self._reads = 0  # read_source calls so far
+        self._read_sources: set[uuid.UUID] = set()  # sources the agent has read
+        self._protocol_recorded = False
+        self._protocol_nudged = False
         self._position_id: str | None = None  # the agent's current conclusion-role claim
 
     async def call(self, name: str, arguments: dict[str, Any], tool_use_id: str) -> dict:
@@ -113,6 +119,7 @@ class Toolbox:
             "read_source": (ReadSourceInput, self.read_source),
             "record_claim": (RecordClaimInput, self.record_claim),
             "record_reasoning": (RecordReasoningInput, self.record_reasoning),
+            "record_protocol": (RecordProtocolInput, self.record_protocol),
             "revise_claim": (ReviseClaimInput, self.revise_claim),
             "check_conclusion": (CheckConclusionInput, self.check_conclusion),
             "finalize_conclusion": (FinalizeConclusionInput, self.finalize_conclusion),
@@ -338,6 +345,7 @@ class Toolbox:
             used += len(item.text)
         following = shown[-1]["n"] + 1 if shown else args.offset
         self._reads += 1
+        self._read_sources.add(source_id)
         page = {
             "source_id": args.source_id,
             "title": source.title,
@@ -518,6 +526,81 @@ class Toolbox:
             )
         return {"step_id": str(patch.id_map["step"])}
 
+    async def record_protocol(self, args: RecordProtocolInput, _: str) -> dict:
+        steps: list[tuple[str, list[uuid.UUID]]] = []
+        for number, step in enumerate(args.steps, 1):
+            action = " ".join(step.action.split())
+            if not action:
+                raise ToolError(f"Step {number} is empty.")
+            if not step.excerpt_ids:
+                raise ToolError(f"Step {number} must cite the excerpts that state it.")
+            steps.append((action, [_uuid(i, "excerpt_ids") for i in step.excerpt_ids]))
+        if not steps:
+            raise ToolError("A protocol needs at least one step.")
+        title = " ".join(args.title.split()) or "Procedure"
+        async with self._sessions() as session:
+            run = await session.get(AgentRun, self._run_id)
+            wanted = {i for _, ids in steps for i in ids}
+            rows = (
+                await session.execute(
+                    select(Excerpt.id, Source.id, Source.origin)
+                    .join(Source, Source.id == Excerpt.source_id)
+                    .where(Excerpt.id.in_(wanted), Source.workspace_id == run.workspace_id)
+                )
+            ).all()
+            unknown = wanted - {row[0] for row in rows}
+            if unknown:
+                raise ToolError(
+                    f"No such excerpts in this workspace: {sorted(str(i) for i in unknown)[:3]}. "
+                    "Cite excerpt_ids returned by read_source."
+                )
+            if any(row[2] == "lab-vision" for row in rows):
+                raise ToolError("A protocol must cite research sources, not experiment results.")
+            for source_id in {row[1] for row in rows}:
+                latest = await session.scalar(
+                    select(SourceValidity)
+                    .where(SourceValidity.source_id == source_id)
+                    .order_by(SourceValidity.created_at.desc())
+                    .limit(1)
+                )
+                if latest is not None and latest.status == "invalidated":
+                    raise ToolError(
+                        "A step cites a retracted or invalidated source. Follow a source that "
+                        "stands, or say in the answer that none does."
+                    )
+            text = "# Methods\n\n" + "\n\n".join(
+                f"{n}. {action}" for n, (action, _) in enumerate(steps, 1)
+            )
+            new = NewSource(
+                kind="document",
+                origin="agent",
+                title=f"Protocol: {title}",
+                mime_type="text/markdown",
+                filename="protocol.md",
+                content=text.encode(),
+                excerpts=parse_structured_text(text),
+                metadata={
+                    "parser": "agent_protocol_v1",
+                    "run_id": str(run.id),
+                    "basis": args.basis.strip(),
+                    "steps": [
+                        {"n": n, "action": action, "excerpt_ids": [str(i) for i in ids]}
+                        for n, (action, ids) in enumerate(steps, 1)
+                    ],
+                },
+            )
+            try:
+                source, _ = await store_source(session, run.workspace_id, new)
+            except DuplicateSource as duplicate:
+                source = await session.get(Source, duplicate.source_id)
+        self._protocol_recorded = True
+        return {
+            "source_id": str(source.id),
+            "title": source.title,
+            "steps": len(steps),
+            "note": "Recorded. It is now a source the experiment tools can follow.",
+        }
+
     async def revise_claim(self, args: ReviseClaimInput, tool_use_id: str) -> dict:
         old_id = _uuid(args.statement_id, "statement_id")
         new_id = _uuid(args.replaced_by_id, "replaced_by_id") if args.replaced_by_id else None
@@ -535,8 +618,10 @@ class Toolbox:
             old = await session.get(Statement, old_id)
             if old is None or old.workspace_id != run.workspace_id:
                 raise ToolError(f"No recorded claim {old_id}. Use an id returned by record_claim.")
-            if (old.provenance or {}).get("run_id") != str(run.id):
-                raise ToolError("Only claims recorded in this run can be revised.")
+            if (old.provenance or {}).get("actor_type") != "agent":
+                # Claims from earlier turns of this conversation are the agent's own to correct;
+                # uploaded and extracted ones are not.
+                raise ToolError("Only claims the research agent recorded can be revised.")
             if old.lifecycle == "rejected":
                 raise ToolError("That claim was already withdrawn.")
             if new_id is not None:
@@ -605,6 +690,45 @@ class Toolbox:
             result = await guardrail.check(session, run, goal, statement_id, self._judge)
         return result.packet
 
+    async def _protocol_problem(self, decision: str) -> str | None:
+        """Hold the agent to its own stated decision about handing over a procedure."""
+        if decision == "recorded":
+            if self._protocol_recorded:
+                return None
+            return (
+                "You said a protocol was recorded, but you have not called record_protocol. "
+                "Record it, or finalize again with protocol 'none'."
+            )
+        if self._protocol_recorded or self._protocol_nudged or not self._read_sources:
+            return None
+        async with self._sessions() as session:
+            rows = (
+                await session.execute(
+                    select(Source.title, Excerpt.locator)
+                    .join(Excerpt, Excerpt.source_id == Source.id)
+                    .where(Source.id.in_(self._read_sources))
+                )
+            ).all()
+        titles = list(
+            dict.fromkeys(
+                title or "an untitled source"
+                for title, locator in rows
+                if METHOD_SECTION.search(
+                    str(locator.get("methodology_section", locator.get("section", "")))
+                )
+            )
+        )
+        if not titles:
+            return None
+        self._protocol_nudged = True  # one push, never a loop
+        return (
+            f"You read procedures ({'; '.join(t[:80] for t in titles[:3])}) but recorded no "
+            "protocol. If someone could carry out what these sources describe to reproduce or "
+            "test the finding, call record_protocol now with the steps they report, then "
+            "finalize with protocol 'recorded'. If none of it applies to your question, call "
+            "finalize_conclusion again."
+        )
+
     async def finalize_conclusion(self, args: FinalizeConclusionInput, _: str) -> dict:
         statement_id = _uuid(args.statement_id, "statement_id")
         if len(args.verdict) > MAX_VERDICT_CHARS:
@@ -612,6 +736,9 @@ class Toolbox:
                 f"The verdict is the bottom line only: at most {MAX_VERDICT_CHARS} characters. "
                 "Put the evidence and deductions in the conclusion."
             )
+        problem = await self._protocol_problem(args.protocol)
+        if problem:
+            return {"accepted": False, "reason": problem}
         async with self._sessions() as session:
             run = await session.get(AgentRun, self._run_id)
             goal = await session.get(ResearchGoal, run.goal_id)
