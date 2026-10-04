@@ -705,3 +705,35 @@ async def test_without_the_switch_the_protocol_comes_from_the_source(api) -> Non
     refused = await api.post(f"{base}/protocols", json={"source_id": str(world.sources["other"])})
     assert refused.status_code == 422  # no methodology section: nothing is invented
 
+
+async def test_with_the_demo_switch_a_protocol_prepared_earlier_is_replaced_by_the_lab_protocol(
+    api, monkeypatch
+) -> None:
+    world = await make_world(sources=METHODS)
+    result = await protocol(Toolbox(session_factory, world.run_id, None), world)
+    base = f"/api/workspaces/{world.workspace_id}"
+    await api.post(f"{base}/verify")
+    extracted = (
+        await api.post(f"{base}/protocols", json={"source_id": result["source_id"]})
+    ).json()
+    assert extracted["extraction_method"] == "numbered_instructions"
+    assert len(extracted["protocol"]["steps"]) == 3  # the agent's own, as extracted before
+
+    monkeypatch.setattr(get_settings(), "demo_protocol", True)
+    listing = (await api.get(f"{base}/experiments")).json()
+    assert [p["current"] for p in listing["protocols"]] == [False]  # no longer offered as current
+
+    # a client that still holds the old prepared protocol gets the lab's, not the old one
+    started = await api.post(
+        f"{base}/experiment-runs", data={"mode": "demo", "protocol_id": extracted["id"]}
+    )
+    assert started.status_code == 202, started.text
+    used = started.json()["protocol_id"]
+    assert used != extracted["id"]
+    async with session_factory() as session:
+        row = await session.get(ExperimentProtocol, uuid.UUID(used))
+    assert row.extraction_method == "demo_fixture" and len(row.protocol["steps"]) == 7
+
+    # and once prepared, the lab protocol is reused rather than made again each time
+    again = await api.post(f"{base}/experiment-runs", data={"mode": "demo", "protocol_id": used})
+    assert again.json()["protocol_id"] == used

@@ -60,6 +60,14 @@ class ExtractRequest(BaseModel):
     source_id: uuid.UUID
 
 
+def usable(protocol: ExperimentProtocol, fingerprint: str) -> bool:
+    """Prepared for the research as it stands now. With the demo switch on, only the lab's own
+    protocol counts, so a protocol extracted earlier is prepared again as the lab's."""
+    if protocol.research_fingerprint != fingerprint:
+        return False
+    return not get_settings().demo_protocol or protocol.extraction_method == "demo_fixture"
+
+
 async def agent_suggestion(
     session: AsyncSession, workspace_id: uuid.UUID, fingerprint: str
 ) -> dict | None:
@@ -166,7 +174,7 @@ async def list_experiments(workspace_id: uuid.UUID, session: AsyncSession = Depe
         "protocols": [
             {
                 **ProtocolResponse.model_validate(p).model_dump(mode="json"),
-                "current": p.research_fingerprint == fingerprint,
+                "current": usable(p, fingerprint),
             }
             for p in protocols
         ],
@@ -275,7 +283,7 @@ async def start_experiment(
             source_id = uuid.UUID(suggestion["source_id"])
             if suggestion["current"]:
                 protocol = await session.get(ExperimentProtocol, uuid.UUID(suggestion["protocol_id"]))
-    if protocol is None or protocol.research_fingerprint != fingerprint:
+    if protocol is None or not usable(protocol, fingerprint):
         selected_source = source_id or (protocol.source_id if protocol else None)
         if selected_source is None:
             raise HTTPException(422, "Choose the research source for this experiment.")
