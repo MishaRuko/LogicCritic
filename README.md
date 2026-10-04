@@ -67,7 +67,6 @@ source, claim by claim, so a longer answer gets no credit for being longer.
 So the guard roughly halves the errors without getting the verdicts wrong more often. It costs
 about three to four times as much per answer. Our first attempt at this evaluation said the
 opposite, because it accidentally showed the agents the answer key and rewarded long answers.
-That story, the method and the caveats are in [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md).
 
 ## Running it
 
@@ -103,7 +102,6 @@ docs/       how it works, experiments, API notes
 
 More reading:
 
-- [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md): the pipeline in detail, the evaluation and results
 - [AGENTS.md](AGENTS.md): notes for developing and deploying
 - [API_INTEGRATION.md](API_INTEGRATION.md) and [docs/experiments.md](docs/experiments.md): the API
 

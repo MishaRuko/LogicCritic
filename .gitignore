@@ -18,3 +18,4 @@ test-results/
 playwright-report/
 vision/runs/
 vision/src/*.egg-info/
+docs/HOW_IT_WORKS.md
