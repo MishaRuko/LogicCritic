@@ -21,7 +21,7 @@ from app.agent.tool_models import GUARD_TOOLS, RECORDING_TOOLS, RESEARCH_TOOLS
 from app.agent.toolbox import Toolbox, tool_result_text
 from app.config import get_settings
 from app.database import session_factory
-from app.models import AgentRun, ResearchGoal
+from app.models import AgentEvent, AgentRun, ResearchGoal, Statement
 from app.services.amass import AmassNotConfigured, get_amass_client
 from app.services.claude_call import ClaudeCallFailed
 from app.services.claude_errors import describe_claude_failure
@@ -471,7 +471,22 @@ async def _complete(state: _State, text: str) -> None:
     run = await state._save()
     report = text
     if state.mode == "guarded" and run.certainty and run.certainty != "abstained":
+        async with state.sessions() as session:
+            conclusion = await session.get(Statement, run.final_statement_id)
+            finalization = await session.scalar(
+                select(AgentEvent)
+                .where(AgentEvent.run_id == run.id, AgentEvent.type == "finalization")
+                .order_by(AgentEvent.seq.desc())
+                .limit(1)
+            )
+        result = (finalization.payload or {}).get("result", {}) if finalization else {}
+        caveats = result.get("caveats", []) if result.get("accepted") else []
+        report = conclusion.text if conclusion else "Verified conclusion unavailable."
+        descriptions = [item.get("description", "").strip() for item in caveats]
+        descriptions = [item for item in descriptions if item]
+        if descriptions:
+            report += "\n\nCaveats:\n" + "\n".join(f"- {item}" for item in descriptions)
         report += f"\n\n[Verifier record] Final certainty: {run.certainty}."
-    if run.certainty == "abstained" and run.final_report:
-        report = f"{run.final_report}\n\n{text}".strip()
+    elif run.certainty == "abstained" and run.final_report:
+        report = run.final_report
     await state.finish("succeeded", report=report)
