@@ -61,6 +61,14 @@ Create a JSON source packet containing full text you are permitted to use:
 }
 ```
 
+For open-access Europe PMC articles, create reproducible packets directly from PMCIDs. The importer
+stores the abstract and article body (references omitted) and caps each packet at 80,000 characters
+to preserve the pilot's cost ceiling:
+
+```bash
+docker compose exec api python -m app.evaluations.cli fetch-pmc --output-dir /data/eval-packets PMC11573799
+```
+
 Generate a few adversarial cases with Opus, review only for obvious malformed input, then persist
 the immutable manifest before spending on agent runs:
 

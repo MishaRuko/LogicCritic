@@ -10,6 +10,7 @@ import json
 import uuid
 from pathlib import Path
 
+from app.evaluations.europe_pmc import fetch_packets
 from app.evaluations.service import create_evaluation, generate_cases, render_report, run_evaluation
 
 
@@ -25,8 +26,14 @@ async def _generate(args) -> None:
             handle.write(json.dumps({"packet": packet, **case}) + "\n")
 
 
+async def _fetch_pmc(args) -> None:
+    for path in await fetch_packets(args.pmcids, args.output_dir):
+        print(path)
+
+
 async def _create(args) -> None:
-    print(await create_evaluation(args.name, _read_manifest(args.manifest)))
+    cases = [case for manifest in args.manifests for case in _read_manifest(manifest)]
+    print(await create_evaluation(args.name, cases))
 
 
 async def _run(args) -> None:
@@ -40,6 +47,10 @@ async def _report(args) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run a stored blind baseline-versus-guarded evaluation")
     commands = parser.add_subparsers(required=True)
+    fetch_pmc = commands.add_parser("fetch-pmc")
+    fetch_pmc.add_argument("pmcids", nargs="+")
+    fetch_pmc.add_argument("--output-dir", type=Path, required=True)
+    fetch_pmc.set_defaults(func=_fetch_pmc)
     generate = commands.add_parser("generate")
     generate.add_argument("--packet", type=Path, required=True)
     generate.add_argument("--output", type=Path, required=True)
@@ -47,7 +58,7 @@ def main() -> None:
     generate.set_defaults(func=_generate)
     create = commands.add_parser("create")
     create.add_argument("--name", required=True)
-    create.add_argument("--manifest", type=Path, required=True)
+    create.add_argument("--manifest", dest="manifests", type=Path, action="append", required=True)
     create.set_defaults(func=_create)
     run = commands.add_parser("run")
     run.add_argument("evaluation_id")

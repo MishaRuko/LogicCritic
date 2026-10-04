@@ -28,12 +28,14 @@ from app.services.claude_call import get_client, new_tally, structured_call
 from app.services.source_store import NewSource, store_source
 from app.services.text_ingestion import parse_structured_text
 
+# Europe PMC packets reserve a short truncation marker after their 80,000-character article body.
+MAX_PACKET_CHARS = 81_000
 
 class GeneratedCase(BaseModel):
-    question: str = Field(min_length=10)
+    question: str = Field(min_length=10, max_length=700)
     completion_criteria: list[str] = Field(min_length=2, max_length=5)
     rubric: list[str] = Field(min_length=2, max_length=6)
-    trap: str = Field(min_length=10)
+    trap: str = Field(min_length=10, max_length=500)
 
 
 class GeneratedCases(BaseModel):
@@ -53,7 +55,9 @@ CASE_SYSTEM = """You design difficult, answerable scientific-reasoning evaluatio
 full-text source material. Write questions whose answer requires careful attention to methods,
 limitations, study design, scope, contradictory evidence, or uncertainty rather than paraphrasing
 an abstract. Do not require information outside the supplied packet. Give a concise hidden rubric
-that names the evidence and calibration expected. Do not invent facts or citations."""
+that names the evidence and calibration expected. Do not invent facts or citations. Keep every
+question under 700 characters and every rubric/trap item under 500 characters. Return only JSON
+without Markdown: {"cases":[{"question":string,"completion_criteria":[string],"rubric":[string],"trap":string}]}."""
 
 JUDGE_SYSTEM = """You are a blind evaluator for a scientific-reasoning experiment. Score Answer A and
 Answer B independently against the supplied question, source packet, and hidden rubric. You do not
@@ -61,7 +65,8 @@ know which system produced either answer and must not infer or discuss it. Rewar
 use of the supplied evidence, appropriate uncertainty, and direct handling of the trap. Penalize
 unsupported claims, causal overreach, ignored limitations, and confident answers where abstention
 or qualification is warranted. A score of 4 is fully correct and well calibrated; 0 is materially
-wrong or unsupported. Choose the higher score as winner, or tie only when equal."""
+wrong or unsupported. Choose the higher score as winner, or tie only when equal. Return only JSON
+without Markdown: {"answer_a_score":integer,"answer_b_score":integer,"winner":"A"|"B"|"tie","critical_errors_a":[string],"critical_errors_b":[string],"rationale":string}."""
 
 
 def packet_hash(packet: dict) -> str:
@@ -80,6 +85,9 @@ async def generate_cases(packet: dict, count: int, *, client: Any = None) -> lis
         description="Return difficult source-grounded questions and their hidden scoring rubrics.",
         schema=GeneratedCases,
         task="evaluation-case generation",
+        force_tool=False,
+        allow_text_json=True,
+        use_tools=False,
     )
     return [case.model_dump() for case in output.cases]
 
@@ -97,6 +105,7 @@ async def create_evaluation(
                 "judge_model": settings.eval_judge_model,
                 "max_turns": settings.eval_max_turns,
                 "max_web_searches": settings.eval_max_web_searches,
+                "max_cost_usd": settings.eval_max_cost_usd,
                 "source_access": "packet only; web search disabled",
                 "method_note": "Synthetic cases and blind LLM judging are a hackathon signal, not independent validation.",
             },
@@ -129,6 +138,8 @@ async def _materialize_workspace(session: AsyncSession, packet: dict, title: str
     await session.refresh(workspace)
     for position, source in enumerate(packet["sources"], start=1):
         text = source["text"]
+        if len(text) > MAX_PACKET_CHARS:
+            raise ValueError(f"Source {position} exceeds the {MAX_PACKET_CHARS}-character evaluation limit")
         await store_source(
             session,
             workspace.id,
@@ -213,6 +224,9 @@ async def _judge_case(
         schema=PairwiseVerdict,
         task="blind evaluation",
         tally=tally,
+        force_tool=False,
+        allow_text_json=True,
+        use_tools=False,
     )
     async with sessions() as session:
         judgment = EvaluationJudgment(
@@ -245,6 +259,13 @@ async def run_evaluation(
         by_arm = {output.arm: output for output in existing}
         for arm in ("baseline", "guarded"):
             if arm not in by_arm:
+                if await _spent(evaluation_id, sessions=sessions) >= evaluation.config["max_cost_usd"]:
+                    async with sessions() as session:
+                        row = await session.get(EvaluationRun, evaluation_id)
+                        row.status = "budget_exhausted"
+                        await session.commit()
+                    await render_report(evaluation_id, sessions=sessions, status="budget_exhausted")
+                    return
                 by_arm[arm] = await _run_arm(case, arm, sessions=sessions, client=client)
         async with sessions() as session:
             already_judged = await session.scalar(select(EvaluationJudgment).where(EvaluationJudgment.evaluation_case_id == case.id))
@@ -257,8 +278,20 @@ async def run_evaluation(
     await render_report(evaluation_id, sessions=sessions)
 
 
+async def _spent(evaluation_id: uuid.UUID, *, sessions: async_sessionmaker[AsyncSession]) -> float:
+    """Use persisted usage only, so a resumed run cannot silently exceed its run budget."""
+    async with sessions() as session:
+        cases = list(await session.scalars(select(EvaluationCase).where(EvaluationCase.evaluation_run_id == evaluation_id)))
+        case_ids = [case.id for case in cases]
+        outputs = list(await session.scalars(select(EvaluationOutput).where(EvaluationOutput.evaluation_case_id.in_(case_ids)))) if case_ids else []
+        judgments = list(await session.scalars(select(EvaluationJudgment).where(EvaluationJudgment.evaluation_case_id.in_(case_ids)))) if case_ids else []
+    agent_cost = sum(float(output.usage.get("cost_usd") or 0) for output in outputs)
+    judge_cost = sum(estimate_cost(judgment.model, judgment.usage) or 0 for judgment in judgments)
+    return agent_cost + judge_cost
+
+
 async def render_report(
-    evaluation_id: uuid.UUID, *, sessions: async_sessionmaker[AsyncSession] = session_factory
+    evaluation_id: uuid.UUID, *, sessions: async_sessionmaker[AsyncSession] = session_factory, status: str = "completed"
 ) -> str:
     async with sessions() as session:
         evaluation = await session.get(EvaluationRun, evaluation_id)
@@ -297,7 +330,7 @@ async def render_report(
         ]
         report = "\n".join(lines)
         evaluation.report = report
-        evaluation.status = "completed"
+        evaluation.status = status
         evaluation.completed_at = datetime.now(UTC)
         await session.commit()
         return report

@@ -1,6 +1,7 @@
 import json
 
 from app.evaluations.service import GeneratedCases, PairwiseVerdict, packet_hash
+from app.evaluations.europe_pmc import packet_from_xml
 
 
 def test_packet_hash_is_stable_when_json_key_order_changes() -> None:
@@ -41,3 +42,16 @@ def test_pairwise_verdict_keeps_scores_and_anonymous_winner() -> None:
 
     assert verdict.winner == "B"
     assert verdict.answer_b_score > verdict.answer_a_score
+
+
+def test_europe_pmc_packet_keeps_article_body_and_drops_references() -> None:
+    packet = packet_from_xml(
+        "PMC123",
+        "<article><front><article-title>Study title</article-title><abstract>Abstract text</abstract>"
+        "</front><body><sec><title>Results</title><p>Observed result.</p></sec></body>"
+        "<ref-list><ref>Reference omitted.</ref></ref-list></article>",
+    )
+
+    assert packet["id"] == "PMC123"
+    assert "Observed result." in packet["sources"][0]["text"]
+    assert "Reference omitted." not in packet["sources"][0]["text"]

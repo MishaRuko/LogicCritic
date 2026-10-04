@@ -1,0 +1,8 @@
+# Open-access full-text biology/biomedicine source packets for the 12-case pilot.
+# Two adversarial cases are generated from each packet. All are Europe PMC PMCIDs.
+PMC11573799
+PMC11728165
+PMC10542734
+PMC11568318
+PMC11609297
+PMC11524040
