@@ -53,7 +53,7 @@ export function ExperimentDetail({ job, protocol, source, onSource, actions }: {
         const canvas = document.createElement('canvas');
         canvas.width = Math.min(960, media.videoWidth); canvas.height = canvas.width * media.videoHeight / media.videoWidth;
         canvas.getContext('2d')?.drawImage(media, 0, 0, canvas.width, canvas.height);
-        const active = observationAt(run.observations, media.currentTime);
+        const active = observationAt(run.observations, media.currentTime, selected);
         snapshot = { image: canvas.toDataURL('image/jpeg', .8), t: media.currentTime, stepId: active?.stepId, caption: active?.summary ?? 'Frame from the experiment recording' };
       }
       const created = await createRecord(run, method, snapshot, results, job.result.observations);
@@ -70,7 +70,7 @@ export function ExperimentDetail({ job, protocol, source, onSource, actions }: {
     {notice && <p role="alert" className="experiment-notice">{notice}</p>}
     {tab === 'execution' ? <div onLoadedMetadata={() => { if (video.current?.duration && Number.isFinite(video.current.duration)) setDuration(video.current.duration); }}>
       <ExecutionWorkspace run={run} method={method} results={results} selected={selected} currentTime={currentTime} playing={playing} videoRef={video} sourceLabel={run.subtitle}
-        onSelect={select} onSeek={seconds => { seek(seconds); const active = observationAt(run.observations, seconds); if (active) setSelected(active.stepId); }}
+        onSelect={select} onSeek={seconds => { seek(seconds); const active = observationAt(run.observations, seconds, selected); if (active) setSelected(active.stepId); }}
         onTimeUpdate={seconds => { setCurrentTime(seconds); if (playing) { const active = observationAt(run.observations, seconds); if (active) setSelected(active.stepId); } }} onPlaying={setPlaying} onMethod={() => setTab('method')} onNotice={setNotice}/>
     </div> : tab === 'method' ? <div className="method-page"><div className="section-heading"><div><h2>Extracted methodology</h2><span>From {method.source} · {method.requirements.length} source-grounded steps</span></div><Button size="sm" variant="ghost" onClick={() => downloadJSON(method, 'trial-method.json')}><DownloadSimpleIcon size={14} className="mr-2"/>Export</Button></div>
       <Button size="xs" variant="ghost" className="mb-4" onClick={() => onSource(protocol.source_id)}>Open original research source</Button>

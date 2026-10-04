@@ -5,7 +5,7 @@ import { Button } from '@cloudflare/kumo';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ArrowUpRightIcon, PauseIcon, PlayIcon, VideoCameraIcon } from '@phosphor-icons/react';
 import { readable, time } from '../../lib/experiment/demo';
-import { observationAt } from '../../lib/experiment/playback';
+import { observationAt, observationsAt, parallelTo } from '../../lib/experiment/playback';
 import { CheckIconFor, StatusIcon, StatusLabel } from './Status';
 import { Timeline, type TimelineView } from './Timeline';
 import { CoverageBar } from './CoverageBar';
@@ -24,7 +24,9 @@ export function ExecutionWorkspace({ run, method, results, selected, currentTime
   const [view, setView] = useState<TimelineView>();
   const r = method.requirements.find(r => r.id === selected) ?? method.requirements[0];
   const o = run.observations.find(o => o.stepId === r.id);
-  const current = observationAt(run.observations, currentTime);
+  const current = observationAt(run.observations, currentTime, selected);
+  const simultaneous = observationsAt(run.observations, currentTime).length - 1;
+  const alongside = o ? parallelTo(run.observations, o).flatMap(x => method.requirements.filter(r => r.id === x.stepId).map(r => ({ r, x }))) : [];
   const captionRequirement = current ? method.requirements.find(r => r.id === current.stepId) : undefined;
   const missingSelection = !o && !playing;
   const result = results[r.id];
@@ -46,7 +48,7 @@ export function ExecutionWorkspace({ run, method, results, selected, currentTime
         {mediaError && <div className="video-error"><VideoCameraIcon size={26}/><strong>Video unavailable</strong><span>The recording could not be loaded in this browser.</span></div>}
         <AnimatePresence mode="wait" initial={false}>
           <motion.div className="caption" key={missingSelection ? r.id : current?.stepId ?? 'gap'} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={transition}>
-            <div><span className="caption-step">{captionRequirement && !missingSelection ? `Step ${captionRequirement.order.toString().padStart(2, '0')}` : ''}</span><strong>{missingSelection ? `${r.title}: ${run.subtitle.includes('partial') ? 'outside this excerpt' : 'not found in the recording'}` : captionRequirement?.title ?? 'Between steps'}</strong>{current && !missingSelection && <span className="mono">{time(current.timestampStart)}–{time(current.timestampEnd)}</span>}</div>
+            <div><span className="caption-step">{captionRequirement && !missingSelection ? `Step ${captionRequirement.order.toString().padStart(2, '0')}` : ''}</span><strong>{missingSelection ? `${r.title}: ${run.subtitle.includes('partial') ? 'outside this excerpt' : 'not found in the recording'}` : captionRequirement?.title ?? 'Between steps'}</strong>{current && !missingSelection && <span className="mono">{time(current.timestampStart)}–{time(current.timestampEnd)}</span>}{current && !missingSelection && simultaneous > 0 && <span className="caption-parallel mono">+{simultaneous} in parallel</span>}</div>
             <p>{missingSelection ? result.status === 'unverifiable' ? result.reason : 'The recording cannot establish whether this step was followed.' : current ? captionFor(current, currentTime) : 'No methodology step is assigned to this part of the recording.'}</p>
           </motion.div>
         </AnimatePresence>
@@ -69,6 +71,7 @@ export function ExecutionWorkspace({ run, method, results, selected, currentTime
           {!o?.checkResults && result.status === 'unverifiable' && <p className="muted small">Cannot establish: {result.missingEvidence.map(readable).join(', ')}.</p>}
           {result.status === 'contradicted' && !o?.checkResults && <p className="deviation">Expected {describe(result.expected)}; observed {describe(result.observed)}.</p>}
           {o && o.evidence.some(e => e.kind === 'video') && <div className="evidence-times"><span className="label">Evidence</span>{o.evidence.filter(e => e.kind === 'video').map(e => <button key={e.id} onClick={() => seek(e.timestamp)}><span className="mono">{time(e.timestamp)}</span>{e.description}</button>)}</div>}
+          {alongside.length > 0 && <div className="evidence-times"><span className="label">Runs alongside</span>{alongside.map(({ r: other, x }) => <button key={x.id} onClick={() => onSelect(other.id)}><span className="mono">{time(x.timestampStart)}–{time(x.timestampEnd)}</span>{other.order.toString().padStart(2, '0')} · {other.title}</button>)}</div>}
           {r.caveats?.length ? <p className="caveats"><span className="label">Not establishable from video</span>{r.caveats.join(' · ')}</p> : null}
         </motion.section>
       </AnimatePresence>
@@ -80,7 +83,7 @@ export function ExecutionWorkspace({ run, method, results, selected, currentTime
         const observation = run.observations.find(o => o.stepId === requirement.id); const status = results[requirement.id]?.status;
         return <button key={requirement.id} data-step={requirement.id} className={`rail-item ${selected === requirement.id ? 'selected' : ''}`} aria-pressed={selected === requirement.id} onClick={() => onSelect(requirement.id)}>
           <span className="mono rail-number">{requirement.order.toString().padStart(2, '0')}</span>
-          <div><strong>{requirement.title}</strong><p>{requirement.description}</p><span className="rail-state"><StatusIcon status={status} size={12}/><span className={status}>{status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Pending'}</span><span className="mono">{observation ? `${time(observation.timestampStart)}–${time(observation.timestampEnd)}` : run.subtitle.includes('partial') ? 'Outside clip' : 'Not found'}</span></span></div>
+          <div><strong>{requirement.title}</strong><p>{requirement.description}</p><span className="rail-state"><StatusIcon status={status} size={12}/><span className={status}>{status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Pending'}</span><span className="mono">{observation ? `${time(observation.timestampStart)}–${time(observation.timestampEnd)}` : run.subtitle.includes('partial') ? 'Outside clip' : 'Not found'}</span>{observation && parallelTo(run.observations, observation).length > 0 && <span className="mono rail-parallel" title="Performed alongside other steps">∥</span>}</span></div>
         </button>;
       })}</div>
     </aside>

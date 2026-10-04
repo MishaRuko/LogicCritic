@@ -238,3 +238,31 @@ def test_findings_cannot_cite_unseen_frames_or_exceed_the_clip():
     )
     with pytest.raises(RuntimeError, match="turn limit"):
         inspect_video(method, Sampler(), llm, lambda _: None, max_turns=1)
+
+
+def test_concurrent_steps_need_overlapping_windows_and_are_reported_both_ways():
+    method = visual_method(PROTOCOL, FakeLLM(), "source.md")
+    first, second = finding(), finding("s2")
+    second.update(start_seconds=1, end_seconds=3)
+    first["concurrent_with"] = ["s2"]
+    gap = {**second, "start_seconds": 2}
+    llm = FakeLLM(
+        [
+            {
+                "type": "tool_use",
+                "id": "apart",
+                "name": "submit_findings",
+                "input": {"steps": [first, gap]},
+            },
+            {
+                "type": "tool_use",
+                "id": "overlap",
+                "name": "submit_findings",
+                "input": {"steps": [first, second]},
+            },
+        ]
+    )
+    findings, _, events = inspect_video(method, Sampler(), llm, lambda _: None, max_turns=2)
+    assert "overlapping windows" in events[-2]["message"]
+    result = present_findings(method, findings, "r", "test")
+    assert [o["concurrentWith"] for o in result["agent_observations"]] == [["s2"], ["s1"]]

@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useLayoutEffect, useRef, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import { AnimatePresence, MotionConfig, animate, motion } from 'framer-motion';
 import { Button, cn } from '@cloudflare/kumo';
 import { ArrowUpRightIcon, CaretDownIcon, CaretUpIcon, FileTextIcon, MagnifyingGlassIcon, SidebarSimpleIcon, StopIcon, XIcon } from '@phosphor-icons/react';
@@ -14,8 +14,8 @@ export const isSidebarOpen = (layout: ChatLayout) => layout.dock === 'side' ? la
 export const withSidebar = (layout: ChatLayout, open: boolean): ChatLayout => layout.dock === 'side' ? { ...layout, open } : { ...layout, details: open };
 const slide = { duration: 0.24, ease: [0.32, 0.72, 0, 1] } as const;
 
-export function ResearchChat({ mode, onModeChange, workspaceId, runs, loading, error, busy, layout, onLayout, state, progress, onSubmit, onStop, onSelect, onRetry, onCancelExtraction, suspended = false }: {
-  suspended?: boolean;
+export function ResearchChat({ mode, onModeChange, workspaceId, runs, loading, error, busy, layout, onLayout, state, progress, onSubmit, onStop, onSelect, onRetry, onCancelExtraction, progressAction, suspended = false }: {
+  suspended?: boolean; progressAction?: ReactNode;
   mode: ResearchComposerMode; onModeChange: (mode: ResearchComposerMode) => void;
   workspaceId?: string; runs: AgentRun[]; loading: boolean; error: Error | null; busy: boolean;
   layout: ChatLayout; onLayout: Dispatch<SetStateAction<ChatLayout>>;
@@ -84,7 +84,7 @@ export function ResearchChat({ mode, onModeChange, workspaceId, runs, loading, e
         {workspaceId && error && !sideOpen && <div role="alert" className="mb-3 text-[11px] text-fail">{error.message}<Button size="xs" variant="ghost" onClick={onRetry}>Retry connection</Button></div>}
         <div ref={home}><div ref={composer} className="research-upload-stack" data-chat-open="true" data-agent-mode={mode === 'agent'} data-dock={dock}>
           <ResearchUncertainty key={workspaceId ?? 'new'} run={latest} state={state} loading={loading} unavailable={!!error}/>
-          <ResearchProgress progress={progress} state={state} busy={busy} onCancel={onCancelExtraction}/>
+          <ResearchProgress progress={progress} state={state} busy={busy} onCancel={onCancelExtraction} action={progressAction}/>
           <ResearchComposer mode={mode} onModeChange={onModeChange} workspaceId={workspaceId} busy={busy} blocked={mode === 'agent' && (!!workspaceId && loading || !!error)} processing={!!active.length} queued={running ? queued.length : Math.max(0, queued.length - 1)} submit={async message => { await onSubmit(message); follow.current = true; scrollToLatest(); }} actions={workspaceId ? <>
             <Button size="xs" variant="ghost" shape="square" aria-label={dock === 'side' ? 'Move chat to centre' : 'Move chat to sidebar'} title={dock === 'side' ? 'Move chat to centre' : 'Move chat to sidebar'} icon={<SidebarSimpleIcon size={14} mirrored weight={dock === 'side' ? 'fill' : 'regular'}/>} onClick={() => onLayout(current => ({ dock: current.dock === 'side' ? 'centre' : 'side', open: true, details: false }))}/>
             {dock === 'centre' && <Button size="xs" variant="ghost" shape="square" aria-label="Hide chat" title="Hide chat" icon={<CaretDownIcon size={14}/>} onClick={() => onLayout(current => ({ ...current, open: false }))}/>}

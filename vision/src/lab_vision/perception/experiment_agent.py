@@ -195,6 +195,8 @@ class StepFinding(BaseModel):
     evidence: list[EvidenceFinding]
     uncertainties: list[str]
     confidence: float = Field(ge=0, le=1)
+    # Steps performed at the same time as this one (background waits, two hands, interleaving).
+    concurrent_with: list[str] = []
 
 
 class Findings(BaseModel):
@@ -248,6 +250,7 @@ def validate_findings(findings: Findings, method: dict, duration: float, shown: 
     known = {r["id"]: r for r in method["requirements"]}
     if Counter(s.step_id for s in findings.steps) != Counter(known.keys()):
         raise ValueError("Include every methodology step exactly once; use only its source id.")
+    by_id = {s.step_id: s for s in findings.steps}
     for step in findings.steps:
         if step.found and (
             step.absence != "n/a" or not 0 <= step.start_seconds < step.end_seconds <= duration
@@ -262,6 +265,20 @@ def validate_findings(findings: Findings, method: dict, duration: float, shown: 
             i >= len(known[step.step_id]["checks"]) for i in indices
         ):
             raise ValueError(f"{step.step_id}: use each valid check index at most once.")
+        for other_id in step.concurrent_with:
+            other = by_id.get(other_id)
+            if other is None or other_id == step.step_id:
+                raise ValueError(f"{step.step_id}: concurrent_with names unknown step {other_id}.")
+            if not (
+                step.found
+                and other.found
+                and step.start_seconds < other.end_seconds
+                and other.start_seconds < step.end_seconds
+            ):
+                raise ValueError(
+                    f"{step.step_id}: concurrent_with {other_id} needs both steps found "
+                    "with overlapping windows."
+                )
         if any(
             e.seconds > duration or not any(abs(e.seconds - t) <= 0.6 for t in shown)
             for e in step.evidence
@@ -362,6 +379,12 @@ def present_findings(method: dict, findings: Findings, run_id: str, model: str) 
     """Deterministic per-check verdicts, plus the existing lab-vision graph schema."""
     observations, native, deviations, results, absences = [], [], [], {}, []
     by_id = {s.step_id: s for s in findings.steps}
+    # Concurrency is symmetric even when the agent only reports it on one side.
+    concurrent = {s.step_id: set(s.concurrent_with) for s in findings.steps}
+    for step in findings.steps:
+        for other in step.concurrent_with:
+            concurrent[other].add(step.step_id)
+    order = [r["id"] for r in method["requirements"]]
     for requirement in method["requirements"]:
         step = by_id[requirement["id"]]
         evidence = (
@@ -440,6 +463,7 @@ def present_findings(method: dict, findings: Findings, run_id: str, model: str) 
             "summary": step.summary,
             "checkResults": checks,
             "evidence": evidence,
+            "concurrentWith": [i for i in order if i in concurrent[step.step_id]],
         }
         observations.append(observation)
         raw = Observation(

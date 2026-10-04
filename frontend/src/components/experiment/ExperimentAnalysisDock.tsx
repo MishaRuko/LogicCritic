@@ -10,14 +10,15 @@ const preference = 'trial:experiment-analysis-hidden';
 const stages = ['Methodology', 'Frames', 'Evidence', 'Verdicts'];
 
 export function ExperimentAnalysisDock({ job, protocol, onSkipDemo }: { job: ExperimentRun; protocol?: ExperimentProtocol; onSkipDemo?: () => void }) {
-  const [open, setOpen] = useState(false);
+  const active = ['queued', 'running'].includes(job.status);
+  const complete = job.status === 'succeeded';
+  // Follow the run live while it works, then get out of the way of the results.
+  const [open, setOpen] = useState(active);
   const [hidden, setHidden] = useState(false);
   const panelId = useId();
   const toggle = useRef<HTMLButtonElement>(null);
   const restore = useRef<HTMLButtonElement>(null);
   const reduced = useReducedMotion();
-  const active = ['queued', 'running'].includes(job.status);
-  const complete = job.status === 'succeeded';
   const phase = complete ? 4 : job.result.analysis_stage === 'verification' ? 3 : job.result.analysis_stage === 'inspection' ? 2 : job.result.analysis_stage === 'frames' ? 1 : 0;
   const status = complete ? 'Complete' : job.status === 'failed' ? 'Needs attention' : job.status === 'queued' ? 'Queued' : ['Reading methodology', 'Sampling frames', 'Inspecting evidence', 'Checking verdicts'][phase];
   const transition = { duration: reduced ? 0 : .24, ease: [.32, .72, 0, 1] as const };
@@ -25,6 +26,10 @@ export function ExperimentAnalysisDock({ job, protocol, onSkipDemo }: { job: Exp
   useEffect(() => {
     try { setHidden(sessionStorage.getItem(preference) === 'true'); } catch { /* Preferences are optional. */ }
   }, []);
+  useEffect(() => {
+    if (active) setOpen(true);
+    else if (complete) setOpen(false);
+  }, [active, complete, job.id]);
   useEffect(() => {
     if (!open) return;
     function onEscape(event: KeyboardEvent) {

@@ -105,3 +105,6 @@ button.bg-kumo-brand { background-color: var(--color-ink) !important; color: whi
 .research-composer-processing::before { top: -1px; }
 .research-composer-processing::after { bottom: -1px; animation-direction: reverse; animation-delay: -.8s; }
 @keyframes research-composer-line { from { background-position: 180% 0; } to { background-position: -80% 0; } }
+.research-continue-ready { animation: research-continue-pulse 1.6s ease-out 2; }
+@keyframes research-continue-pulse { 0% { box-shadow: 0 0 0 0 #2563eb55; } 100% { box-shadow: 0 0 0 8px #2563eb00; } }
+@media (prefers-reduced-motion: reduce) { .research-continue-ready { animation: none; } }
