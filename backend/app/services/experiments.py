@@ -8,6 +8,7 @@ import logging
 import re
 import uuid
 from datetime import UTC, datetime, timedelta
+from itertools import groupby
 from pathlib import Path
 
 from lab_vision.llm import ClaudeLLM
@@ -25,13 +26,21 @@ from app.models import (
     Statement,
     StatementExcerpt,
 )
+from app.services.pdf_ingestion import parse_pdf
+from app.services.text_ingestion import ParsedExcerpt
 
 log = logging.getLogger(__name__)
 METHOD_SECTION = re.compile(r"method|protocol|procedure|experimental|materials", re.I)
 
 
-def methodology_excerpts(excerpts: list[Excerpt]) -> list[Excerpt]:
-    selected = [e for e in excerpts if METHOD_SECTION.search(str(e.locator.get("section", "")))]
+def methodology_excerpts(excerpts: list[Excerpt] | list[ParsedExcerpt]) -> list:
+    selected = [
+        e
+        for e in excerpts
+        if METHOD_SECTION.search(
+            str(e.locator.get("methodology_section", e.locator.get("section", "")))
+        )
+    ]
     if selected:
         return [e for e in selected if not e.text.lstrip().startswith("#")]
     # PDFs often lack section locators; restrict to the text following a methods heading.
@@ -61,7 +70,15 @@ def numbered_protocol(text: str, protocol_id: str, title: str) -> Protocol | Non
     if not matches:
         return None
     if [int(m[1]) for m in matches] != list(range(1, len(matches) + 1)):
-        raise ValueError("Methodology numbering must start at 1 and be consecutive.")
+        expected, actual = next(
+            (index, int(match[1]))
+            for index, match in enumerate(matches, 1)
+            if int(match[1]) != index
+        )
+        raise ValueError(
+            f"The procedure has a numbering gap: expected step {expected}, found {actual}. "
+            "Steps must be consecutive within each protocol section."
+        )
     steps = []
     for index, match in enumerate(matches, 1):
         quote = match[2].strip()
@@ -95,9 +112,13 @@ def numbered_protocol(text: str, protocol_id: str, title: str) -> Protocol | Non
 
 
 def extract_protocol(
-    excerpts: list[Excerpt], protocol_id: str, title: str
+    excerpts: list[Excerpt],
+    protocol_id: str,
+    title: str,
+    *,
+    methodology: list[ParsedExcerpt] | None = None,
 ) -> tuple[Protocol, str, dict]:
-    methods = methodology_excerpts(excerpts)
+    methods = methodology_excerpts(methodology if methodology is not None else excerpts)
     if not methods:
         raise ValueError(
             "No methodology section found. "
@@ -108,7 +129,18 @@ def extract_protocol(
         raise ValueError(
             "The methodology is too long. Upload the specific procedure as a separate source."
         )
-    protocol = numbered_protocol(text, protocol_id, title)
+    # PDF phases each have their own numbering. Validate those lists separately,
+    # then assign consecutive internal IDs across the complete procedure.
+    steps = []
+    protocol = None
+    for _, group in groupby(methods, key=lambda e: e.locator.get("protocol_group", "methods")):
+        part = numbered_protocol("\n\n".join(e.text for e in group), protocol_id, title)
+        if part is None:
+            break
+        for step in part.steps:
+            steps.append(step.model_copy(update={"id": f"s{len(steps) + 1}"}))
+    else:
+        protocol = Protocol(id=protocol_id, title=title, steps=steps)
     method = "numbered_instructions"
     if protocol is None:
         settings = get_settings()
@@ -122,10 +154,23 @@ def extract_protocol(
         protocol = structure_protocol(text, make_llm(), protocol_id, title)
         method = "lab_vision_model"
     citations = {}
+    # Cite the stored research excerpts even when a fresh PDF parse separates
+    # steps that the earlier ingestion merged together or split across chunks.
+    citation_text = ""
+    citation_spans = []
+    for excerpt in excerpts:
+        normalized = " ".join(excerpt.text.split())
+        start = len(citation_text)
+        citation_text += normalized + " "
+        citation_spans.append((start, start + len(normalized), str(excerpt.id)))
     for step in protocol.steps:
         quote = " ".join((step.source_text or "").split())
+        start = citation_text.find(quote) if quote else -1
+        end = start + len(quote)
         citations[step.id] = [
-            str(e.id) for e in methods if quote and quote in " ".join(e.text.split())
+            excerpt_id
+            for lower, upper, excerpt_id in citation_spans
+            if start >= 0 and lower < end and upper > start
         ]
         if not citations[step.id]:
             raise ValueError(
@@ -133,6 +178,20 @@ def extract_protocol(
                 "Split the methodology into one paragraph per step and retry."
             )
     return protocol, method, citations
+
+
+def extract_source_protocol(
+    source: Source, excerpts: list[Excerpt], protocol_id: str, title: str
+) -> tuple[Protocol, str, dict]:
+    methodology = None
+    if source.mime_type == "application/pdf":
+        path = Path(get_settings().upload_dir) / source.storage_key
+        if not path.is_file():
+            raise ValueError(
+                "The original protocol PDF is unavailable. Upload it again to continue."
+            )
+        methodology = parse_pdf(path.read_bytes()).excerpts
+    return extract_protocol(excerpts, protocol_id, title, methodology=methodology)
 
 
 def make_llm() -> ClaudeLLM:

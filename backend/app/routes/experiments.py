@@ -22,7 +22,7 @@ from app.models import (
     SourceValidity,
 )
 from app.routes.workspaces import require_workspace
-from app.services.experiments import extract_protocol
+from app.services.experiments import extract_source_protocol
 from app.services.research_state import verification_state
 
 router = APIRouter(tags=["experiments"])
@@ -156,7 +156,11 @@ async def prepare_protocol(
     protocol_id = uuid.uuid4()
     try:
         protocol, method, citations = await asyncio.to_thread(
-            extract_protocol, excerpts, str(protocol_id), source.title or source.original_filename
+            extract_source_protocol,
+            source,
+            excerpts,
+            str(protocol_id),
+            source.title or source.original_filename,
         )
     except (ValueError, RuntimeError) as error:
         raise HTTPException(422, str(error)) from error

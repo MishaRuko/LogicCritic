@@ -266,8 +266,55 @@ code { font-family: var(--font-mono); font-size: .92em; background: #f1f1f2; pad
 }
 
 @media print {
-  body:has(.record) .experiment-app > div > :not([aria-label="Experiment results"]),
+  body:has(.record) .experiment-scroll > div > :not([aria-label="Experiment results"]),
   body:has(.record) .experiment-app [aria-label="Experiment results"] > :not(.record-page) { display: none !important; }
 }
 
 .experiment-app { font-size: 13px; line-height: 1.5; font-variant-numeric: tabular-nums; }
+
+/* Bottom analysis drawer, aligned with the research chat. */
+.experiment-layout { position: relative; min-height: 0; overflow: clip; }
+.experiment-scroll { height: 100%; overflow-y: auto; padding-bottom: 96px; scrollbar-width: thin; }
+.analysis-dock { position: absolute; z-index: 15; inset: auto 0 0; background: #fafaf9; border-top: 1px solid var(--color-line); }
+.analysis-dock[data-open="true"] { box-shadow: 0 -16px 40px rgb(39 39 42 / .07); }
+.analysis-dock-inner { width: 100%; max-width: 1512px; margin-inline: auto; padding-inline: 36px; }
+.analysis-dock-reveal { overflow: hidden; }
+.analysis-dock-content { max-height: min(480px, 55dvh); overflow-y: auto; overscroll-behavior: contain; padding-block: 24px; scrollbar-width: thin; }
+.analysis-dock .analysis-pipeline { border-top: 0; padding-block: 0; }
+.analysis-dock-bar { border-top: 1px solid transparent; }
+.analysis-dock[data-open="true"] .analysis-dock-bar { border-top-color: var(--color-line); }
+.analysis-dock-controls { display: flex; align-items: center; gap: 14px; }
+.analysis-dock-toggle { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1; min-height: 58px; padding-block: 12px; text-align: left; cursor: pointer; color: var(--color-subtle); transition: color .18s; }
+.analysis-dock-toggle:hover { color: var(--color-ink); }
+.analysis-dock-icon { flex-shrink: 0; color: var(--color-pass); }
+.analysis-dock-title { color: var(--color-ink); font-size: 12px; white-space: nowrap; }
+.analysis-dock-status { display: flex; align-items: center; gap: 6px; font-size: 10px; white-space: nowrap; }
+.analysis-dock-status i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.analysis-dock-stages { display: flex; align-items: center; justify-content: center; gap: 20px; flex: 1; font-size: 10px; }
+.analysis-dock-stages > span { display: inline-flex; align-items: center; gap: 6px; }
+.analysis-dock-stages small { font-family: var(--font-mono); font-size: 9px; opacity: .65; }
+.analysis-dock-stages [data-complete="true"] { color: var(--color-pass); }
+.analysis-dock-stages [data-current="true"] { color: var(--color-running); }
+.analysis-dock-hint { margin-left: auto; font-size: 10px; }
+.analysis-dock-hide { display: grid; place-items: center; width: 28px; height: 28px; flex-shrink: 0; color: var(--color-subtle); border-radius: 4px; cursor: pointer; }
+.analysis-dock-hide:hover { background: #f1f1f2; color: var(--color-ink); }
+.analysis-dock button:focus-visible, .analysis-restore button:focus-visible { outline: 2px solid var(--color-pass); outline-offset: 4px; border-radius: 3px; }
+.analysis-restore { position: absolute; z-index: 15; bottom: 12px; right: 28px; }
+.analysis-restore button { display: flex; align-items: center; gap: 6px; background: #fafaf9; padding: 6px 10px; border-radius: 4px; color: var(--color-subtle); font-size: 10px; cursor: pointer; }
+.analysis-restore button:hover { color: var(--color-ink); }
+@media (max-width: 1100px) { .analysis-dock-stages { display: none; } }
+@media (max-width: 640px) {
+  .analysis-dock-inner { padding-inline: 20px; }
+  .analysis-dock-toggle { gap: 8px; }
+  .analysis-dock-hint { display: none; }
+  .analysis-dock-toggle > svg:last-child { margin-left: auto; }
+  .analysis-dock-status { font-size: 9px; }
+  .analysis-dock-content { max-height: 55dvh; }
+}
+@media print { .analysis-dock, .analysis-restore { display: none !important; } .experiment-scroll { height: auto !important; overflow: visible !important; padding-bottom: 0; } }
+.analysis-dock-skip { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; padding: 6px 0; font-size: 10px; color: var(--color-pass); cursor: pointer; white-space: nowrap; }
+.analysis-dock-skip:hover { color: var(--color-ink); }
+.analysis-dock[data-demo-skip="true"] .analysis-dock-hint { display: none; }
+.analysis-restore { display: flex; align-items: center; gap: 12px; }
+.analysis-restore .analysis-dock-skip { color: var(--color-pass); }
+@media (max-width: 640px) { .analysis-dock[data-demo-skip="true"] .analysis-dock-status { display: none; } .analysis-dock[data-demo-skip="true"] .analysis-dock-controls { gap: 8px; } }

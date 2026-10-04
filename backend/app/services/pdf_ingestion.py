@@ -17,7 +17,7 @@ MIN_EXCERPT_CHARS = 25
 # Headings recognised by name only, so ordinary short lines are never mistaken for sections.
 SECTION_NAMES = (
     "abstract|summary|introduction|background|methods|materials and methods|methodology|"
-    "experimental procedures|procedure|protocol|equipment|reagents|results|"
+    "experimental procedures|procedure|protocol|equipment|reagents|results|representative results|"
     "results and discussion|discussion|conclusions?|"
     "limitations|acknowledg(?:e)?ments|supplementary(?: materials?| information)?|appendix"
 )
@@ -28,6 +28,15 @@ REFERENCES = re.compile(r"^(?:\d+\.?\s+)?(?:references|bibliography|literature c
 RETRACTION_NOTICE = re.compile(r"^(?:retraction|expression of concern|editorial notice)\b", re.I)
 SENTENCE_BREAK = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9(\[])")
 HYPHEN_BREAK = re.compile(r"(?<=[a-z])-\n(?=[a-z])")
+METHOD_NAMES = {
+    "Methods",
+    "Materials And Methods",
+    "Methodology",
+    "Experimental Procedures",
+    "Procedure",
+    "Protocol",
+}
+PROCEDURE_NAMES = {"Procedure", "Protocol", "Experimental Procedures"}
 
 
 class PdfIngestionError(ValueError):
@@ -73,11 +82,16 @@ def parse_pdf(content: bytes) -> ParsedPdf:
 
     excerpts: list[ParsedExcerpt] = []
     section: str | None = None
+    method_section: str | None = None
+    protocol_group: str | None = None
     in_references = False
     for number, text in enumerate(pages, start=1):
-        for paragraph in _paragraphs(text, noise):
+        for paragraph in _paragraphs(text, noise, in_procedure=method_section in PROCEDURE_NAMES):
             if paragraph.heading is not None:
                 section = paragraph.heading
+                if not paragraph.is_subsection:
+                    method_section = section if section in METHOD_NAMES else None
+                protocol_group = f"{number}:{paragraph.start}"
                 in_references = paragraph.is_references
                 continue
             if in_references:
@@ -86,7 +100,7 @@ def parse_pdf(content: bytes) -> ParsedPdf:
                 text,
                 paragraph.start,
                 paragraph.end,
-                preserve_short=section in {"Procedure", "Protocol", "Experimental Procedures"},
+                preserve_short=method_section in PROCEDURE_NAMES,
             ):
                 locator: dict[str, int | str] = {
                     "page": number,
@@ -96,6 +110,9 @@ def parse_pdf(content: bytes) -> ParsedPdf:
                 }
                 if section is not None:
                     locator["section"] = section
+                if method_section is not None:
+                    locator["methodology_section"] = method_section
+                    locator["protocol_group"] = protocol_group or method_section
                 excerpts.append(ParsedExcerpt(text=chunk, sequence=len(excerpts), locator=locator))
 
     if not excerpts:
@@ -149,15 +166,15 @@ class _Paragraph:
     end: int
     heading: str | None = None
     is_references: bool = False
+    is_subsection: bool = False
 
 
-def _paragraphs(text: str, noise: set[str]) -> list[_Paragraph]:
+def _paragraphs(text: str, noise: set[str], *, in_procedure: bool = False) -> list[_Paragraph]:
     """Paragraph spans of a page. Headings come back as their own marker spans."""
     spans: list[_Paragraph] = []
     start: int | None = None
     end = 0
     offset = 0
-    in_procedure = False
 
     def close() -> None:
         nonlocal start
@@ -165,7 +182,8 @@ def _paragraphs(text: str, noise: set[str]) -> list[_Paragraph]:
             spans.append(_Paragraph(start, end))
         start = None
 
-    for line in text.split("\n"):
+    lines = text.split("\n")
+    for index, line in enumerate(lines):
         line_start, line_end = offset, offset + len(line)
         offset = line_end + 1
         stripped = line.strip()
@@ -174,10 +192,12 @@ def _paragraphs(text: str, noise: set[str]) -> list[_Paragraph]:
             continue
         if REFERENCES.match(stripped):
             close()
+            in_procedure = False
             spans.append(_Paragraph(line_start, line_end, heading="References", is_references=True))
             continue
         if RETRACTION_NOTICE.match(stripped):
             close()
+            in_procedure = False
             spans.append(_Paragraph(line_start, line_end, heading="Retraction Notice"))
             continue
         heading = HEADING.match(stripped)
@@ -190,13 +210,26 @@ def _paragraphs(text: str, noise: set[str]) -> list[_Paragraph]:
             }
             spans.append(_Paragraph(line_start, line_end, heading=heading.group("name").title()))
             continue
+        numbered = NUMBERED_HEADING.match(stripped)
+        # A protocol phase is followed by a new list starting at 1. Ordinary short
+        # instructions without punctuation ("2. Get all reagents") remain steps.
+        protocol_heading = False
+        if numbered and in_procedure:
+            next_line = next((line.strip() for line in lines[index + 1 :] if line.strip()), "")
+            protocol_heading = bool(re.match(r"^1[.)]\s", next_line))
+        if numbered and (protocol_heading or (not in_procedure and len(stripped.split()) <= 10)):
+            close()
+            spans.append(
+                _Paragraph(
+                    line_start,
+                    line_end,
+                    heading=numbered.group("title").strip(),
+                    is_subsection=True,
+                )
+            )
+            continue
         if in_procedure and re.match(r"^\d+[.)]\s", stripped):
             close()
-        numbered = NUMBERED_HEADING.match(stripped)
-        if numbered and not in_procedure and len(stripped.split()) <= 10:
-            close()
-            spans.append(_Paragraph(line_start, line_end, heading=numbered.group("title").strip()))
-            continue
         if start is None:
             start = line_start
         end = line_end

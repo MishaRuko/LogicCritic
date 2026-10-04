@@ -10,7 +10,6 @@ import { experimentPresentation } from '../../lib/experiment/bridge';
 import { createRecord, publishRecord } from '../../lib/experiment/record';
 import { observationAt } from '../../lib/experiment/playback';
 import { time } from '../../lib/experiment/demo';
-import { VideoAnalysisProgress } from './VideoAnalysisProgress';
 import type { ExperimentRecord, RecordSnapshot } from '../../lib/experiment/types';
 import type { ExperimentProtocol, ExperimentRun, SourceWithExcerpts } from '../../types/api';
 
@@ -35,6 +34,7 @@ export function ExperimentDetail({ job, protocol, source, onSource, actions }: {
   function select(id: string) { video.current?.pause(); setSelected(id); const observation = run.observations.find(o => o.stepId === id); if (observation) seek(observation.timestampStart); }
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
+      if (event.target instanceof Element && event.target.closest('[aria-label="Analysis details"]')) return;
       if (tab !== 'execution' || event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLButtonElement) return;
       if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
         event.preventDefault(); const index = method.requirements.findIndex(r => r.id === selected);
@@ -68,7 +68,6 @@ export function ExperimentDetail({ job, protocol, source, onSource, actions }: {
     {job.mode === 'demo' && <p className="experiment-notice">Sample run · synthetic observations, checked by the real protocol verifier.</p>}
     {!!job.result.summary?.failed_windows && <p className="experiment-notice">{job.result.summary.failed_windows} windows could not be analysed. Coverage is incomplete.</p>}
     {notice && <p role="alert" className="experiment-notice">{notice}</p>}
-    <details open className="mb-5 border-b border-line py-3"><summary className="cursor-pointer text-xs text-zinc-500">How this analysis ran · methodology → frames → evidence → verdicts</summary><VideoAnalysisProgress job={job} protocol={protocol}/></details>
     {tab === 'execution' ? <div onLoadedMetadata={() => { if (video.current?.duration && Number.isFinite(video.current.duration)) setDuration(video.current.duration); }}>
       <ExecutionWorkspace run={run} method={method} results={results} selected={selected} currentTime={currentTime} playing={playing} videoRef={video} sourceLabel={run.subtitle}
         onSelect={select} onSeek={seconds => { seek(seconds); const active = observationAt(run.observations, seconds); if (active) setSelected(active.stepId); }}
