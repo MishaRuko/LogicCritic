@@ -80,6 +80,11 @@ button.bg-kumo-brand { background-color: var(--color-ink) !important; color: whi
 @keyframes research-pulse { 0%, 100% { opacity: .4; } 50% { opacity: 1; } }
 @keyframes research-shimmer { from { background-position: 200% 0; } to { background-position: 0 0; } }
 @keyframes research-sweep { from { transform: translateX(-100%); } to { transform: translateX(390%); } }
+.research-dog-tail { transform-origin: 14px 24px; animation: research-dog-wag .35s ease-in-out infinite alternate; }
+.research-dog-head { transform-origin: 44px 26px; animation: research-dog-sniff 1.2s ease-in-out infinite; }
+@keyframes research-dog-wag { from { transform: rotate(-12deg); } to { transform: rotate(16deg); } }
+@keyframes research-dog-sniff { 0%, 100% { transform: rotate(0); } 40% { transform: rotate(14deg); } 55% { transform: rotate(10deg); } 70% { transform: rotate(14deg); } }
+@media (prefers-reduced-motion: reduce) { .research-dog-tail, .research-dog-head { animation: none; } }
 
 /* React Flow renders these elements itself, so they cannot take utility classes. */
 .react-flow { background: var(--color-paper); }

@@ -22,13 +22,28 @@ function mount(runs: AgentRun[] = []) {
   const onSelect = vi.fn();
   const onSubmit = vi.fn().mockResolvedValue(undefined);
   const onStop = vi.fn();
-  render(<QueryClientProvider client={client}><ResearchChat mode="agent" onModeChange={() => {}} workspaceId="workspace-1" runs={runs} loading={false} error={null} busy={false} layout={{ dock: 'centre', open: true, details: true }} onLayout={() => {}} onSubmit={onSubmit} onStop={onStop} onSelect={onSelect} onRetry={() => {}} onCancelExtraction={() => {}}/></QueryClientProvider>);
-  return { client, onSelect, onSubmit, onStop };
+  const onExperiment = vi.fn();
+  render(<QueryClientProvider client={client}><ResearchChat mode="agent" onModeChange={() => {}} workspaceId="workspace-1" runs={runs} loading={false} error={null} busy={false} layout={{ dock: 'centre', open: true, details: true }} onLayout={() => {}} onSubmit={onSubmit} onStop={onStop} onExperiment={onExperiment} onSelect={onSelect} onRetry={() => {}} onCancelExtraction={() => {}}/></QueryClientProvider>);
+  return { client, onSelect, onSubmit, onStop, onExperiment };
 }
 beforeEach(() => { vi.spyOn(api, 'listAgentEvents').mockResolvedValue([]); });
 afterEach(() => { clients.splice(0).forEach(client => client.clear()); vi.restoreAllMocks(); });
 
 describe('research conversation', () => {
+  it('offers to run a completed agent protocol from the summary above chat', () => {
+    const completed = { ...run, status: 'succeeded' as const, protocol: { source_id: 'protocol-source', title: 'Protocol', basis: 'Research', steps: [], experiment_protocol_id: 'prepared' } };
+    const { onExperiment } = mount([completed]);
+    const summary = screen.getByRole('status', { name: 'Agent summary' });
+    expect(summary).toHaveTextContent('Run the experiment now?');
+    fireEvent.click(within(summary).getByRole('button', { name: 'Run experiment now' }));
+    expect(onExperiment).toHaveBeenCalledWith(completed);
+  });
+
+  it('does not offer an experiment for a run without a protocol or still running', () => {
+    mount([{ ...run, status: 'running', protocol: { source_id: 'source', title: 'Protocol', basis: '', steps: [] } }]);
+    expect(screen.queryByRole('button', { name: 'Run experiment now' })).not.toBeInTheDocument();
+  });
+
   it('allows material uploads when agent history is unavailable and lets the user switch modes', async () => {
     const client = new QueryClient();
     clients.push(client);

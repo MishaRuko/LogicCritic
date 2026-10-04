@@ -46,6 +46,13 @@ describe('backend graph projection', () => {
     expect(graph.nodes.map(n => n.id)).toEqual(expect.arrayContaining(['premise', 'step', 'conclusion']));
     expect(graph.nodes.some(n => n.kind === 'excerpt')).toBe(false);
   });
+  it('shows supporting and opposing evidence linked to core claims in the overview', () => {
+    const evidence = { ...state.graph.statements[0], id: 'opposing', excerpt_ids: [] };
+    const withLink = { ...state, graph: { ...state.graph, statements: [...state.graph.statements, evidence], relations: [...state.graph.relations, { id: 'rebuttal', source_node_id: 'opposing', target_node_id: 'conclusion', relation: 'rebuts', metadata: {} }] } } as Snapshot;
+    const graph = projectWorkspace(withLink);
+    expect(graph.nodes.some(n => n.id === 'opposing')).toBe(true);
+    expect(graph.edges.some(e => e.id === 'rebuttal')).toBe(true);
+  });
   it('keeps secondary claims in the detailed evidence view', () => {
     const secondary = { id: 'secondary', text: 'Subgroup result', assertion_mode: 'reported', role: 'conclusion', salience: 'secondary', lifecycle: 'proposed', excerpt_ids: [], provenance: { actor_type: 'extractor', actor_id: 'anthropic' } };
     const withSecondary = { ...state, graph: { ...state.graph, statements: [...state.graph.statements, secondary] } } as unknown as Snapshot;

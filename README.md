@@ -8,6 +8,8 @@ behind it. When the agent researches a question, a separate model checks the evi
 and the agent is only allowed to be as certain as that evidence supports. If the evidence is not
 there, it says so.
 
+![The app showing an argument graph and its review panel](docs/app2.png)
+
 We built it for Track 2 (Originator) of the hackathon: agents that do science and know when they
 are wrong.
 

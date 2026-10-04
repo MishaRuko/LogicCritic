@@ -481,7 +481,7 @@ async def test_an_experiment_started_with_nothing_chosen_uses_the_agents_protoco
     assert next(p for p in experiments["protocols"] if p["id"] == prepared)["current"]
 
 
-async def test_a_stale_protocol_is_not_used_by_default(api) -> None:
+async def test_a_stale_agent_protocol_is_refreshed_without_manual_verification(api) -> None:
     world = await make_world(sources=METHODS)
     await execute_run(world.run_id, client=concluding_run(world))
     async with session_factory() as session:  # the research changes after the protocol was prepared
@@ -501,9 +501,10 @@ async def test_a_stale_protocol_is_not_used_by_default(api) -> None:
         )
         await session.commit()
     base = f"/api/workspaces/{world.workspace_id}"
-    await api.post(f"{base}/verify")
+    assert not (await api.get(f"{base}/experiments")).json()["verified"]
     started = await api.post(f"{base}/experiment-runs", data={"mode": "demo"})
-    assert started.status_code == 422  # nothing current to use: choose a source
+    assert started.status_code == 202, started.text
+    assert started.json()["protocol_id"] != (await events_named(world, "experiment_ready"))[0].payload["protocol_id"]
 
 
 async def test_no_protocol_means_nothing_is_prepared() -> None:

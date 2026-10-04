@@ -17,6 +17,14 @@ export function projectWorkspace(state: Snapshot, detailed = false, include: Rea
     let changed = true;
     while (changed) {
       changed = false;
+      // Keep the evidence that supports, challenges or qualifies a visible claim in view.
+      for (const relation of state.graph.relations) {
+        if (!['supports', 'rebuts', 'qualifies'].includes(relation.relation)) continue;
+        const { source_node_id: source, target_node_id: target } = relation;
+        if (visibleStatements.has(source) || visibleStatements.has(target)) {
+          for (const id of [source, target]) if (!visibleStatements.has(id) && state.graph.statements.some(s => s.id === id)) { visibleStatements.add(id); changed = true; }
+        }
+      }
       for (const step of state.graph.reasoning_steps) {
         if (visibleStatements.has(step.conclusion_id) && !visibleSteps.has(step.id)) {
           visibleSteps.add(step.id); changed = true;

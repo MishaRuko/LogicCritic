@@ -1,12 +1,12 @@
 # Research to experiment integration
 
-The research workspace and `vision/` share the **Add research → Verify research → Run experiment** flow. Experiment execution analyses a recording or saved observations with the existing perception and deterministic verification pipeline.
+The research workspace and `vision/` share the **Add research → Run experiment** (with optional research checks) flow. Experiment execution analyses a recording or saved observations with the existing perception and deterministic verification pipeline.
 
 ## Demo walkthrough
 
 1. Click **DJI_08 · 30 seconds** in the left panel or **Try the full demo**.
-2. Inspect the source-backed argument and choose **Verify research**, then run the checks.
-3. Choose **Continue to experiment**, then **Run sample analysis**.
+2. Inspect the source-backed argument. Research checks are available but optional.
+3. Choose **Run experiment**, then **Run sample analysis**. After an agent completes with a protocol, **Run experiment now** in its chat summary opens that procedure directly.
 4. The matching 22-step protocol is extracted automatically. Saved model observations from the first 30 seconds are passed through `ProtocolVerifier`. Unreadable reagent concentrations are marked for review; steps outside this partial clip are not reported as skipped.
 5. Inspect the video captions, coverage strip, execution timeline and per-step evidence. The Method tab retains source passages. Generate a record to get the reference report, PDF/JSON downloads, hashes and a QR link. Experiment evidence also appears as a source and reported statements in the graph. The methodology and original source passages are available in a collapsed details panel.
 
@@ -41,7 +41,7 @@ All paths use `/api`.
 | `POST /workspaces/{id}/experiment-runs` | Multipart `source_id` or `protocol_id`, `mode` (`demo`, `replay`, `video`), `file` for video/replay, and optional `partial_recording` |
 | `GET /experiment-runs/{id}/recording` | Uploaded video playback with HTTP range support |
 
-Starting a run extracts methodology when no current protocol is supplied. Research must have a current verification fingerprint. Research changes invalidate the handoff, while run artifacts are excluded so inspecting a result does not invalidate its protocol. Approval remains available for callers who want to record a separate review, but is optional.
+Starting a run extracts methodology when no current protocol is supplied. A verification click is not required. Protocol versions retain a research fingerprint and are refreshed automatically when research changes, while run artifacts are excluded so inspecting a result does not invalidate its protocol. Approval remains available for callers who want to record a separate review, but is optional.
 
 Protocols are immutable versions stored by migration `0012_experiments`. Each step retains its original text and excerpt ids. Explicit numbered instructions use deterministic extraction, with numeric checks for named pipette volumes, temperatures and reagent concentrations. Unnumbered methods use `lab_vision.structure_protocol` and must ground every step in a source passage. Missing methods and invalidated sources produce actionable errors.
 
@@ -51,7 +51,7 @@ When the research agent hands over a protocol, its latest procedure is selected 
 
 Runs are durable database jobs. The main worker processes video independently of research-agent and extraction loops; a separate `replay-worker` handles fast samples and replays so a long live video cannot block a demo. Video progress shows methodology extraction, overview frames and the windows the agent requests for closer inspection. Jobs with no heartbeat for ten minutes are marked failed. Results are persisted as temporal excerpts and `reported` statements; uncertain findings remain marked for review.
 
-MP4, MOV, WebM, AVI and M4V uploads support up to 100 MB. Replay files use the existing `observations.jsonl` contract and must match protocol step/check ids in timestamp order. Selecting **This recording shows only part of the procedure** suppresses end-of-recording skipped-step findings while preserving deviations supported by the available observations. Known `first-30s` demo uploads select this automatically.
+MP4, MOV, WebM, AVI and M4V uploads support up to 100 MB. Replay files use the existing `observations.jsonl` contract and must match protocol step/check ids in timestamp order. Selecting a video shows a local playback preview before submission and the uploaded recording remains visible during analysis. Formats the browser cannot play still support upload. Selecting **This recording shows only part of the procedure** suppresses end-of-recording skipped-step findings while preserving deviations supported by the available observations. Known `first-30s` demo uploads select this automatically.
 
 `make up` builds API and workers from the repository root and installs both Python packages. `VISION_MODEL`, `VISION_EFFORT` and `VISION_FALLBACKS` configure video analysis independently of research. `VISION_STRATEGY=agent` is the default; `windows` retains the previous lab-vision window pipeline for comparison. The included nginx configuration permits 101 MB requests.
 

@@ -1,9 +1,9 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { BaseEdge, Background, BackgroundVariant, Handle, Position, ReactFlow, type EdgeProps, type Node, type NodeProps, type ReactFlowInstance } from '@xyflow/react';
+import { BaseEdge, Background, BackgroundVariant, Handle, MarkerType, Position, ReactFlow, type EdgeProps, type Node, type NodeProps, type ReactFlowInstance } from '@xyflow/react';
 import { Button, cn } from '@cloudflare/kumo';
-import { CornersOutIcon } from '@phosphor-icons/react';
+import { ArrowsClockwiseIcon, CornersOutIcon } from '@phosphor-icons/react';
 import type { ResearchGraph, ResearchNode } from '../../lib/research/graph';
-import { researchCentre, researchGlyphSize, researchSize, stableLayout, type XY } from '../../lib/research/layout';
+import { dagrePositions, readLayout, writeLayout, researchCentre, researchGlyphSize, researchSize, stableLayout, type SavedLayout, type XY } from '../../lib/research/layout';
 import { ResearchGlyph, researchColor } from './ResearchGlyph';
 import { verificationHighlights, type VerificationTrace } from '../../lib/research/verification';
 import { useReducedMotion } from 'framer-motion';
@@ -33,34 +33,54 @@ function AboveEdge(props: EdgeProps) {
 }
 const edgeTypes = { above: AboveEdge };
 const nodeTypes = { argument: GraphNode };
-export function ResearchCanvas({ graph, selected, onSelect, verification, highlight }: { graph: ResearchGraph; selected?: string; onSelect: (id?: string) => void; verification?: VerificationTrace; highlight?: ReadonlySet<string> }) {
+export function ResearchCanvas({ graph, layoutGraph = graph, storageKey, selected, onSelect, verification, highlight }: { graph: ResearchGraph; layoutGraph?: ResearchGraph; storageKey?: string; selected?: string; onSelect: (id?: string) => void; verification?: VerificationTrace; highlight?: ReadonlySet<string> }) {
   const container = useRef<HTMLDivElement>(null);
   const positions = useRef<Record<string, XY>>({});
   const [flow, setFlow] = useState<ReactFlowInstance<ArgumentNode> | null>(null);
   const [hovered, setHovered] = useState<string>();
   const [layoutVersion, setLayoutVersion] = useState(0);
+  const savedViewport = useRef<SavedLayout['viewport']>(undefined);
+  const [ready, setReady] = useState(false);
+  const initialFit = useRef(false);
+  const lastHighlightFocus = useRef('');
+  const lastCheckFocus = useRef('');
+  const [tidying, setTidying] = useState(false);
+  useEffect(() => {
+    const saved = storageKey ? readLayout(storageKey) : { positions: {} };
+    positions.current = saved.positions;
+    savedViewport.current = saved.viewport;
+    initialFit.current = false;
+    setReady(true);
+    setLayoutVersion(v => v + 1);
+  }, [storageKey]);
   const reducedMotion = useReducedMotion();
+  useMemo(() => {
+    if (ready) positions.current = { ...positions.current, ...stableLayout(layoutGraph, positions.current) };
+  }, [layoutGraph, layoutVersion, ready]);
+  useEffect(() => {
+    if (ready && storageKey) writeLayout(storageKey, { positions: positions.current, viewport: savedViewport.current });
+  }, [storageKey, layoutGraph, layoutVersion, ready]);
   const highlights = useMemo(() => verificationHighlights(verification), [verification]);
   const checkingIds = useMemo(() => new Set(graph.nodes.filter(node => highlights.active.has(node.id) || node.sourceIds.some(id => highlights.active.has(id))).map(node => node.id)), [graph, highlights]);
   const nodes = useMemo(() => {
-    positions.current = stableLayout(graph, positions.current);
+    if (!ready) return [];
     const focus = hovered ?? selected;
     const focusedEdge = graph.edges.find(e => e.id === focus);
     const neighbours = new Set([focus, ...(focusedEdge ? [focusedEdge.source, focusedEdge.target] : []), ...graph.nodes.filter(n => focus && n.sourceIds.includes(focus)).map(n => n.id), ...graph.edges.flatMap(e => e.source === focus ? [e.target] : e.target === focus ? [e.source] : [])]);
     const lit = highlight?.size ? highlight : undefined;
     return graph.nodes.map(n => ({ id: n.id, type: 'argument' as const, position: positions.current[n.id], ...researchSize(n),
       selected: selected === n.id, data: { argument: n, highlighted: !!lit?.has(n.id), dimmed: focus ? !neighbours.has(n.id) : !!lit && !lit.has(n.id), check: checkingIds.has(n.id) ? 'checking' as const : highlights.attention.has(n.id) || n.sourceIds.some(id => highlights.attention.has(id)) ? 'attention' as const : highlights.checked.has(n.id) || n.sourceIds.some(id => highlights.checked.has(id)) ? 'checked' as const : undefined }, ariaLabel: `${n.label}, ${n.state}` }));
-  }, [graph, selected, hovered, layoutVersion, highlights, checkingIds, highlight]);
+  }, [graph, layoutGraph, ready, selected, hovered, layoutVersion, highlights, checkingIds, highlight]);
   const edges = useMemo(() => {
     let lane = 0;
     const top = Math.min(0, ...nodes.map(n => n.position.y)) - 64;
     return graph.edges.map(e => {
       const source = positions.current[e.source], target = positions.current[e.target];
-      const above = e.relation === 'concerns' || (source && target && Math.abs(source.x - target.x) > 500 && e.relation !== 'blocks');
+      const above = e.relation === 'concerns' || (source && target && source.x - target.x > 500 && e.relation !== 'blocks');
       const backwards = source && target && source.x > target.x;
       const checking = checkingIds.has(e.source) || checkingIds.has(e.target);
       const chained = !!highlight?.has(e.source) && !!highlight?.has(e.target);
-      return { ...e, type: above ? 'above' : 'default', data: { routeY: above ? top - lane++ * 24 : undefined },
+      return { ...e, markerEnd: { type: MarkerType.ArrowClosed, color: '#a1a1aa', width: 14, height: 14 }, type: above ? 'above' : 'default', data: { routeY: above ? top - lane++ * 24 : undefined },
         sourceHandle: above ? 'above-out' : backwards ? 'back-out' : 'out', targetHandle: above ? 'above-in' : backwards ? 'back-in' : 'in', label: `${e.relation.replace(/_/g, ' ')}${e.auditVerdict === 'needs_review' ? ' · needs review' : e.auditVerdict === 'supported' ? ' · audited' : ''}`,
         animated: checking && !reducedMotion,
         style: { opacity: highlight?.size && !chained && !checking ? .25 : 1, stroke: checking ? '#60a5fa' : chained ? '#2563eb' : e.auditVerdict === 'needs_review' ? researchColor('warn') : e.relation === 'blocks' || e.relation === 'rebuts' || e.relation === 'undercuts' ? researchColor('fail') : '#a1a1aa', strokeWidth: checking ? 1.8 : chained ? 2 : 1, strokeDasharray: checking ? '5 5' : e.proposed ? '3 3' : undefined },
@@ -68,31 +88,47 @@ export function ResearchCanvas({ graph, selected, onSelect, verification, highli
     });
   }, [graph, nodes, checkingIds, reducedMotion, highlight]);
   useEffect(() => {
-    if (!flow || !highlight?.size) return;
+    if (!flow || !ready) return;
+    if (!highlight?.size) { lastHighlightFocus.current = ''; return; }
+    const signature = [...highlight].filter(id => graph.nodes.some(n => n.id === id)).sort().join('|');
+    if (lastHighlightFocus.current === signature) return;
+    lastHighlightFocus.current = signature;
     const shown = graph.nodes.filter(node => highlight.has(node.id)).map(node => ({ id: node.id }));
     if (shown.length) void flow.fitView({ nodes: shown, padding: .35, maxZoom: 1.1, duration: reducedMotion ? 0 : 450 });
-  }, [flow, highlight, graph.nodes, reducedMotion]);
+  }, [flow, ready, highlight, graph.nodes, reducedMotion]);
   useEffect(() => {
-    if (!flow || !checkingIds.size) return;
+    if (!flow || !ready) return;
+    if (!checkingIds.size) { lastCheckFocus.current = ''; return; }
     const focus = new Set(checkingIds);
     for (const edge of graph.edges) if (checkingIds.has(edge.source) || checkingIds.has(edge.target)) { focus.add(edge.source); focus.add(edge.target); }
+    const signature = [...focus].sort().join('|');
+    if (lastCheckFocus.current === signature) return;
+    lastCheckFocus.current = signature;
     void flow.fitView({ nodes: [...focus].map(id => ({ id })), padding: .35, maxZoom: 1.1, duration: reducedMotion ? 0 : 350 });
-  }, [flow, checkingIds, graph.edges, reducedMotion]);
-  useEffect(() => { if (flow) void flow.fitView({ padding: .2, maxZoom: 1.1, duration: 650 }); }, [flow, !!selected, graph.nodes.length]);
+  }, [flow, ready, checkingIds, graph.edges, reducedMotion]);
   useEffect(() => {
-    if (!flow || !container.current) return;
-    let timer: ReturnType<typeof setTimeout>;
-    const observer = new ResizeObserver(() => {
-      clearTimeout(timer);
-      timer = setTimeout(() => void flow.fitView({ padding: .2, maxZoom: 1.1, duration: 250 }), 100);
+    if (!flow || !ready || !nodes.length || initialFit.current) return;
+    initialFit.current = true;
+    if (savedViewport.current) void flow.setViewport(savedViewport.current);
+    else void flow.fitView({ padding: .2, maxZoom: 1.1 });
+  }, [flow, ready, nodes]);
+  useEffect(() => {
+    if (!flow || !tidying) return;
+    const frame = requestAnimationFrame(() => {
+      void flow.fitView({ padding: .2, maxZoom: 1.1, duration: reducedMotion ? 0 : 350 });
+      setTidying(false);
     });
-    observer.observe(container.current);
-    return () => { observer.disconnect(); clearTimeout(timer); };
-  }, [flow]);
+    return () => cancelAnimationFrame(frame);
+  }, [flow, tidying, reducedMotion]);
+  function tidy() {
+    positions.current = dagrePositions(layoutGraph);
+    setLayoutVersion(v => v + 1);
+    setTidying(true);
+  }
   return <div ref={container} className={cn("absolute inset-0", selected && "min-[900px]:right-[350px]")} data-testid="research-canvas"><ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes} onInit={setFlow}
     onNodeClick={(_, node) => onSelect(node.id)} onEdgeClick={(_, edge) => onSelect(!['grounds', 'premise_of', 'concludes', 'blocks'].includes(graph.edges.find(e => e.id === edge.id)?.relation ?? '') ? edge.id : edge.source)} onPaneClick={() => onSelect()} onNodeMouseEnter={(_, n) => setHovered(n.id)} onNodeMouseLeave={() => setHovered(undefined)}
     onNodesChange={changes => { let moved = false; for (const change of changes) if (change.type === 'position' && change.position) { const prior = positions.current[change.id]; if (!prior || prior.x !== change.position.x || prior.y !== change.position.y) { positions.current[change.id] = change.position; moved = true; } } if (moved) setLayoutVersion(v => v + 1); }}
-    onNodeDragStop={(_, n) => { positions.current[n.id] = n.position; }} fitView minZoom={.15} maxZoom={2} nodesConnectable={false}>
+    onNodeDragStop={(_, n) => { positions.current[n.id] = n.position; if (storageKey) writeLayout(storageKey, { positions: positions.current, viewport: savedViewport.current }); }} onMoveEnd={(_, viewport) => { savedViewport.current = viewport; if (ready && storageKey) writeLayout(storageKey, { positions: positions.current, viewport }); }} minZoom={.15} maxZoom={2} nodesConnectable={false}>
     <Background variant={BackgroundVariant.Dots} gap={20} size={.65} color="#dedee2"/>
-  </ReactFlow><Button variant="outline" size="sm" className="absolute bottom-5 left-5 text-[10px]" icon={<CornersOutIcon size={14}/>} onClick={() => void flow?.fitView({ padding: .2, maxZoom: 1.1 })}>Fit argument</Button></div>;
+  </ReactFlow><Button variant="outline" size="sm" className="absolute bottom-5 left-5 text-[10px]" icon={<CornersOutIcon size={14}/>} onClick={() => void flow?.fitView({ padding: .2, maxZoom: 1.1 })}>Fit argument</Button><Button variant="outline" size="sm" className="absolute bottom-5 right-5 text-[10px]" icon={<ArrowsClockwiseIcon size={14}/>} disabled={!nodes.length} onClick={tidy}>Tidy layout</Button></div>;
 }

@@ -78,7 +78,7 @@ log = logging.getLogger(__name__)
 READ_PAGE_CHARS = 14_000
 MAX_VERDICT_CHARS = 300
 EXCERPT_PREVIEW_CHARS = 140
-PROMPT_VERSION = "research_agent_v9"
+PROMPT_VERSION = "research_agent_v10"
 
 
 class ToolError(Exception):

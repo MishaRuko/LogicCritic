@@ -24,7 +24,7 @@ from app.models import (
 )
 from app.routes.workspaces import require_workspace
 from app.services.experiments import extract_source_protocol
-from app.services.research_state import verification_state
+from app.services.research_state import research_fingerprint, verification_state
 
 router = APIRouter(tags=["experiments"])
 
@@ -102,8 +102,9 @@ async def agent_suggestion(
     }
 
 
-async def require_verified(session: AsyncSession, workspace_id: uuid.UUID) -> str:
-    verified, fingerprint = await verification_state(session, workspace_id)
+async def require_research_ready(session: AsyncSession, workspace_id: uuid.UUID) -> str:
+    await require_workspace(workspace_id, session)
+    fingerprint = await research_fingerprint(session, workspace_id)
     active = await session.scalar(
         select(ExtractionJob.id)
         .where(
@@ -112,11 +113,10 @@ async def require_verified(session: AsyncSession, workspace_id: uuid.UUID) -> st
         )
         .limit(1)
     )
-    if not verified or active:
+    if active:
         raise HTTPException(
             409,
-            "Verify the current research before preparing or running an experiment. "
-            "Wait for extraction to finish first.",
+            "Wait for research extraction to finish before preparing or running an experiment.",
         )
     return fingerprint
 
@@ -181,7 +181,7 @@ async def prepare_protocol(
     workspace_id: uuid.UUID, payload: ExtractRequest, session: AsyncSession = Depends(get_session)
 ):
     await require_workspace(workspace_id, session)
-    fingerprint = await require_verified(session, workspace_id)
+    fingerprint = await require_research_ready(session, workspace_id)
     source = await session.get(Source, payload.source_id)
     if source is None or source.workspace_id != workspace_id or source.origin == "lab-vision":
         raise HTTPException(404, "Research source not found in this workspace")
@@ -211,9 +211,9 @@ async def prepare_protocol(
         raise HTTPException(422, str(error)) from error
     # Model calls can take time; reject if the research changed during extraction.
     session.expire_all()
-    if await require_verified(session, workspace_id) != fingerprint:
+    if await require_research_ready(session, workspace_id) != fingerprint:
         raise HTTPException(
-            409, "Research changed during protocol extraction. Verify it and retry."
+            409, "Research changed during protocol extraction. Retry with the current research."
         )
     row = ExperimentProtocol(
         id=protocol_id,
@@ -236,7 +236,7 @@ async def prepare_protocol(
 async def approve_protocol(
     workspace_id: uuid.UUID, protocol_id: uuid.UUID, session: AsyncSession = Depends(get_session)
 ):
-    fingerprint = await require_verified(session, workspace_id)
+    fingerprint = await require_research_ready(session, workspace_id)
     protocol = await session.get(ExperimentProtocol, protocol_id)
     if protocol is None or protocol.workspace_id != workspace_id:
         raise HTTPException(404, "Protocol not found")
@@ -260,15 +260,17 @@ async def start_experiment(
     partial_recording: bool = Form(False),
     session: AsyncSession = Depends(get_session),
 ):
-    fingerprint = await require_verified(session, workspace_id)
+    fingerprint = await require_research_ready(session, workspace_id)
     protocol = await session.get(ExperimentProtocol, protocol_id) if protocol_id else None
     if protocol_id and (protocol is None or protocol.workspace_id != workspace_id):
         raise HTTPException(404, "Protocol not found")
     if protocol is None and source_id is None:
-        # Nothing chosen: use the protocol the latest agent run handed over, if it is current.
+        # Use the latest agent protocol, refreshing it automatically if research changed.
         suggestion = await agent_suggestion(session, workspace_id, fingerprint)
-        if suggestion and suggestion["current"]:
-            protocol = await session.get(ExperimentProtocol, uuid.UUID(suggestion["protocol_id"]))
+        if suggestion:
+            source_id = uuid.UUID(suggestion["source_id"])
+            if suggestion["current"]:
+                protocol = await session.get(ExperimentProtocol, uuid.UUID(suggestion["protocol_id"]))
     if protocol is None or protocol.research_fingerprint != fingerprint:
         selected_source = source_id or (protocol.source_id if protocol else None)
         if selected_source is None:

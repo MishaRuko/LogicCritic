@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as api from '../src/lib/research/api';
@@ -9,6 +9,33 @@ vi.mock('../src/components/research/ResearchCanvas', () => ({ ResearchCanvas: ({
 afterEach(() => { vi.restoreAllMocks(); window.history.replaceState(null, '', '/'); });
 
 describe('chat and graph integration', () => {
+  it('opens the completed agent protocol directly and starts without research verification', async () => {
+    window.history.replaceState(null, '', '/?workspace=workspace');
+    const workspace = { id: 'workspace', title: 'Study', created_at: '2026-10-04T00:00:00Z' };
+    const source = { id: 'protocol-source', workspace_id: workspace.id, title: 'Protocol', original_filename: 'protocol.md', kind: 'document', origin: 'agent', mime_type: 'text/markdown', content_hash: 'hash', external_ids: {}, metadata: { parser: 'agent_protocol_v1', steps: [{ n: 1, action: 'Mix gently.', excerpt_ids: [] }] }, created_at: workspace.created_at, excerpts: [] };
+    const snapshot: Snapshot = { workspace, graph: { statements: [], reasoning_steps: [], relations: [] }, contexts: [], sources: [{ ...source, id: 'other-source' }, source], jobs: [], validity: {} };
+    const completed: AgentRun = { id: 'agent-run', workspace_id: workspace.id, goal_id: 'goal', question: 'Find a protocol', kind: 'question', mode: 'guarded', model: 'test', status: 'succeeded', budgets: { max_turns: 10, max_web_searches: 10, max_total_output_tokens: 10000 }, usage: {}, error: null, final_report: 'Method ready.', final_statement_id: null, certainty: 'conditional', created_at: workspace.created_at, started_at: null, completed_at: workspace.created_at, protocol: { source_id: source.id, title: source.title, basis: '', steps: [] } };
+    vi.spyOn(api, 'listWorkspaces').mockResolvedValue([workspace]);
+    vi.spyOn(api, 'fetchSnapshot').mockResolvedValue(snapshot);
+    vi.spyOn(api, 'health').mockResolvedValue({ status: 'ok', database: 'ok', redis: 'ok' });
+    vi.spyOn(api, 'fetchExperiments').mockResolvedValue({ verified: false, protocols: [], runs: [] });
+    vi.spyOn(api, 'listAgentRuns').mockResolvedValue([completed]);
+    vi.spyOn(api, 'listAgentEvents').mockResolvedValue([]);
+    const start = vi.spyOn(api, 'startExperiment').mockResolvedValue({ id: 'experiment' } as never);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    try {
+      render(<QueryClientProvider client={client}><ResearchWorkspace/></QueryClientProvider>);
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Agent mode' })).toBeEnabled());
+      fireEvent.click(screen.getByRole('button', { name: 'Agent mode' }));
+      const summary = await screen.findByRole('status', { name: 'Agent summary' });
+      fireEvent.click(within(summary).getByRole('button', { name: 'Run experiment now' }));
+      expect(screen.getByRole('region', { name: 'Start experiment' })).toBeInTheDocument();
+      expect(screen.getByLabelText('Research source')).toHaveValue(source.id);
+      fireEvent.click(screen.getByRole('button', { name: 'Run sample experiment' }));
+      await waitFor(() => expect(start).toHaveBeenCalledWith(workspace.id, undefined, 'demo', undefined, source.id, false));
+    } finally { client.clear(); }
+  });
+
   it('uploads pasted text and PDFs as material, then switches to agent questions in the same workspace', async () => {
     window.history.replaceState(null, '', '/research');
     const workspace = { id: 'material-workspace', title: 'Research material', created_at: '2026-10-04T00:00:00Z' };

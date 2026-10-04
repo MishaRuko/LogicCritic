@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as api from '../src/lib/research/api';
 import { ResearchExperiments } from '../src/components/research/ResearchExperiments';
@@ -11,6 +11,7 @@ const protocol: ExperimentProtocol = { id: 'protocol', source_id: 'source', prot
 const data: Experiments = { verified: true, protocols: [protocol], runs: [] };
 const perform = async (action: () => Promise<void>) => action();
 const props = { state, loading: false, error: null, busy: false, perform, onVerify: vi.fn(), onSource: vi.fn() };
+beforeEach(() => { URL.createObjectURL = vi.fn(() => 'blob:preview'); URL.revokeObjectURL = vi.fn(); });
 afterEach(() => vi.restoreAllMocks());
 
 describe('research to experiment handoff', () => {
@@ -61,6 +62,7 @@ describe('research to experiment handoff', () => {
     render(<ResearchExperiments {...props} state={withSources(paper, agentSource('handed-over', '2026-10-05T11:00:00Z'))} data={{ ...data, protocols: [prepared], suggested: suggested('handed-over') }}/>);
     const video = new File(['recording'], 'bench.mp4', { type: 'video/mp4' });
     fireEvent.change(screen.getByLabelText('Choose a lab video or saved observations'), { target: { files: [video] } });
+    expect(screen.getByLabelText('Lab video preview')).toHaveAttribute('src', 'blob:preview');
     fireEvent.click(screen.getByRole('button', { name: 'Run experiment analysis' }));
     await waitFor(() => expect(start).toHaveBeenCalledWith('workspace', 'prepared', 'video', video, 'handed-over', false));
   });
@@ -90,6 +92,31 @@ describe('research to experiment handoff', () => {
     expect(screen.getByLabelText('Research source')).toHaveValue('paper');
   });
 
+  it('opens the requested protocol setup even when a previous result exists', () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true, json: async () => [] } as Response);
+    vi.stubGlobal('matchMedia', vi.fn().mockImplementation(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn() })));
+    Element.prototype.scrollTo = vi.fn();
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const oldRun = { id: 'old', protocol_id: protocol.id, status: 'succeeded', mode: 'demo', filename: 'old', created_at: '2026-10-04', result: {} } as ExperimentRun;
+    render(<QueryClientProvider client={client}><ResearchExperiments {...props} initialSourceId="source" data={{ ...data, verified: false, runs: [oldRun] }}/></QueryClientProvider>);
+    expect(screen.getByRole('region', { name: 'Start experiment' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Run sample experiment' })).toBeEnabled();
+  });
+
+  it('releases selected video previews when replaced and does not preview JSONL', () => {
+    render(<ResearchExperiments {...props} data={data}/>);
+    const input = screen.getByLabelText('Choose a lab video or saved observations');
+    const video = new File(['video'], 'video.mp4', { type: 'video/mp4' });
+    fireEvent.change(input, { target: { files: [video] } });
+    expect(URL.createObjectURL).toHaveBeenCalledWith(video);
+    expect(screen.getByLabelText('Lab video preview')).toHaveAttribute('src', 'blob:preview');
+    fireEvent.error(screen.getByLabelText('Lab video preview'));
+    expect(screen.getByText(/This browser cannot preview/)).toBeInTheDocument();
+    fireEvent.change(input, { target: { files: [new File(['{}'], 'observations.jsonl')] } });
+    expect(screen.queryByLabelText('Lab video preview')).not.toBeInTheDocument();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:preview');
+  });
+
   it('runs without an approval checkbox or manual extraction', async () => {
     const start = vi.spyOn(api, 'startExperiment').mockResolvedValue({ id: 'run' } as never);
     render(<ResearchExperiments {...props} data={{ ...data, protocols: [] }}/>);
@@ -106,11 +133,10 @@ describe('research to experiment handoff', () => {
     await waitFor(() => expect(start).toHaveBeenCalledWith('workspace', 'protocol', 'demo', undefined, 'source', false));
   });
 
-  it('requires verification when the research changes', () => {
+  it('allows testing without verifying research first', () => {
     render(<ResearchExperiments {...props} data={{ ...data, verified: false, protocols: [{ ...protocol, current: false }] }}/>);
-    expect(screen.getByRole('button', { name: 'Run sample experiment' })).toBeDisabled();
-    fireEvent.click(screen.getByRole('button', { name: 'Go to verification' }));
-    expect(props.onVerify).toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Run sample experiment' })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: 'Go to verification' })).not.toBeInTheDocument();
   });
 
   it('pairs the real sample with downloads and a partial saved replay', async () => {

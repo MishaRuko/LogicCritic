@@ -18,7 +18,7 @@ export function experimentPresentation(job: ExperimentRun, protocol: ExperimentP
   const method: MethodContract = {
     schemaVersion: 1, title: protocol.protocol.title, version: protocol.protocol.version,
     source: source?.original_filename ?? protocol.source_id,
-    summary: 'Extracted from the verified research; each step retains its source passage.',
+    summary: 'Extracted from the research; each step retains its source passage.',
     requirements: protocol.protocol.steps.map((step, index) => ({
       id: step.id, order: index + 1, title: step.description.split(/\n|\.\s/)[0].split(' ').slice(0, 9).join(' '),
       description: step.description, quote: step.source_text, checks: step.checks.map(c => `${c.question} Expected: ${c.expected}${c.unit ? ` ${c.unit}` : ''}${c.tolerance ? ` ± ${c.tolerance}` : ''}`),

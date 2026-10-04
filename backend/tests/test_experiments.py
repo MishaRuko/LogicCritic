@@ -211,12 +211,12 @@ async def prepare(api):
     return source, response.json()
 
 
-async def test_verification_is_required_and_protocol_review_is_optional(api):
+async def test_verification_and_protocol_review_are_optional(api):
     source = await upload(api)
     response = await api.post(f"{api.base}/protocols", json={"source_id": source["id"]})
-    assert response.status_code == 409
-    await api.post(f"{api.base}/verify")
-    draft = (await api.post(f"{api.base}/protocols", json={"source_id": source["id"]})).json()
+    assert response.status_code == 201, response.text
+    assert not (await api.get(f"{api.base}/experiments")).json()["verified"]
+    draft = response.json()
     assert draft["approved_at"] is None
     assert set(draft["step_excerpts"]) == {"s1", "s2", "s3"}
     assert all(ids for ids in draft["step_excerpts"].values())
@@ -237,10 +237,29 @@ async def test_research_changes_invalidate_verification_and_old_protocols(api):
     response = await api.post(
         f"{api.base}/experiment-runs", data={"protocol_id": draft["id"], "mode": "demo"}
     )
-    assert response.status_code == 409
-    await api.post(f"{api.base}/verify")
+    assert response.status_code == 202, response.text
+    assert response.json()["protocol_id"] != draft["id"]
     response = await api.post(f"{api.base}/protocols/{draft['id']}/approve")
     assert response.status_code == 409
+
+
+async def test_experiment_waits_for_extraction_without_requiring_verification(api):
+    from app.database import session_factory
+    from app.models import ExtractionJob
+
+    source = await upload(api)
+    async with session_factory() as session:
+        session.add(ExtractionJob(
+            workspace_id=uuid.UUID(api.workspace), source_id=uuid.UUID(source["id"]),
+            idempotency_key=str(uuid.uuid4()), model="test", status="running",
+        ))
+        await session.commit()
+    response = await api.post(
+        f"{api.base}/experiment-runs", data={"source_id": source["id"], "mode": "demo"}
+    )
+    assert response.status_code == 409
+    assert "extraction" in response.json()["detail"]
+    assert "Verify" not in response.json()["detail"]
 
 
 async def test_protocols_cannot_cross_workspace_boundaries(api):
@@ -315,11 +334,9 @@ async def test_empty_and_unsupported_recordings_are_rejected(api):
     ).status_code == 422
 
 
-async def test_start_automatically_extracts_methodology_from_verified_source(api):
+async def test_start_automatically_extracts_methodology_without_verification(api):
     source = await upload(api)
     data = {"source_id": source["id"], "mode": "demo"}
-    assert (await api.post(f"{api.base}/experiment-runs", data=data)).status_code == 409
-    await api.post(f"{api.base}/verify")
     response = await api.post(f"{api.base}/experiment-runs", data=data)
     assert response.status_code == 202, response.text
     experiments = (await api.get(f"{api.base}/experiments")).json()
