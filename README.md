@@ -13,7 +13,7 @@ there, it says so.
 We built it for Track 2 (Originator) of the hackathon: agents that do science and know when they
 are wrong.
 
-Watch the [walkthrough](https://www.youtube.com/watch?v=vCM08BDn8cE)
+Watch the [walkthrough](https://youtu.be/g0g2TOkEYg0)
 
 Try it: [trial.misharuko.com](https://trial.misharuko.com)
 
