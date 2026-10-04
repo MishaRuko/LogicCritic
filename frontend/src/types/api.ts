@@ -15,13 +15,28 @@ export interface Obligation { id: string; kind: string; description: string; req
 export interface Issue { id: string; rule_code: string; node_type: string; node_id: string; details: Record<string, unknown>; status: string; created_at: string }
 export interface Context { focus_statement: Statement; upstream_statements: Statement[]; downstream_statements: Statement[]; reasoning_steps: ReasoningStep[]; obligations: Obligation[]; issues: Issue[] }
 export interface Verification { verification_event_id: string; rules_run: string[]; issues_opened: number; issues_resolved: number; obligations_opened: number; obligations_resolved: number }
+export type VerificationEvent =
+  | { type: 'started'; rules: string[] }
+  | { type: 'rule_started'; rule_code: string; node_ids: string[] }
+  | { type: 'rule_completed'; rule_code: string; node_ids: string[]; findings: { node_id: string; node_type: string; message: string }[] }
+  | { type: 'completed'; result: Verification }
+  | { type: 'error'; message: string };
 export interface Validity { id: string; source_id: string; status: 'valid' | 'invalidated'; reason: string; provenance: Provenance; created_at: string }
 export type PatchOperation =
   | { op: 'create_statement'; client_ref: string; text: string; assertion_mode: AssertionMode; role?: StatementRole; salience?: 'core' | 'secondary' | 'supporting'; excerpt_ids: string[]; provenance: Provenance; lifecycle?: 'proposed' }
   | { op: 'create_reasoning_step'; client_ref: string; premise_ids: string[]; conclusion_id: string; explanation: string; provenance: Provenance; lifecycle?: 'proposed' }
   | { op: 'create_relation'; source_node_kind: 'statement' | 'reasoning_step'; source_node_id: string; relation: 'supports' | 'rebuts' | 'undercuts' | 'qualifies' | 'specializes' | 'revises'; target_node_kind: 'statement' | 'reasoning_step'; target_node_id: string; metadata: Record<string, unknown> }
   | { op: 'create_annotation'; subject_type: 'statement' | 'reasoning_step'; subject_id: string; type: string; value: Record<string, unknown>; provenance: Provenance; confidence?: number; status?: 'proposed' };
-export interface Snapshot { workspace: Workspace; graph: Graph; contexts: Context[]; sources: SourceWithExcerpts[]; jobs: Job[]; validity: Record<string, Validity> }
+export interface Snapshot { experiments?: Experiments; workspace: Workspace; graph: Graph; contexts: Context[]; sources: SourceWithExcerpts[]; jobs: Job[]; validity: Record<string, Validity> }
+
+export interface ProtocolCheck { id: string; kind: 'numeric' | 'equals'; question: string; expected: string | number; unit: string | null; tolerance: number }
+export interface ProtocolStep { id: string; description: string; source_text: string; optional: boolean; checks: ProtocolCheck[] }
+export interface ExperimentProtocol { id: string; source_id: string; protocol: { id: string; title: string; version: string; steps: ProtocolStep[] }; step_excerpts: Record<string, string[]>; extraction_method: string; approved_at: string | null; current?: boolean; created_at: string }
+export interface ExperimentObservation { id: string; step_id: string | null; status: string; confidence: number; description: string | null; values: { check_id: string; value: string | number | null; confidence: number }[]; span: { start_s: number; end_s: number } }
+export interface ExperimentDeviation { id: string; kind: string; step_id: string | null; check_id: string | null; message: string; needs_review: boolean; expected: string | number | null; observed: string | number | null; span: { start_s: number; end_s: number } | null }
+export interface VideoAgentEvent { kind: 'overview' | 'inspect' | 'retry' | 'done'; start?: number; end?: number; count?: number; frames?: number; message?: string }
+export interface ExperimentRun { id: string; protocol_id: string; mode: 'demo' | 'replay' | 'video'; status: string; filename: string; result: { coverage?: 'excerpt' | 'complete_recording'; processed_seconds?: number; source_id?: string; observations?: ExperimentObservation[]; deviations?: ExperimentDeviation[]; analysis_stage?: 'method' | 'frames' | 'inspection' | 'verification' | 'done'; duration?: number; overview?: { t: number; data: string }[]; agent_events?: VideoAgentEvent[]; agent_method?: import('../lib/experiment/types').MethodContract; agent_observations?: import('../lib/experiment/types').Observation[]; agent_results?: Record<string, import('../lib/experiment/types').VerificationResult>; summary?: { observations: number; deviations: number; needs_review: number; failed_windows: number } }; error: string | null; created_at: string; completed_at: string | null }
+export interface Experiments { verified: boolean; verification?: Verification | null; protocols: ExperimentProtocol[]; runs: ExperimentRun[] }
 
 // -- Research agent ---------------------------------------------------------------------------
 // Endpoints: POST /workspaces/{id}/agent-runs, GET /agent-runs/{id}, GET /agent-runs/{id}/events?after=,

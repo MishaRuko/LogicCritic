@@ -168,3 +168,24 @@ def test_page_limit(monkeypatch: pytest.MonkeyPatch) -> None:
     with pytest.raises(PdfIngestionError) as error:
         parse_pdf(make_pdf([[SENTENCE]] * 3))
     assert error.value.code == "too_many_pages"
+
+
+def test_numbered_procedure_steps_are_not_discarded_as_headings():
+    parsed = parse_pdf(
+        make_pdf(
+            [
+                [
+                    "Procedure",
+                    "1. Spray hands with ethanol",
+                    "2. Get all reagents",
+                    "3. Place dish in cabinet",
+                ]
+            ]
+        )
+    )
+    assert texts(parsed) == [
+        "1. Spray hands with ethanol",
+        "2. Get all reagents",
+        "3. Place dish in cabinet",
+    ]
+    assert all(e.locator["section"] == "Procedure" for e in parsed.excerpts)

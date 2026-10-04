@@ -6,7 +6,7 @@ down:
 	docker compose down
 
 backend:
-	docker compose -f docker-compose.yml -f compose.dev.yml up -d postgres redis api worker
+	docker compose -f docker-compose.yml -f compose.dev.yml up -d postgres redis api worker replay-worker
 
 frontend:
 	pnpm --dir frontend dev

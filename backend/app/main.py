@@ -7,6 +7,7 @@ from app.config import get_settings
 from app.routes.agent import router as agent_router
 from app.routes.amass import router as amass_router
 from app.routes.extraction import router as extraction_router
+from app.routes.experiments import router as experiments_router
 from app.routes.graph import router as graph_router
 from app.routes.health import router as health_router
 from app.routes.sources import router as sources_router
@@ -31,3 +32,4 @@ app.include_router(graph_router, prefix="/api")
 app.include_router(extraction_router, prefix="/api")
 app.include_router(amass_router, prefix="/api")
 app.include_router(agent_router, prefix="/api")
+app.include_router(experiments_router, prefix="/api")
