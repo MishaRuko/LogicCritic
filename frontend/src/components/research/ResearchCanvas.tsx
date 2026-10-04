@@ -7,11 +7,11 @@ import { researchCentre, researchGlyphSize, researchSize, stableLayout, type XY 
 import { ResearchGlyph, researchColor } from './ResearchGlyph';
 import { verificationHighlights, type VerificationTrace } from '../../lib/research/verification';
 import { useReducedMotion } from 'framer-motion';
-type ArgumentNode = Node<{ argument: ResearchNode; dimmed: boolean; check?: 'checking' | 'checked' | 'attention' }, 'argument'>;
+type ArgumentNode = Node<{ argument: ResearchNode; dimmed: boolean; highlighted?: boolean; check?: 'checking' | 'checked' | 'attention' }, 'argument'>;
 const GraphNode = memo(function GraphNode({ data, selected }: NodeProps<ArgumentNode>) {
   const node = data.argument;
   return <div style={{ ...researchSize(node), opacity: data.dimmed ? .3 : 1 }} className="research-graph-node flex flex-col items-center pt-1 text-center" data-testid={`research-node-${node.id}`} title={node.label}>
-    <div className={cn('rounded-full transition-shadow duration-300', selected && 'outline outline-offset-4 outline-zinc-400', data.check === 'checking' && 'research-verification-active', data.check === 'checked' && 'outline outline-offset-4 outline-pass/40', data.check === 'attention' && 'outline outline-offset-4 outline-warn/70')}><ResearchGlyph kind={node.kind} state={node.state} proposed={node.proposed} size={researchGlyphSize(node)}/></div>
+    <div className={cn('rounded-full transition-shadow duration-300', selected && 'outline outline-offset-4 outline-zinc-400', data.check === 'checking' && 'research-verification-active', data.check === 'checked' && 'outline outline-offset-4 outline-pass/40', data.check === 'attention' && 'outline outline-offset-4 outline-warn/70', data.highlighted && !data.check && 'outline-2 outline-offset-4 outline-blue-500')}><ResearchGlyph kind={node.kind} state={node.state} proposed={node.proposed} size={researchGlyphSize(node)}/></div>
     <Handle type="target" position={Position.Left} id="in" style={{ top: researchCentre(node), left: researchSize(node).width / 2 - researchGlyphSize(node) / 2 }}/>
     <Handle type="source" position={Position.Right} id="out" style={{ top: researchCentre(node), left: researchSize(node).width / 2 + researchGlyphSize(node) / 2 }}/>
     <Handle type="source" position={Position.Left} id="back-out" style={{ top: researchCentre(node), left: researchSize(node).width / 2 - researchGlyphSize(node) / 2 }}/>
@@ -33,7 +33,7 @@ function AboveEdge(props: EdgeProps) {
 }
 const edgeTypes = { above: AboveEdge };
 const nodeTypes = { argument: GraphNode };
-export function ResearchCanvas({ graph, selected, onSelect, verification }: { graph: ResearchGraph; selected?: string; onSelect: (id?: string) => void; verification?: VerificationTrace }) {
+export function ResearchCanvas({ graph, selected, onSelect, verification, highlight }: { graph: ResearchGraph; selected?: string; onSelect: (id?: string) => void; verification?: VerificationTrace; highlight?: ReadonlySet<string> }) {
   const container = useRef<HTMLDivElement>(null);
   const positions = useRef<Record<string, XY>>({});
   const [flow, setFlow] = useState<ReactFlowInstance<ArgumentNode> | null>(null);
@@ -47,9 +47,10 @@ export function ResearchCanvas({ graph, selected, onSelect, verification }: { gr
     const focus = hovered ?? selected;
     const focusedEdge = graph.edges.find(e => e.id === focus);
     const neighbours = new Set([focus, ...(focusedEdge ? [focusedEdge.source, focusedEdge.target] : []), ...graph.nodes.filter(n => focus && n.sourceIds.includes(focus)).map(n => n.id), ...graph.edges.flatMap(e => e.source === focus ? [e.target] : e.target === focus ? [e.source] : [])]);
+    const lit = highlight?.size ? highlight : undefined;
     return graph.nodes.map(n => ({ id: n.id, type: 'argument' as const, position: positions.current[n.id], ...researchSize(n),
-      selected: selected === n.id, data: { argument: n, dimmed: !!focus && !neighbours.has(n.id), check: checkingIds.has(n.id) ? 'checking' as const : highlights.attention.has(n.id) || n.sourceIds.some(id => highlights.attention.has(id)) ? 'attention' as const : highlights.checked.has(n.id) || n.sourceIds.some(id => highlights.checked.has(id)) ? 'checked' as const : undefined }, ariaLabel: `${n.label}, ${n.state}` }));
-  }, [graph, selected, hovered, layoutVersion, highlights, checkingIds]);
+      selected: selected === n.id, data: { argument: n, highlighted: !!lit?.has(n.id), dimmed: focus ? !neighbours.has(n.id) : !!lit && !lit.has(n.id), check: checkingIds.has(n.id) ? 'checking' as const : highlights.attention.has(n.id) || n.sourceIds.some(id => highlights.attention.has(id)) ? 'attention' as const : highlights.checked.has(n.id) || n.sourceIds.some(id => highlights.checked.has(id)) ? 'checked' as const : undefined }, ariaLabel: `${n.label}, ${n.state}` }));
+  }, [graph, selected, hovered, layoutVersion, highlights, checkingIds, highlight]);
   const edges = useMemo(() => {
     let lane = 0;
     const top = Math.min(0, ...nodes.map(n => n.position.y)) - 64;
@@ -58,13 +59,19 @@ export function ResearchCanvas({ graph, selected, onSelect, verification }: { gr
       const above = e.relation === 'concerns' || (source && target && Math.abs(source.x - target.x) > 500 && e.relation !== 'blocks');
       const backwards = source && target && source.x > target.x;
       const checking = checkingIds.has(e.source) || checkingIds.has(e.target);
+      const chained = !!highlight?.has(e.source) && !!highlight?.has(e.target);
       return { ...e, type: above ? 'above' : 'default', data: { routeY: above ? top - lane++ * 24 : undefined },
         sourceHandle: above ? 'above-out' : backwards ? 'back-out' : 'out', targetHandle: above ? 'above-in' : backwards ? 'back-in' : 'in', label: `${e.relation.replace(/_/g, ' ')}${e.auditVerdict === 'needs_review' ? ' · needs review' : e.auditVerdict === 'supported' ? ' · audited' : ''}`,
         animated: checking && !reducedMotion,
-        style: { stroke: checking ? '#60a5fa' : e.auditVerdict === 'needs_review' ? researchColor('warn') : e.relation === 'blocks' || e.relation === 'rebuts' || e.relation === 'undercuts' ? researchColor('fail') : '#a1a1aa', strokeWidth: checking ? 1.8 : 1, strokeDasharray: checking ? '5 5' : e.proposed ? '3 3' : undefined },
+        style: { opacity: highlight?.size && !chained && !checking ? .25 : 1, stroke: checking ? '#60a5fa' : chained ? '#2563eb' : e.auditVerdict === 'needs_review' ? researchColor('warn') : e.relation === 'blocks' || e.relation === 'rebuts' || e.relation === 'undercuts' ? researchColor('fail') : '#a1a1aa', strokeWidth: checking ? 1.8 : chained ? 2 : 1, strokeDasharray: checking ? '5 5' : e.proposed ? '3 3' : undefined },
         labelStyle: { fill: '#85858e', fontSize: 9 }, labelBgStyle: { fill: '#fafaf9', fillOpacity: .96 }, labelBgPadding: [6, 3] as [number, number] };
     });
-  }, [graph, nodes, checkingIds, reducedMotion]);
+  }, [graph, nodes, checkingIds, reducedMotion, highlight]);
+  useEffect(() => {
+    if (!flow || !highlight?.size) return;
+    const shown = graph.nodes.filter(node => highlight.has(node.id)).map(node => ({ id: node.id }));
+    if (shown.length) void flow.fitView({ nodes: shown, padding: .35, maxZoom: 1.1, duration: reducedMotion ? 0 : 450 });
+  }, [flow, highlight, graph.nodes, reducedMotion]);
   useEffect(() => {
     if (!flow || !checkingIds.size) return;
     const focus = new Set(checkingIds);

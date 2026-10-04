@@ -27,6 +27,8 @@ from app.schemas import (
     GraphEdgeResponse,
     GraphPatchRequest,
     GraphPatchResponse,
+    GraphQuestionRequest,
+    GraphQuestionResponse,
     GraphResponse,
     IssueResponse,
     ObligationResponse,
@@ -38,7 +40,10 @@ from app.schemas import (
     SynthesisResponse,
     VerificationResponse,
 )
+from app.services import graph_qa
 from app.services.argument_check import check_arguments
+from app.services.claude_call import get_client
+from app.config import get_settings
 from app.services.graph_patches import GraphPatchExecutor
 from app.services.synthesis import synthesize_workspace
 from app.services.verification import run_verification
@@ -248,6 +253,24 @@ async def argument_check_workspace(
 ) -> ArgumentCheckResponse:
     await require_workspace(workspace_id, session)
     return await check_arguments(session, workspace_id, payload)
+
+
+@router.post("/workspaces/{workspace_id}/graph-questions", response_model=GraphQuestionResponse)
+async def ask_graph(
+    workspace_id: uuid.UUID, payload: GraphQuestionRequest, session: AsyncSession = Depends(get_session)
+) -> GraphQuestionResponse:
+    """Answer a question about the argument graph by querying it; returns the nodes to highlight."""
+    await require_workspace(workspace_id, session)
+    if not get_settings().claude_api_key:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Claude is not configured")
+    try:
+        result = await graph_qa.ask(
+            session_factory, workspace_id, payload.question, [t.model_dump() for t in payload.history], get_client()
+        )
+    except Exception as error:  # noqa: BLE001 - report model failures as a clear gateway error
+        logging.getLogger(__name__).exception("graph question failed")
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"The graph question failed: {error}") from error
+    return GraphQuestionResponse(**result)
 
 
 @router.post("/workspaces/{workspace_id}/synthesize", response_model=SynthesisResponse)

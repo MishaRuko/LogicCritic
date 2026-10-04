@@ -36,6 +36,40 @@ class ReadSourceInput(BaseModel):
     )
 
 
+class LinkClaimsInput(BaseModel):
+    source_statement_id: str = Field(description="The claim that supports, rebuts or qualifies.")
+    target_statement_id: str = Field(description="The claim it bears on; any claim in the graph.")
+    relation: Literal["supports", "rebuts", "qualifies"] = Field(
+        description="supports = independent evidence for the same proposition; rebuts = directly "
+        "incompatible; qualifies = narrows its scope or conditions."
+    )
+    rationale: str = Field(description="Why the relation holds, from the claims' cited text.")
+
+
+class GraphSearchInput(BaseModel):
+    query: str = Field(description="Words to look for in the claims of the workspace's argument graph.")
+    limit: int = Field(description="How many claims, 1 to 25.")
+
+
+class GraphNodeInput(BaseModel):
+    node_id: str = Field(
+        description="A statement_id or step_id from the graph: returns its evidence, the reasoning "
+        "that derives it, what it supports, its links and open obligations."
+    )
+
+
+class TraceChainInput(BaseModel):
+    statement_id: str = Field(description="The claim to trace from.")
+    direction: Literal["support", "consequences"] = Field(
+        description="support = what the claim rests on; consequences = what rests on the claim."
+    )
+    depth: int = Field(description="How many reasoning steps to follow, 1 to 6.")
+
+
+class GraphOverviewInput(BaseModel):
+    pass
+
+
 class FetchUrlInput(BaseModel):
     url: str = Field(description="A public http(s) web page or PDF to read as evidence.")
 
@@ -208,7 +242,36 @@ RESEARCH_TOOLS: dict[str, tuple[str, type[BaseModel]]] = {
     ),
 }
 
+GRAPH_TOOLS = {
+    "graph_overview": (
+        "Summarize the workspace's existing argument graph: claim and step counts, sources, "
+        "conclusions. The graph holds claims extracted from material and recorded in earlier runs.",
+        GraphOverviewInput,
+    ),
+    "search_graph": (
+        "Search the claims already in the workspace's argument graph (lexical match). Returns "
+        "statement_ids to inspect with get_graph_node or trace_chain.",
+        GraphSearchInput,
+    ),
+    "get_graph_node": (
+        "Read one claim or reasoning step of the graph with its cited evidence, the reasoning "
+        "that derives it, what it supports, its cross-source links and open obligations.",
+        GraphNodeInput,
+    ),
+    "trace_chain": (
+        "Follow the logical chain through a claim: the premises it rests on, recursively "
+        "(support), or the conclusions built on it (consequences).",
+        TraceChainInput,
+    ),
+}
+
 RECORDING_TOOLS: dict[str, tuple[str, type[BaseModel]]] = {
+    "link_claims": (
+        "Add a supports, rebuts or qualifies link between two claims in the graph, including claims "
+        "from added material or earlier runs. The graph is additive: never edit an earlier claim; "
+        "record your own claim and link it. Each link is audited against the claims' cited text.",
+        LinkClaimsInput,
+    ),
     "record_claim": (
         "Record one claim in the evidence graph, with the excerpts that support it. Returns its "
         "statement_id. Every claim you rely on must be recorded; claims you do not record do not "

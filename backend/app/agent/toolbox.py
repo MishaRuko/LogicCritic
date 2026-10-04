@@ -22,7 +22,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.agent import guardrail
 from app.agent.tool_models import (
     CAUSAL_DESIGNS,
+    GRAPH_TOOLS,
     AbstainInput,
+    LinkClaimsInput,
     CheckConclusionInput,
     FetchUrlInput,
     FinalizeConclusionInput,
@@ -33,9 +35,20 @@ from app.agent.tool_models import (
     ReviseClaimInput,
     SearchPapersInput,
 )
+from app.services import graph_query
 from app.agent.web import FetchError, fetch_public, html_to_text
 from app.config import get_settings
-from app.models import AgentRun, Excerpt, GraphEvent, ResearchGoal, Source, Statement
+from app.models import (
+    AgentRun,
+    Excerpt,
+    GraphEdge,
+    GraphEvent,
+    ResearchGoal,
+    Source,
+    Statement,
+    StatementExcerpt,
+)
+from app.services.claude_call import ClaudeCallFailed
 from app.schemas import (
     AnnotationCreateOperation,
     GraphPatchRequest,
@@ -104,6 +117,8 @@ class Toolbox:
             "check_conclusion": (CheckConclusionInput, self.check_conclusion),
             "finalize_conclusion": (FinalizeConclusionInput, self.finalize_conclusion),
             "abstain": (AbstainInput, self.abstain),
+            "link_claims": (LinkClaimsInput, self.link_claims),
+            **{tool: (model, self._graph_tool(tool)) for tool, (_, model) in GRAPH_TOOLS.items()},
         }
         if name not in handlers:
             return {"error": f"Unknown tool {name!r}."}
@@ -119,6 +134,89 @@ class Toolbox:
             return {"error": amass_http_error(error).detail}
         except HTTPException as error:
             return {"error": str(error.detail)}
+
+    # -- the existing graph -------------------------------------------------------------------
+
+    async def link_claims(self, args: LinkClaimsInput, tool_use_id: str) -> dict:
+        """Append an audited relation between two claims. Nothing existing is changed."""
+        source_id = _uuid(args.source_statement_id, "source_statement_id")
+        target_id = _uuid(args.target_statement_id, "target_statement_id")
+        if source_id == target_id:
+            raise ToolError("A claim cannot be linked to itself.")
+        if not args.rationale.strip():
+            raise ToolError("Say why the relation holds.")
+        async with self._sessions() as session:
+            run = await session.get(AgentRun, self._run_id)
+            claims = {
+                s.id: s
+                for s in await session.scalars(
+                    select(Statement).where(
+                        Statement.workspace_id == run.workspace_id, Statement.id.in_([source_id, target_id])
+                    )
+                )
+            }
+            if len(claims) != 2:
+                raise ToolError("Both ids must be claims in this workspace's graph.")
+            if any(claim.lifecycle == "rejected" for claim in claims.values()):
+                raise ToolError("One of these claims was withdrawn; link the claim that replaced it.")
+            duplicate = await session.scalar(
+                select(GraphEdge).where(
+                    GraphEdge.workspace_id == run.workspace_id,
+                    GraphEdge.source_node_id == source_id,
+                    GraphEdge.target_node_id == target_id,
+                    GraphEdge.relation == args.relation,
+                )
+            )
+            if duplicate is not None:
+                return {"linked": False, "already_linked": True, "relation_id": str(duplicate.id)}
+            material = {i: await _claim_material(session, claims[i]) for i in (source_id, target_id)}
+        verdict, audit_rationale = "needs_review", "No independent audit was available."
+        if self._judge is not None and hasattr(self._judge, "audit_links"):
+            try:
+                audits = await self._judge.audit_links([{
+                    "source_statement_id": str(source_id), "target_statement_id": str(target_id),
+                    "relation": args.relation, "rationale": args.rationale.strip(),
+                    "source": material[source_id], "target": material[target_id],
+                }])
+                if audits.audits:
+                    verdict, audit_rationale = audits.audits[0].verdict, audits.audits[0].rationale
+            except ClaudeCallFailed as error:
+                audit_rationale = f"The audit could not run: {error}"
+        async with self._sessions() as session:
+            run = await session.get(AgentRun, self._run_id)
+            edge = GraphEdge(
+                workspace_id=run.workspace_id,
+                source_node_kind="statement",
+                source_node_id=source_id,
+                relation=args.relation,
+                target_node_kind="statement",
+                target_node_id=target_id,
+                metadata_={
+                    "lifecycle": "proposed",
+                    "generator_rationale": args.rationale.strip(),
+                    "audit_verdict": verdict,
+                    "audit_rationale": audit_rationale,
+                    "run_id": str(run.id),
+                    "actor": "research-agent",
+                },
+            )
+            session.add(edge)
+            await session.commit()
+            return {
+                "linked": True,
+                "relation_id": str(edge.id),
+                "relation": args.relation,
+                "audit_verdict": verdict,
+                "audit_rationale": audit_rationale,
+            }
+
+    def _graph_tool(self, name: str):
+        async def handler(args, _: str) -> dict:
+            async with self._sessions() as session:
+                run = await session.get(AgentRun, self._run_id)
+                return await graph_query.run_tool(session, run.workspace_id, name, args.model_dump())
+
+        return handler
 
     # -- reading ------------------------------------------------------------------------------
 
@@ -626,3 +724,12 @@ def tool_result_text(result: dict, limit: int = 60_000) -> str:
     """JSON for the model, cut off before it can swamp the context."""
     text = json.dumps(result, ensure_ascii=False, default=str)
     return text if len(text) <= limit else text[:limit] + '..."truncated"'
+
+
+async def _claim_material(session, statement: Statement) -> dict:
+    rows = await session.scalars(
+        select(Excerpt.text)
+        .join(StatementExcerpt, StatementExcerpt.excerpt_id == Excerpt.id)
+        .where(StatementExcerpt.statement_id == statement.id)
+    )
+    return {"statement_id": str(statement.id), "text": statement.text, "excerpts": [t[:1200] for t in rows]}

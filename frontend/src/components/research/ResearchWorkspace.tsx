@@ -2,11 +2,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Input, Tabs, cn } from '@cloudflare/kumo';
-import { ArrowClockwiseIcon, ChatCircleIcon, PlusIcon, SidebarSimpleIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArrowClockwiseIcon, ChatCircleIcon, GraphIcon, PlusIcon, SidebarSimpleIcon, TrashIcon } from '@phosphor-icons/react';
 import * as api from '../../lib/research/api';
 import { labSample, loadLabSample } from '../../lib/research/demo';
-import { allObligations, filterGraph, humanize, projectWorkspace } from '../../lib/research/graph';
-import type { AgentRun, Snapshot, Verification } from '../../types/api';
+import { allObligations, chainHighlight, filterGraph, humanize, projectWorkspace } from '../../lib/research/graph';
+import type { AgentRun, GraphQuestion, Snapshot, Verification } from '../../types/api';
 import { ResearchExperiments, ResearchStages } from './ResearchExperiments';
 import { ResearchCanvas } from './ResearchCanvas';
 import { ResearchVerificationProgress } from './ResearchVerificationProgress';
@@ -31,20 +31,24 @@ export function ResearchWorkspace() {
   useEffect(() => () => verificationController.current?.abort(), [id]);
   const [collapsed, setCollapsed] = useState(false); const [error, setError] = useState(''); const [notice, setNotice] = useState(''); const [busy, setBusy] = useState(false); const [deleting, setDeleting] = useState(false);
   const [query, setQuery] = useState(''); const [lifecycle, setLifecycle] = useState(''); const [source, setSource] = useState(''); const [detailedGraph, setDetailedGraph] = useState(false); const [verification, setVerification] = useState<Record<string, Verification>>({});
+  const [questions, setQuestions] = useState<GraphQuestion[]>([]);
+  const [highlight, setHighlight] = useState<{ ids: string[]; label: string }>();
+  const highlighted = useMemo(() => new Set(highlight?.ids ?? []), [highlight]);
   const workspaces = useQuery({ queryKey: ['workspaces'], queryFn: api.listWorkspaces, refetchInterval: 10000, retry: 1 });
   const current = useQuery({ queryKey: ['snapshot', id], queryFn: () => api.fetchSnapshot(id!), enabled: !!id, refetchInterval: 3000, retry: 1 });
   const experiments = useQuery({ queryKey: ['experiments', id], queryFn: () => api.fetchExperiments(id!), enabled: !!id, refetchInterval: 2000, retry: 1 });
   const agentRuns = useAgentRuns(id);
   const health = useQuery({ queryKey: ['health'], queryFn: api.health, refetchInterval: 15000, retry: false });
   const state = current.data;
-  const graph = useMemo(() => state ? filterGraph(projectWorkspace(state, detailedGraph), query, lifecycle, source) : { nodes: [], edges: [] }, [state, detailedGraph, query, lifecycle, source]);
+  const graph = useMemo(() => state ? filterGraph(projectWorkspace(state, detailedGraph, highlighted), query, lifecycle, source) : { nodes: [], edges: [] }, [state, detailedGraph, query, lifecycle, source, highlighted]);
+  function showChain(ids: string[], label: string) { setHighlight({ ids, label }); setSelected(undefined); setQuery(''); setLifecycle(''); setSource(''); chooseTab('argument'); }
   useEffect(() => {
     function sync() { const saved = new URLSearchParams(window.location.search).get('workspace'); setId(saved || undefined); setSelected(undefined); setTarget(undefined); const view = new URLSearchParams(window.location.search).get('view'); setTab(view && ['argument', 'material', 'chain', 'checks', 'experiments'].includes(view) ? view : 'argument'); }
     sync(); window.addEventListener('popstate', sync); return () => window.removeEventListener('popstate', sync);
   }, []);
   function chooseTab(view: string) { setTab(view); const url = new URL(window.location.href); url.searchParams.set('view', view); window.history.replaceState(null, '', url); }
   function load(workspace?: string, material = false) {
-    setUploadProgress(undefined); setId(workspace); setSelected(undefined); setTarget(undefined); chooseTab(material ? 'material' : 'argument'); setError(''); setNotice(''); setQuery(''); setLifecycle(''); setSource(''); setDetailedGraph(false); setDeleting(false);
+    setUploadProgress(undefined); setHighlight(undefined); setId(workspace); setSelected(undefined); setTarget(undefined); chooseTab(material ? 'material' : 'argument'); setError(''); setNotice(''); setQuery(''); setLifecycle(''); setSource(''); setDetailedGraph(false); setDeleting(false);
     const url = new URL(window.location.href); if (workspace) url.searchParams.set('workspace', workspace); else url.searchParams.delete('workspace'); window.history.pushState(null, '', url);
   }
   async function refresh() { await Promise.all([client.invalidateQueries({ queryKey: ['snapshot'] }), client.invalidateQueries({ queryKey: ['workspaces'] }), client.invalidateQueries({ queryKey: ['health'] }), client.invalidateQueries({ queryKey: ['agent-runs'] }), client.invalidateQueries({ queryKey: ['experiments'] })]); }
@@ -54,6 +58,7 @@ export function ResearchWorkspace() {
     finally { await refresh(); setBusy(false); }
   }
   async function sendMessage(message: ResearchMessage) {
+    if (message.mode === 'ask') return askGraph(message.prompt);
     setBusy(true); setError(''); setNotice('');
     try {
       let workspaceId = id;
@@ -75,6 +80,23 @@ export function ResearchWorkspace() {
       const run = await api.startAgentRun(workspaceId, { ...message.options, question });
       client.setQueryData<AgentRun[]>(['agent-runs', workspaceId], previous => [run, ...(previous ?? []).filter(item => item.id !== run.id)]);
     } finally { await refresh(); setBusy(false); }
+  }
+  async function askGraph(question: string) {
+    if (!id) throw new Error('Open a workspace with a graph first.');
+    const workspaceId = id;
+    const entry: GraphQuestion = { id: crypto.randomUUID(), workspaceId, question, createdAt: new Date().toISOString(), status: 'pending' };
+    const history = questions.filter(q => q.workspaceId === workspaceId && q.answer).slice(-6).map(q => ({ question: q.question, answer: q.answer!.answer }));
+    setQuestions(previous => [...previous, entry]);
+    setBusy(true);
+    try {
+      const answer = await api.askGraph(workspaceId, question, history);
+      setQuestions(previous => previous.map(q => q.id === entry.id ? { ...q, status: 'answered', answer } : q));
+      const snapshot = client.getQueryData<Snapshot>(['snapshot', workspaceId]);
+      const ids = snapshot ? chainHighlight(snapshot, answer.statement_ids, answer.step_ids) : [...answer.statement_ids, ...answer.step_ids];
+      if (ids.length) showChain(ids, question);
+    } catch (e) {
+      setQuestions(previous => previous.map(q => q.id === entry.id ? { ...q, status: 'failed', error: e instanceof Error ? e.message : String(e) } : q));
+    } finally { setBusy(false); }
   }
   function stopResearch(run: AgentRun) {
     void perform(async () => {
@@ -133,14 +155,14 @@ export function ResearchWorkspace() {
         {!!workspaces.data?.length && <select aria-label="Open existing workspace" className="mt-5 w-full rounded-sm border border-line p-2 min-[701px]:hidden" defaultValue="" onChange={e => load(e.target.value)}><option value="" disabled>Open an existing workspace</option>{workspaces.data.map(w => <option key={w.id} value={w.id}>{w.title}</option>)}</select>}
       </div></div>
       : !state ? <div className="p-8 text-zinc-500"><p>{current.error?.message ?? 'Loading graph…'}</p><Button className="mt-3" size="sm" variant="outline" disabled={busy} onClick={() => perform(refresh)}>Retry connection</Button><Button className="ml-3 mt-3" size="sm" variant="ghost" onClick={() => load()}>Back to workspaces</Button></div>
-      : <>{tab === 'argument' ? <><ResearchCanvas key={id} graph={processingResearch && !state.graph.statements.length ? { nodes: [], edges: [] } : graph} selected={selected} onSelect={node => { setSelected(node); if (state.graph.statements.some(s => s.id === node)) setTarget(node); }}/><div className={cn('absolute top-4 left-4 z-5 flex max-w-[calc(100%-32px)] flex-wrap items-center gap-2 rounded-md border border-line bg-white/95 p-2', selected && 'min-[900px]:max-w-[calc(100%-380px)]')}><Input size="xs" aria-label="Search graph" placeholder="Search statements or identifiers" value={query} onChange={e => setQuery(e.target.value)}/><select aria-label="Graph lifecycle filter" className="rounded border border-line p-1 text-[10px]" value={lifecycle} onChange={e => setLifecycle(e.target.value)}><option value="">All review states</option><option value="proposed">Proposed</option><option value="accepted">Accepted</option><option value="rejected">Rejected</option></select><select aria-label="Graph source filter" className="max-w-32 rounded border border-line p-1 text-[10px]" value={source} onChange={e => setSource(e.target.value)}><option value="">All sources</option>{state.sources.map(s => <option key={s.id} value={s.id}>{s.original_filename}</option>)}</select>{(query || lifecycle || source) && <Button size="xs" variant="ghost" onClick={() => { setQuery(''); setLifecycle(''); setSource(''); }}>Reset filters</Button>}</div>{(!graph.nodes.length || processingResearch && !state.graph.statements.length) && <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-8"><p className="max-w-sm text-center text-[12px] text-zinc-500">{query || lifecycle || source ? 'No matching graph objects. Reset filters to see the full argument.' : activeResearch.length ? 'The agent is researching. Claims and evidence will appear here as they are recorded.' : processingResearch ? 'Reading your research. Claims and their connections will appear here as they are extracted.' : 'Ask a question in chat or attach a paper to begin building the graph.'}</p></div>}<div className="absolute bottom-5 left-40 z-5 flex flex-wrap gap-2 max-[700px]:bottom-16 max-[700px]:left-5"><Button size="sm" loading={busy} disabled={!state.graph.statements.length} onClick={() => perform(() => runVerification(state.workspace.id))}>Verify research</Button><Button size="sm" variant="outline" disabled={busy} onClick={() => { setComposerMode('material'); setChatLayout(current => ({ ...current, open: true })); setSelected(undefined); requestAnimationFrame(() => document.getElementById('research-prompt')?.focus()); }}>Add material</Button></div></>
+      : <>{tab === 'argument' ? <><ResearchCanvas key={id} graph={processingResearch && !state.graph.statements.length ? { nodes: [], edges: [] } : graph} highlight={highlighted} selected={selected} onSelect={node => { setSelected(node); if (state.graph.statements.some(s => s.id === node)) setTarget(node); }}/><div className={cn('absolute top-4 left-4 z-5 flex max-w-[calc(100%-32px)] flex-wrap items-center gap-2 rounded-md border border-line bg-white/95 p-2', selected && 'min-[900px]:max-w-[calc(100%-380px)]')}><Input size="xs" aria-label="Search graph" placeholder="Search statements or identifiers" value={query} onChange={e => setQuery(e.target.value)}/><select aria-label="Graph lifecycle filter" className="rounded border border-line p-1 text-[10px]" value={lifecycle} onChange={e => setLifecycle(e.target.value)}><option value="">All review states</option><option value="proposed">Proposed</option><option value="accepted">Accepted</option><option value="rejected">Rejected</option></select><select aria-label="Graph source filter" className="max-w-32 rounded border border-line p-1 text-[10px]" value={source} onChange={e => setSource(e.target.value)}><option value="">All sources</option>{state.sources.map(s => <option key={s.id} value={s.id}>{s.original_filename}</option>)}</select>{(query || lifecycle || source) && <Button size="xs" variant="ghost" onClick={() => { setQuery(''); setLifecycle(''); setSource(''); }}>Reset filters</Button>}</div>{(!graph.nodes.length || processingResearch && !state.graph.statements.length) && <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-8"><p className="max-w-sm text-center text-[12px] text-zinc-500">{query || lifecycle || source ? 'No matching graph objects. Reset filters to see the full argument.' : activeResearch.length ? 'The agent is researching. Claims and evidence will appear here as they are recorded.' : processingResearch ? 'Reading your research. Claims and their connections will appear here as they are extracted.' : 'Ask a question in chat or attach a paper to begin building the graph.'}</p></div>}<div className="absolute bottom-5 left-40 z-5 flex flex-wrap gap-2 max-[700px]:bottom-16 max-[700px]:left-5"><Button size="sm" loading={busy} disabled={!state.graph.statements.length} onClick={() => perform(() => runVerification(state.workspace.id))}>Verify research</Button><Button size="sm" variant="outline" disabled={busy} onClick={() => { setComposerMode('material'); setChatLayout(current => ({ ...current, open: true })); setSelected(undefined); requestAnimationFrame(() => document.getElementById('research-prompt')?.focus()); }}>Add material</Button></div>{tab === 'argument' && highlight && <div role="status" aria-label="Highlighted reasoning" className="absolute bottom-5 left-1/2 z-5 flex max-w-[min(560px,calc(100%-180px))] -translate-x-1/2 items-center gap-3 rounded-full border border-blue-200 bg-white/95 px-4 py-2 text-[11px] shadow-sm"><GraphIcon size={14} className="shrink-0 text-blue-600"/><span className="truncate">Highlighting the reasoning for “{highlight.label}”</span><Button size="xs" variant="ghost" onClick={() => setHighlight(undefined)}>Clear</Button></div>}</>
       : tab === 'material' ? <MaterialPanel key={id} state={state} busy={busy} perform={perform} refresh={refresh} onSelect={show} onArgument={() => { chooseTab('argument'); setSelected(undefined); }}/>
       : tab === 'chain' ? <ArgumentChain state={state} target={target ?? targets[0]?.id ?? state.graph.statements[0]?.id} onSelect={show}/>
       : tab === 'experiments' ? <ResearchExperiments key={id} state={state} data={experiments.data} loading={experiments.isPending} error={experiments.error} busy={busy} perform={perform} onVerify={() => changeStage(1)} onSource={show}/>
       : <div className="flex h-full min-h-0 flex-col"><div className="flex shrink-0 items-center justify-between gap-3 border-b border-line bg-white px-6 py-3"><p className="text-[11px] text-zinc-500">{experiments.data?.verified ? 'Research checks are current. Review any evidence gaps before proceeding.' : 'Check the claims, reasoning, and evidence before preparing an experiment.'}</p><Button size="sm" variant="outline" disabled={busy || !experiments.data?.verified || processingResearch} onClick={() => changeStage(2)}>Continue to experiment</Button></div><div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_340px] max-[1000px]:grid-cols-[minmax(0,1fr)_300px] max-[800px]:grid-cols-1 max-[800px]:grid-rows-[minmax(260px,1fr)_minmax(200px,1fr)]"><div className="relative min-h-0 min-w-0 overflow-hidden border-r border-line"><ResearchCanvas graph={graph} onSelect={node => setSelected(node)} verification={verificationTrace?.workspaceId === id ? verificationTrace : undefined}/><ResearchVerificationProgress trace={verificationTrace?.workspaceId === id ? verificationTrace : undefined}/></div><ChecksPanel compact key={id} state={state} busy={busy} canVerify={!processingResearch && !activeResearch.length} lastVerification={lastVerification} perform={perform} refresh={refresh} onVerify={() => runVerification(state.workspace.id)} onSelect={show} onNotice={setNotice}/></div></div>}
       {selected && <ResearchInspector key={selected} state={state} id={selected} busy={busy} perform={perform} refresh={refresh} onClose={() => setSelected(undefined)} onSelect={show}/>}</>}
     </div>
-    <ResearchChat mode={composerMode} onModeChange={setComposerMode} workspaceId={id} runs={agentRuns.data ?? []} loading={!!id && agentRuns.isPending} error={agentRuns.error} busy={busy} layout={chatLayout} suspended={['experiments', 'checks'].includes(tab)} onLayout={setChatLayout} state={state} progress={uploadProgress} onSubmit={sendMessage} onStop={stopResearch} onSelect={show} onRetry={() => void agentRuns.refetch()} onCancelExtraction={() => void perform(async () => { await Promise.all(activeJobs.map(job => api.cancelJob(job.id))); })}/>
+    <ResearchChat mode={composerMode} onModeChange={setComposerMode} workspaceId={id} runs={agentRuns.data ?? []} questions={questions.filter(q => q.workspaceId === id)} onHighlight={showChain} loading={!!id && agentRuns.isPending} error={agentRuns.error} busy={busy} layout={chatLayout} suspended={['experiments', 'checks'].includes(tab)} onLayout={setChatLayout} state={state} progress={uploadProgress} onSubmit={sendMessage} onStop={stopResearch} onSelect={show} onRetry={() => void agentRuns.refetch()} onCancelExtraction={() => void perform(async () => { await Promise.all(activeJobs.map(job => api.cancelJob(job.id))); })}/>
     </div>
     {(error || workspaces.error || current.error && state) && <div role="alert" className="flex shrink-0 items-center justify-between gap-3 border-t border-red-200 bg-red-50 px-5 py-3 text-[11px] text-fail"><span className="break-words">{error || workspaces.error?.message || current.error?.message}</span><Button size="xs" variant="ghost" onClick={() => { setError(''); void refresh(); }}>Retry / dismiss</Button></div>}
     {notice && <div role="status" className="flex shrink-0 items-center justify-between gap-3 border-t border-line bg-white px-5 py-3 text-[11px]"><span>{notice}</span><Button size="xs" variant="ghost" onClick={() => setNotice('')}>Dismiss</Button></div>}

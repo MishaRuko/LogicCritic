@@ -1,4 +1,4 @@
-import type { Obligation, Snapshot } from '../../types/api';
+import type { AgentEvent, AgentRun, Obligation, Snapshot } from '../../types/api';
 export type ResearchKind = 'statement' | 'conclusion' | 'step' | 'excerpt' | 'obligation' | 'goal';
 export type ResearchState = 'idle' | 'unknown' | 'pass' | 'warn' | 'fail';
 export interface ResearchNode { id: string; kind: ResearchKind; label: string; detail: string; state: ResearchState; proposed: boolean; sourceIds: string[] }
@@ -6,11 +6,12 @@ export interface ResearchEdge { id: string; source: string; target: string; rela
 export interface ResearchGraph { nodes: ResearchNode[]; edges: ResearchEdge[] }
 export const humanize = (value: string) => value.replace(/_/g, ' ');
 export function allObligations(state: Snapshot): Obligation[] { return [...new Map(state.contexts.flatMap(c => c.obligations).map(o => [o.id, o])).values()]; }
-export function projectWorkspace(state: Snapshot, detailed = false): ResearchGraph {
+export function projectWorkspace(state: Snapshot, detailed = false, include: ReadonlySet<string> = new Set()): ResearchGraph {
   const nodes: ResearchNode[] = []; const edges: ResearchEdge[] = [];
   const obligations = allObligations(state).filter(o => o.status === 'open');
   const excerpts = new Map(state.sources.flatMap(s => s.excerpts).map(e => [e.id, e]));
-  const visibleStatements = new Set(detailed ? state.graph.statements.map(s => s.id) : state.graph.statements.filter(s => s.salience === 'core').map(s => s.id));
+  // `include` forces highlighted claims into the overview even when they are not core.
+  const visibleStatements = new Set(detailed ? state.graph.statements.map(s => s.id) : state.graph.statements.filter(s => s.salience === 'core' || include.has(s.id)).map(s => s.id));
   const visibleSteps = new Set<string>();
   if (!detailed) {
     let changed = true;
@@ -58,4 +59,44 @@ export function filterGraph(graph: ResearchGraph, query: string, lifecycle: stri
   const adjacent = new Set(ids);
   for (const e of graph.edges) { if (ids.has(e.source)) adjacent.add(e.target); if (ids.has(e.target)) adjacent.add(e.source); }
   return { nodes: graph.nodes.filter(n => adjacent.has(n.id)), edges: graph.edges.filter(e => adjacent.has(e.source) && adjacent.has(e.target)) };
+}
+
+/** The part of the logical chain that links the given claims: the claims, the given steps, and
+ *  every step whose conclusion and at least one premise are both among the claims. */
+export function chainHighlight(state: Snapshot, statementIds: string[], stepIds: string[] = []): string[] {
+  const claims = new Set(statementIds);
+  const steps = new Set(stepIds);
+  for (const step of state.graph.reasoning_steps) {
+    if (steps.has(step.id)) { claims.add(step.conclusion_id); continue; }
+    if (claims.has(step.conclusion_id) && step.premise_ids.some(id => claims.has(id))) steps.add(step.id);
+  }
+  return [...claims, ...steps];
+}
+/** What a claim rests on: its derivation, recursively. */
+export function supportChain(state: Snapshot, statementId: string, depth = 6): string[] {
+  const claims = new Set([statementId]); const steps = new Set<string>();
+  let frontier = [statementId];
+  for (let level = 0; level < depth && frontier.length; level++) {
+    const next: string[] = [];
+    for (const step of state.graph.reasoning_steps) if (frontier.includes(step.conclusion_id) && !steps.has(step.id)) {
+      steps.add(step.id);
+      for (const premise of step.premise_ids) if (!claims.has(premise)) { claims.add(premise); next.push(premise); }
+    }
+    frontier = next;
+  }
+  return [...claims, ...steps];
+}
+export const GRAPH_TOOLS = ['graph_overview', 'search_graph', 'get_graph_node', 'trace_chain'];
+/** The nodes an agent run's answer rests on: its final conclusion's support chain, plus the
+ *  graph nodes it inspected and linked. Only ids present in the graph are returned. */
+export function runHighlight(state: Snapshot | undefined, run: AgentRun, events: AgentEvent[]): string[] {
+  if (!state) return [];
+  const known = new Set([...state.graph.statements.map(s => s.id), ...state.graph.reasoning_steps.map(s => s.id)]);
+  const ids = new Set<string>(run.final_statement_id ? supportChain(state, run.final_statement_id) : []);
+  for (const event of events) {
+    if (event.type !== 'tool_call') continue;
+    const name = String(event.payload.name ?? ''); const input = (event.payload.input ?? {}) as Record<string, unknown>;
+    if (GRAPH_TOOLS.includes(name) || name === 'link_claims') for (const key of ['node_id', 'statement_id', 'source_statement_id', 'target_statement_id']) if (typeof input[key] === 'string') ids.add(input[key] as string);
+  }
+  return chainHighlight(state, [...ids].filter(id => known.has(id) && state.graph.statements.some(s => s.id === id)), [...ids].filter(id => known.has(id) && state.graph.reasoning_steps.some(s => s.id === id)));
 }

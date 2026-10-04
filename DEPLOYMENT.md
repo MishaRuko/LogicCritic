@@ -9,7 +9,7 @@ Set these values in an untracked `.env` file:
 
 ```dotenv
 APP_ENV=production
-APP_BASE_URL=https://zebi.misharuko.com
+APP_BASE_URL=https://trial.misharuko.com
 APP_BIND=127.0.0.1
 APP_PORT=8088
 CADDYFILE=./infra/Caddyfile.production
@@ -26,16 +26,16 @@ add authentication or another access control before running it as a long-lived d
 ## Start
 
 ```bash
-COMPOSE_PROJECT_NAME=logiccritic-zebi docker compose up -d --build
+COMPOSE_PROJECT_NAME=logiccritic-trial docker compose up -d --build
 ```
 
-Apply `infra/nginx-zebi.conf` to the host Nginx configuration only after the loopback service is
+Apply `infra/nginx-trial.conf` to the host Nginx configuration only after the loopback service is
 healthy. Validate Nginx before reloading it.
 
 ```bash
 curl http://127.0.0.1:8088/api/health/ready
-sudo cp infra/nginx-zebi.conf /etc/nginx/sites-available/zebi.misharuko.com
-sudo ln -s /etc/nginx/sites-available/zebi.misharuko.com /etc/nginx/sites-enabled/zebi.misharuko.com
+sudo cp infra/nginx-trial.conf /etc/nginx/sites-available/trial.misharuko.com
+sudo ln -s /etc/nginx/sites-available/trial.misharuko.com /etc/nginx/sites-enabled/trial.misharuko.com
 sudo nginx -t
 sudo systemctl reload nginx
 ```

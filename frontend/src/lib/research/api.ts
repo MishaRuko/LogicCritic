@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentRun, AgentRunInput, Context, Graph, Job, PatchOperation, Snapshot, Source, SourceWithExcerpts, Validity, Verification, VerificationEvent, Workspace } from '../../types/api';
+import type { AgentEvent, AgentRun, AgentRunInput, Context, Graph, GraphAnswer, Job, PatchOperation, Snapshot, Source, SourceWithExcerpts, Validity, Verification, VerificationEvent, Workspace } from '../../types/api';
 export const userProvenance = { actor_type: 'user', actor_id: 'workspace-reviewer' } as const;
 export class ApiError extends Error {
   constructor(message: string, public status: number, public detail: unknown) { super(message); }
@@ -40,6 +40,7 @@ export const fetchContext = (workspace: string, statement: string) => request<Co
 export const health = () => request<{ status: string; database: string; redis: string }>('/health/ready');
 export const listAgentRuns = (workspace: string) => request<AgentRun[]>(`/workspaces/${workspace}/agent-runs`);
 export const startAgentRun = (workspace: string, input: AgentRunInput) => post<AgentRun>(`/workspaces/${workspace}/agent-runs`, { ...input }, true);
+export const askGraph = (workspace: string, question: string, history: { question: string; answer: string }[] = []) => post<GraphAnswer>(`/workspaces/${workspace}/graph-questions`, { question, history });
 export const cancelAgentRun = (id: string) => request<AgentRun>(`/agent-runs/${id}`, { method: 'DELETE' });
 export const listAgentEvents = (id: string, after = 0, signal?: AbortSignal) => request<AgentEvent[]>(`/agent-runs/${id}/events?after=${after}&limit=500`, { signal });
 export const listSources = (workspace: string) => request<Source[]>(`/workspaces/${workspace}/sources`);

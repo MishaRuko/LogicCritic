@@ -91,12 +91,17 @@ async def synthesize_workspace(
         )
     model = request.model or settings.claude_model
     judge = judge or Judge(get_client())
+    # Existing links are shown so the model proposes only new ones; the graph is append-only.
+    linked = [
+        {"source": str(e.source_node_id), "target": str(e.target_node_id), "relation": e.relation}
+        for e in await session.scalars(select(GraphEdge).where(GraphEdge.workspace_id == workspace_id))
+    ]
     try:
         proposals = await structured_call(
             judge.client,
             model=model,
             system=PROPOSE_LINKS_SYSTEM,
-            content={"statements": material},
+            content={"statements": material, "existing_links": linked[:200]},
             tool_name="submit_link_proposals",
             description="Return the requested structured result.",
             schema=LinkProposals,
@@ -137,9 +142,13 @@ async def synthesize_workspace(
         (item.source_statement_id, item.target_statement_id, item.relation): item
         for item in audits.audits
     }
+    existing_edges = {
+        (row.source_node_id, row.target_node_id, row.relation)
+        for row in await session.scalars(select(GraphEdge).where(GraphEdge.workspace_id == workspace_id))
+    }
     for link in links:
         audit = audit_map.get((link.source_statement_id, link.target_statement_id, link.relation))
-        if audit is None:
+        if audit is None or (link.source_statement_id, link.target_statement_id, link.relation) in existing_edges:
             continue
         session.add(
             GraphEdge(

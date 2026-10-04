@@ -168,3 +168,33 @@ describe('chat and graph integration', () => {
   });
 
 });
+
+describe('asking the graph', () => {
+  it('answers from the graph and highlights the claims the answer rests on', async () => {
+    const workspace = { id: 'ask-workspace', title: 'Drug X', created_at: '2026-10-04T00:00:00Z' };
+    window.history.replaceState(null, '', `/research?workspace=${workspace.id}`);
+    const claim = (id: string, text: string, role: Statement['role'] = null): Statement => ({ id, workspace_id: workspace.id, text, assertion_mode: 'asserted', role, salience: 'core', lifecycle: 'accepted', provenance: { actor_type: 'user', actor_id: 'r' }, created_at: workspace.created_at, excerpt_ids: [] });
+    const snapshot: Snapshot = { workspace, graph: { statements: [claim('trial', 'Drug X cut mortality.'), claim('safe', 'Drug X is safe.', 'conclusion')], reasoning_steps: [{ id: 'step', workspace_id: workspace.id, conclusion_id: 'safe', premise_ids: ['trial'], explanation: 'Because the trial.', lifecycle: 'accepted', provenance: { actor_type: 'user', actor_id: 'r' }, created_at: workspace.created_at }], relations: [] }, contexts: [], sources: [], jobs: [], validity: {} };
+    vi.spyOn(api, 'listWorkspaces').mockResolvedValue([workspace]);
+    vi.spyOn(api, 'fetchSnapshot').mockResolvedValue(snapshot);
+    vi.spyOn(api, 'health').mockResolvedValue({ status: 'ok', database: 'ok', redis: 'ok' });
+    vi.spyOn(api, 'fetchExperiments').mockResolvedValue({ verified: false, protocols: [], runs: [] });
+    vi.spyOn(api, 'listAgentRuns').mockResolvedValue([]);
+    const ask = vi.spyOn(api, 'askGraph').mockResolvedValue({ answer: 'Safety rests on a single trial.', statement_ids: ['safe', 'trial'], step_ids: [], model: 'm', usage: {} });
+    const start = vi.spyOn(api, 'startAgentRun');
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    try {
+      render(<QueryClientProvider client={client}><ResearchWorkspace/></QueryClientProvider>);
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Ask graph mode' })).toBeEnabled());
+      fireEvent.click(screen.getByRole('button', { name: 'Ask graph mode' }));
+      fireEvent.change(screen.getByLabelText('Research message'), { target: { value: 'Why is Drug X considered safe?' } });
+      fireEvent.keyDown(screen.getByLabelText('Research message'), { key: 'Enter' });
+      await waitFor(() => expect(ask).toHaveBeenCalledWith(workspace.id, 'Why is Drug X considered safe?', []));
+      expect(await screen.findAllByText('Safety rests on a single trial.')).not.toHaveLength(0);
+      expect(await screen.findByRole('status', { name: 'Highlighted reasoning' })).toHaveTextContent('Why is Drug X considered safe?');
+      expect(start).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+      await waitFor(() => expect(screen.queryByRole('status', { name: 'Highlighted reasoning' })).toBeNull());
+    } finally { client.clear(); }
+  });
+});

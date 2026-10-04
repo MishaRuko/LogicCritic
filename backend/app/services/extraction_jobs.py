@@ -1,15 +1,19 @@
+import logging
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.database import session_factory
-from app.models import Excerpt, ExtractionJob, Source
-from app.schemas import SourceExtractionRequest
+from app.models import Excerpt, ExtractionJob, Source, Statement, StatementExcerpt
+from app.schemas import SourceExtractionRequest, SynthesisRequest
 from app.services.extraction import extract_source_to_patch, is_extractable_excerpt
+from app.services.synthesis import synthesize_workspace
+
+log = logging.getLogger(__name__)
 
 
 async def create_extraction_job(
@@ -150,6 +154,35 @@ async def process_extraction_job(job_id: uuid.UUID) -> None:
             job = await session.get(ExtractionJob, job_id)
             if job is not None:
                 await _finish_failed_job(session, job, str(error))
+            return
+    await connect_new_material(job_id)
+
+
+async def connect_new_material(job_id: uuid.UUID) -> None:
+    """Link a newly extracted source into the rest of the workspace's graph.
+
+    Append-only and best effort: a failure here never fails the extraction that succeeded.
+    """
+    async with session_factory() as session:
+        job = await session.get(ExtractionJob, job_id)
+        if job is None or job.status != "succeeded":
+            return
+        sources = await session.scalar(
+            select(func.count(func.distinct(Excerpt.source_id)))
+            .join(StatementExcerpt, StatementExcerpt.excerpt_id == Excerpt.id)
+            .join(Statement, Statement.id == StatementExcerpt.statement_id)
+            .where(Statement.workspace_id == job.workspace_id)
+        )
+        if (sources or 0) < 2 or not get_settings().claude_api_key:
+            return
+        try:
+            await synthesize_workspace(
+                session,
+                job.workspace_id,
+                SynthesisRequest(idempotency_key=f"auto-synthesis:{job.id}"),
+            )
+        except Exception:  # noqa: BLE001 - linking is an enhancement, not part of extraction
+            log.exception("automatic cross-source linking failed for job %s", job_id)
 
 
 async def _finish_failed_job(session: AsyncSession, job: ExtractionJob, error: str) -> None:

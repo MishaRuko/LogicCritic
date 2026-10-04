@@ -2,9 +2,10 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, type Dispatch, type SetStateAction } from 'react';
 import { AnimatePresence, MotionConfig, animate, motion } from 'framer-motion';
 import { Button, cn } from '@cloudflare/kumo';
-import { ArrowUpRightIcon, CaretDownIcon, CaretUpIcon, FileTextIcon, MagnifyingGlassIcon, SidebarSimpleIcon, StopIcon, XIcon } from '@phosphor-icons/react';
+import { ArrowUpRightIcon, CaretDownIcon, CaretUpIcon, FileTextIcon, GraphIcon, MagnifyingGlassIcon, SidebarSimpleIcon, StopIcon, XIcon } from '@phosphor-icons/react';
 import { agentStatusLabel, eventDescription, eventTitle, isAgentActive, safeSourceUrl, useAgentEvents } from '../../lib/research/agent';
-import type { AgentEvent, AgentRun, Snapshot } from '../../types/api';
+import type { AgentEvent, AgentRun, GraphQuestion, Snapshot } from '../../types/api';
+import { runHighlight } from '../../lib/research/graph';
 import type { UploadProgress } from '../../lib/research/api';
 import { ResearchComposer, ResearchProgress, type ResearchComposerMode, type ResearchMessage } from './ResearchUpload';
 import { ResearchUncertainty } from './ResearchUncertainty';
@@ -14,7 +15,8 @@ export const isSidebarOpen = (layout: ChatLayout) => layout.dock === 'side' ? la
 export const withSidebar = (layout: ChatLayout, open: boolean): ChatLayout => layout.dock === 'side' ? { ...layout, open } : { ...layout, details: open };
 const slide = { duration: 0.24, ease: [0.32, 0.72, 0, 1] } as const;
 
-export function ResearchChat({ mode, onModeChange, workspaceId, runs, loading, error, busy, layout, onLayout, state, progress, onSubmit, onStop, onSelect, onRetry, onCancelExtraction, suspended = false }: {
+export function ResearchChat({ mode, onModeChange, workspaceId, runs, questions = [], loading, error, busy, layout, onLayout, state, progress, onSubmit, onStop, onSelect, onHighlight, onRetry, onCancelExtraction, suspended = false }: {
+  questions?: GraphQuestion[]; onHighlight?: (ids: string[], label: string) => void;
   suspended?: boolean;
   mode: ResearchComposerMode; onModeChange: (mode: ResearchComposerMode) => void;
   workspaceId?: string; runs: AgentRun[]; loading: boolean; error: Error | null; busy: boolean;
@@ -30,8 +32,9 @@ export function ResearchChat({ mode, onModeChange, workspaceId, runs, loading, e
   const running = active.find(run => run.status === 'running');
   const latest = running ?? queued[0] ?? runs[0];
   const entries = [
-    ...runs.map(run => ({ id: run.id, createdAt: run.created_at, run, source: undefined })),
-    ...(state?.sources ?? []).filter(source => source.origin === 'upload').map(source => ({ id: source.id, createdAt: source.created_at, source, run: undefined })),
+    ...runs.map(run => ({ id: run.id, createdAt: run.created_at, run, source: undefined, question: undefined })),
+    ...(state?.sources ?? []).filter(source => source.origin === 'upload').map(source => ({ id: source.id, createdAt: source.created_at, source, run: undefined, question: undefined })),
+    ...questions.map(question => ({ id: question.id, createdAt: question.createdAt, question, run: undefined, source: undefined })),
   ].sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
   const scrollToLatest = useCallback(() => {
     if (feed.current && follow.current) feed.current.scrollTop = feed.current.scrollHeight;
@@ -73,14 +76,15 @@ export function ResearchChat({ mode, onModeChange, workspaceId, runs, loading, e
       {workspaceId && <div ref={feed} role="log" aria-label="Research conversation" aria-live="polite" className="min-h-0 flex-1 space-y-6 overflow-y-auto px-4 py-5 [scrollbar-width:thin]" onScroll={() => { const el = feed.current; if (el) follow.current = el.scrollHeight - el.scrollTop - el.clientHeight < 64; }}>
         {loading && <p className="text-[11px] text-zinc-400">Loading conversation…</p>}
         {error && <div role="alert" className="text-[11px] text-fail">{error.message}<Button size="xs" variant="ghost" className="mt-2" onClick={onRetry}>Retry connection</Button></div>}
-        {!entries.length && !loading && !error && <div className="py-6 text-center">{mode === 'material' ? <FileTextIcon size={22} className="mx-auto text-zinc-400"/> : <MagnifyingGlassIcon size={22} className="mx-auto text-zinc-400"/>}<p className="mt-3 text-xs text-zinc-600">{mode === 'material' ? 'Bring your research into the graph' : 'What would you like to investigate?'}</p><p className="mt-2 text-[11px] leading-relaxed text-zinc-400">{mode === 'material' ? 'Paste text or attach a paper below. Switch to Agent whenever you want to ask a question.' : 'Ask a question below. I’ll gather evidence and build the graph alongside our conversation.'}</p></div>}
-        {entries.map(entry => entry.run ? <ResearchTurn key={entry.id} run={entry.run} busy={busy} onStop={() => onStop(entry.run)} onSelect={onSelect} onActivity={scrollToLatest}/> : <article key={entry.id} aria-label={`Added material: ${entry.source!.original_filename}`} className="ml-auto max-w-[94%] rounded-xl rounded-br-sm border border-line bg-white px-3.5 py-3"><p className="mb-2 flex items-center gap-2 text-[10px] text-zinc-500"><FileTextIcon size={14}/>Added material</p><p className="break-words text-xs">{entry.source!.original_filename}</p><p className="mt-2 line-clamp-3 whitespace-pre-wrap break-words text-[11px] leading-5 text-zinc-400">{entry.source!.excerpts[0]?.text.slice(0, 400)}</p><Button size="xs" variant="ghost" className="mt-2" icon={<ArrowUpRightIcon size={12}/>} onClick={() => onSelect(entry.source!.id)}>View source</Button></article>)}
+        {!entries.length && !loading && !error && <div className="py-6 text-center">{mode === 'material' ? <FileTextIcon size={22} className="mx-auto text-zinc-400"/> : mode === 'ask' ? <GraphIcon size={22} className="mx-auto text-zinc-400"/> : <MagnifyingGlassIcon size={22} className="mx-auto text-zinc-400"/>}<p className="mt-3 text-xs text-zinc-600">{mode === 'material' ? 'Bring your research into the graph' : mode === 'ask' ? 'Ask about the argument' : 'What would you like to investigate?'}</p><p className="mt-2 text-[11px] leading-relaxed text-zinc-400">{mode === 'material' ? 'Paste text or attach a paper below. Switch to Agent whenever you want to ask a question.' : mode === 'ask' ? 'Answers come from the graph, and the claims they rest on are highlighted.' : 'Ask a question below. I’ll gather evidence and add it to the graph alongside our conversation.'}</p></div>}
+        {entries.map(entry => entry.question ? <QuestionTurn key={entry.id} question={entry.question} onHighlight={onHighlight}/> : entry.run ? <ResearchTurn key={entry.id} run={entry.run} state={state} busy={busy} onStop={() => onStop(entry.run)} onSelect={onSelect} onHighlight={onHighlight} onActivity={scrollToLatest}/> : <article key={entry.id} aria-label={`Added material: ${entry.source!.original_filename}`} className="ml-auto max-w-[94%] rounded-xl rounded-br-sm border border-line bg-white px-3.5 py-3"><p className="mb-2 flex items-center gap-2 text-[10px] text-zinc-500"><FileTextIcon size={14}/>Added material</p><p className="break-words text-xs">{entry.source!.original_filename}</p><p className="mt-2 line-clamp-3 whitespace-pre-wrap break-words text-[11px] leading-5 text-zinc-400">{entry.source!.excerpts[0]?.text.slice(0, 400)}</p><Button size="xs" variant="ghost" className="mt-2" icon={<ArrowUpRightIcon size={12}/>} onClick={() => onSelect(entry.source!.id)}>View source</Button></article>)}
       </div>}
       <div ref={sideSlot} className="shrink-0 px-3 pt-2 pb-3 empty:hidden"/>
     </div></motion.aside>
     <div className="col-start-1 row-start-2 min-w-0">
       <motion.div aria-label="Centred research chat" aria-hidden={!centreOpen} inert={!centreOpen} initial={false} animate={centreOpen ? { height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } } : { height: 0, opacity: 0, overflow: 'hidden' }} transition={slide}><div className="px-5 pt-3 pb-5 sm:px-8"><div className="mx-auto w-full max-w-3xl">
         {workspaceId && dock === 'centre' && mode === 'agent' && latest && <div role="status" aria-label="Agent summary" className="mb-3 rounded-lg border border-line bg-white px-4 py-3"><div className="flex items-center justify-between gap-2"><p className="flex items-center gap-2 text-[11px] text-zinc-500">{isAgentActive(latest) && <span className="research-processing-dot" aria-hidden/>}Research agent · {agentStatusLabel(latest.status)}</p><div className="flex gap-1">{running && <Button size="xs" variant="ghost" disabled={busy} icon={<StopIcon size={12}/>} onClick={() => onStop(running)}>Stop</Button>}<Button size="xs" variant="ghost" onClick={() => onLayout(current => withSidebar(current, true))}>View details</Button></div></div>{!sideOpen && <p className={cn('mt-2 line-clamp-2 whitespace-pre-wrap break-words text-xs leading-5', latest.error ? 'text-fail' : 'text-zinc-500')}>{latest.final_report || latest.error || latest.question}</p>}</div>}
+        {workspaceId && dock === 'centre' && mode === 'ask' && questions.at(-1) && <div role="status" aria-label="Latest graph answer" className="mb-3 max-h-56 overflow-y-auto rounded-lg border border-line bg-white px-4 py-3"><QuestionTurn question={questions.at(-1)!} onHighlight={onHighlight} compact/></div>}
         {workspaceId && error && !sideOpen && <div role="alert" className="mb-3 text-[11px] text-fail">{error.message}<Button size="xs" variant="ghost" onClick={onRetry}>Retry connection</Button></div>}
         <div ref={home}><div ref={composer} className="research-upload-stack" data-chat-open="true" data-agent-mode={mode === 'agent'} data-dock={dock}>
           <ResearchUncertainty key={workspaceId ?? 'new'} run={latest} state={state} loading={loading} unavailable={!!error}/>
@@ -89,7 +93,7 @@ export function ResearchChat({ mode, onModeChange, workspaceId, runs, loading, e
             <Button size="xs" variant="ghost" shape="square" aria-label={dock === 'side' ? 'Move chat to centre' : 'Move chat to sidebar'} title={dock === 'side' ? 'Move chat to centre' : 'Move chat to sidebar'} icon={<SidebarSimpleIcon size={14} mirrored weight={dock === 'side' ? 'fill' : 'regular'}/>} onClick={() => onLayout(current => ({ dock: current.dock === 'side' ? 'centre' : 'side', open: true, details: false }))}/>
             {dock === 'centre' && <Button size="xs" variant="ghost" shape="square" aria-label="Hide chat" title="Hide chat" icon={<CaretDownIcon size={14}/>} onClick={() => onLayout(current => ({ ...current, open: false }))}/>}
           </> : undefined}/>
-          <p className="mt-2 text-center text-[9px] text-zinc-400">Enter to send · Shift+Enter for a new line · {mode === 'agent' ? 'Agent research uses paid model tokens' : 'Extraction uses paid model tokens'}</p>
+          <p className="mt-2 text-center text-[9px] text-zinc-400">Enter to send · Shift+Enter for a new line · {mode === 'agent' ? 'Agent research uses paid model tokens' : mode === 'ask' ? 'Questions use paid model tokens' : 'Extraction uses paid model tokens'}</p>
         </div></div>
       </div></div></motion.div>
       <AnimatePresence initial={false}>{workspaceId && !layout.open && !suspended && <motion.div key="show-chat" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={slide} className="overflow-hidden">
@@ -99,9 +103,23 @@ export function ResearchChat({ mode, onModeChange, workspaceId, runs, loading, e
   </MotionConfig>;
 }
 
-function ResearchTurn({ run, busy, onStop, onSelect, onActivity }: { run: AgentRun; busy: boolean; onStop: () => void; onSelect: (id: string) => void; onActivity: () => void }) {
+function QuestionTurn({ question, onHighlight, compact = false }: { question: GraphQuestion; onHighlight?: (ids: string[], label: string) => void; compact?: boolean }) {
+  const ids = question.answer ? [...question.answer.statement_ids, ...question.answer.step_ids] : [];
+  return <article aria-label={`Graph question: ${question.question}`} className="space-y-3">
+    {!compact && <div className="ml-auto max-w-[94%] rounded-xl rounded-br-sm border border-line bg-zinc-100 px-3.5 py-3"><p className="mb-1.5 text-[9px] text-zinc-400">You · asked the graph</p><p className="whitespace-pre-wrap break-words text-xs leading-6">{question.question}</p></div>}
+    <div className="min-w-0"><p className="mb-2 flex items-center gap-2 text-[11px] text-zinc-500">{question.status === 'pending' ? <span className="research-processing-dot" aria-hidden/> : <GraphIcon size={13}/>}Graph answer{compact && <span className="truncate text-[10px] text-zinc-400">· {question.question}</span>}</p>
+      {question.status === 'pending' && <p role="status" className="text-[11px] text-zinc-400">Querying the graph…</p>}
+      {question.answer && <p className="whitespace-pre-wrap break-words text-xs leading-6">{question.answer.answer}</p>}
+      {question.error && <p role="alert" className="text-[11px] text-fail">{question.error}</p>}
+      {!!ids.length && onHighlight && <Button size="xs" variant="ghost" className="mt-2" icon={<GraphIcon size={12}/>} onClick={() => onHighlight(ids, question.question)}>Show in graph · {question.answer!.statement_ids.length} {question.answer!.statement_ids.length === 1 ? 'claim' : 'claims'}</Button>}
+    </div>
+  </article>;
+}
+
+function ResearchTurn({ run, state, busy, onStop, onSelect, onHighlight, onActivity }: { run: AgentRun; state?: Snapshot; busy: boolean; onStop: () => void; onSelect: (id: string) => void; onHighlight?: (ids: string[], label: string) => void; onActivity: () => void }) {
   const trace = useAgentEvents(run);
   const events = trace.data ?? [];
+  const chain = isAgentActive(run) ? [] : runHighlight(state, run, events);
   const activity = events.filter(event => !['thinking', 'turn', 'server_block', 'assistant_text', 'run_finished'].includes(event.type));
   const notes = events.filter(event => event.type === 'assistant_text');
   useEffect(() => { onActivity(); }, [events.length, run.status, run.final_report, onActivity]);
@@ -117,6 +135,7 @@ function ResearchTurn({ run, busy, onStop, onSelect, onActivity }: { run: AgentR
       {run.error && <p role="alert" className="mt-3 whitespace-pre-wrap text-[11px] leading-relaxed text-fail">{run.error}</p>}
       {run.status === 'cancelled' && <p className="mt-2 text-[11px] text-zinc-400">Research stopped. Evidence already recorded remains in the graph.</p>}
       {(run.certainty || run.final_statement_id) && <div className="mt-3 flex flex-wrap items-center gap-2">{run.certainty && <span className={cn('rounded border border-line bg-white px-2 py-1 text-[10px]', run.certainty === 'established' ? 'text-pass' : 'text-warn')}>{run.certainty}{run.mode === 'baseline' ? ' · unverified' : ''}</span>}{run.final_statement_id && <Button size="xs" variant="ghost" icon={<ArrowUpRightIcon size={12}/>} onClick={() => onSelect(run.final_statement_id!)}>Inspect conclusion</Button>}</div>}
+      {!!chain.length && onHighlight && <Button size="xs" variant="ghost" className="mt-2" icon={<GraphIcon size={12}/>} onClick={() => onHighlight(chain, run.question)}>Show reasoning in graph</Button>}
       {run.status !== 'queued' && <p className="mt-3 text-[9px] text-zinc-400">{run.usage.turns ?? 0} / {run.budgets.max_turns} steps · {run.usage.web_searches ?? 0} / {run.budgets.max_web_searches} searches{typeof run.usage.cost_usd === 'number' ? ` · ~$${run.usage.cost_usd.toFixed(3)}` : ''}</p>}
     </div>
   </article>;

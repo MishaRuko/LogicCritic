@@ -106,3 +106,8 @@ export interface AgentRunInput {
 
 // Preserve unknown future trace events for display and replay.
 export interface AgentEvent { seq: number; type: string; payload: Record<string, unknown>; created_at: string }
+
+// -- Questions about the graph ------------------------------------------------------------------
+// POST /workspaces/{id}/graph-questions: answered from the graph alone, with the nodes it rests on.
+export interface GraphAnswer { answer: string; statement_ids: string[]; step_ids: string[]; model: string; usage: Record<string, unknown> }
+export interface GraphQuestion { id: string; workspaceId: string; question: string; createdAt: string; status: 'pending' | 'answered' | 'failed'; answer?: GraphAnswer; error?: string }

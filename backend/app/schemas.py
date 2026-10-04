@@ -474,3 +474,21 @@ class AgentEventResponse(APIModel):
     type: str
     payload: dict
     created_at: datetime
+
+
+class GraphQuestionTurn(BaseModel):
+    question: str = Field(max_length=2000)
+    answer: str = Field(max_length=8000)
+
+
+class GraphQuestionRequest(BaseModel):
+    question: str = Field(min_length=3, max_length=2000)
+    history: list[GraphQuestionTurn] = Field(default_factory=list, max_length=12)
+
+
+class GraphQuestionResponse(BaseModel):
+    answer: str
+    statement_ids: list[str]
+    step_ids: list[str]
+    model: str
+    usage: dict

@@ -54,3 +54,47 @@ describe('backend graph projection', () => {
     expect(projectWorkspace(withSecondary, true).nodes.find(node => node.id === 'secondary')?.detail).toContain('secondary');
   });
 });
+
+import { chainHighlight, runHighlight, supportChain } from '../src/lib/research/graph';
+import type { AgentEvent, AgentRun } from '../src/types/api';
+describe('reasoning highlights', () => {
+  const chain = {
+    ...state,
+    graph: {
+      statements: [
+        { id: 'a', text: 'Trial result', salience: 'supporting', lifecycle: 'accepted', assertion_mode: 'reported', role: null, excerpt_ids: [], provenance: { actor_type: 'user', actor_id: 'r' } },
+        { id: 'b', text: 'Mechanism', salience: 'supporting', lifecycle: 'accepted', assertion_mode: 'reported', role: null, excerpt_ids: [], provenance: { actor_type: 'user', actor_id: 'r' } },
+        { id: 'c', text: 'Intermediate', salience: 'core', lifecycle: 'accepted', assertion_mode: 'asserted', role: null, excerpt_ids: [], provenance: { actor_type: 'user', actor_id: 'r' } },
+        { id: 'd', text: 'Conclusion', salience: 'core', lifecycle: 'accepted', assertion_mode: 'asserted', role: 'conclusion', excerpt_ids: [], provenance: { actor_type: 'user', actor_id: 'r' } },
+        { id: 'z', text: 'Unrelated', salience: 'core', lifecycle: 'accepted', assertion_mode: 'asserted', role: null, excerpt_ids: [], provenance: { actor_type: 'user', actor_id: 'r' } },
+      ],
+      reasoning_steps: [
+        { id: 's1', explanation: 'a and b give c', premise_ids: ['a', 'b'], conclusion_id: 'c', lifecycle: 'accepted' },
+        { id: 's2', explanation: 'c gives d', premise_ids: ['c'], conclusion_id: 'd', lifecycle: 'accepted' },
+      ],
+      relations: [],
+    },
+    contexts: [],
+  } as unknown as Snapshot;
+
+  it('connects highlighted claims through the steps between them, and nothing else', () => {
+    expect(new Set(chainHighlight(chain, ['a', 'c']))).toEqual(new Set(['a', 'c', 's1']));
+    expect(new Set(chainHighlight(chain, [], ['s2']))).toEqual(new Set(['s2', 'd']));
+  });
+
+  it('traces what a conclusion rests on, recursively', () => {
+    expect(new Set(supportChain(chain, 'd'))).toEqual(new Set(['d', 'c', 'a', 'b', 's1', 's2']));
+  });
+
+  it('highlights an agent run’s conclusion chain and the nodes it queried', () => {
+    const run = { final_statement_id: 'c' } as AgentRun;
+    const events = [{ seq: 1, type: 'tool_call', created_at: '', payload: { name: 'get_graph_node', input: { node_id: 'z' } } }, { seq: 2, type: 'tool_call', created_at: '', payload: { name: 'get_graph_node', input: { node_id: 'not-in-graph' } } }] as AgentEvent[];
+    expect(new Set(runHighlight(chain, run, events))).toEqual(new Set(['c', 'a', 'b', 's1', 'z']));
+  });
+
+  it('brings highlighted supporting claims into the overview', () => {
+    const loose = { ...chain, graph: { ...chain.graph, reasoning_steps: [] } } as Snapshot;
+    expect(projectWorkspace(loose).nodes.some(node => node.id === 'a')).toBe(false);
+    expect(projectWorkspace(loose, false, new Set(['a'])).nodes.some(node => node.id === 'a')).toBe(true);
+  });
+});

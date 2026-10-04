@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.agent import assurance, prompts
 from app.agent.conversation import conversation_messages, workspace_context
 from app.agent.runs import EventLog
-from app.agent.tool_models import GUARD_TOOLS, RECORDING_TOOLS, RESEARCH_TOOLS
+from app.agent.tool_models import GRAPH_TOOLS, GUARD_TOOLS, RECORDING_TOOLS, RESEARCH_TOOLS
 from app.agent.toolbox import Toolbox, tool_result_text
 from app.config import get_settings
 from app.database import session_factory
@@ -41,6 +41,7 @@ PRICES = {
 }
 CACHE_WRITE_FACTOR, CACHE_READ_FACTOR = 1.25, 0.1
 MAX_NUDGES = 2
+LOOSE_TOOLS = {"link_claims"}
 TERMINAL_TOOLS = {"finalize_conclusion", "abstain"}
 
 
@@ -51,8 +52,12 @@ def build_tools(mode: str, max_web_searches: int) -> list[dict]:
     if mode == "guarded":
         specs |= RECORDING_TOOLS | GUARD_TOOLS
     tools: list[dict[str, Any]] = [
-        strict_tool(name, desc, model) for name, (desc, model) in specs.items()
+        strict_tool(name, desc, model) for name, (desc, model) in specs.items() if name not in LOOSE_TOOLS
     ]
+    # The API caps the combined grammar of strict tools. Tools with flat inputs that the toolbox
+    # validates itself go without `strict`, so the whole set stays under that cap.
+    loose = {**GRAPH_TOOLS, **{k: v for k, v in specs.items() if k in LOOSE_TOOLS}}
+    tools += [{**strict_tool(name, desc, model), "strict": False} for name, (desc, model) in loose.items()]
     if max_web_searches > 0:
         tools.append(
             {"type": "web_search_20250305", "name": "web_search", "max_uses": max_web_searches}
@@ -414,6 +419,15 @@ def _graph_change(tool: str, args: dict, result: dict) -> dict | None:
             "premise_ids": args.get("premise_ids"),
             "conclusion_id": args.get("conclusion_id"),
             "revises_step_id": args.get("revises_step_id"),
+        }
+    if tool == "link_claims" and result.get("linked"):
+        return {
+            "change": "link_added",
+            "relation_id": result["relation_id"],
+            "relation": args.get("relation"),
+            "source_statement_id": args.get("source_statement_id"),
+            "target_statement_id": args.get("target_statement_id"),
+            "audit_verdict": result.get("audit_verdict"),
         }
     if tool == "revise_claim":
         return {

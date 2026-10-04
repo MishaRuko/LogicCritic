@@ -249,7 +249,10 @@ async def test_a_baseline_run_has_no_guard_tools_and_just_reports() -> None:
     assert run.status == "succeeded" and run.final_report == "Drug X works. Sources: Trial of X."
     assert run.certainty is None
     names = [t["name"] for t in client.requests[0]["tools"]]
-    assert names == ["search_papers", "read_paper", "fetch_url", "read_source", "web_search"]
+    assert names == [
+        "search_papers", "read_paper", "fetch_url", "read_source",
+        "graph_overview", "search_graph", "get_graph_node", "trace_chain", "web_search",
+    ]
     assert "check_conclusion" not in client.requests[0]["system"]
 
 
@@ -419,12 +422,15 @@ async def test_a_run_that_is_not_running_is_left_alone() -> None:
 def test_tools_are_strict_and_the_search_tool_follows_the_budget() -> None:
     guarded = build_tools("guarded", 5)
     custom = [t for t in guarded if t["name"] != "web_search"]
-    assert custom and all(
-        t["strict"] is True and t["input_schema"]["additionalProperties"] is False for t in custom
-    )
+    assert all(t["input_schema"]["additionalProperties"] is False for t in custom)
+    # The API caps the strict-tool grammar: only the original ten tools may be strict.
+    assert {t["name"] for t in custom if t["strict"]} == {
+        "search_papers", "read_paper", "fetch_url", "read_source", "record_claim",
+        "record_reasoning", "revise_claim", "check_conclusion", "finalize_conclusion", "abstain",
+    }
     assert guarded[-1] == {"type": "web_search_20250305", "name": "web_search", "max_uses": 5}
     assert not any(t["name"] == "web_search" for t in build_tools("guarded", 0))
-    assert len(build_tools("baseline", 1)) == 5 and len(build_tools("guarded", 1)) == 11
+    assert len(build_tools("baseline", 1)) == 9 and len(build_tools("guarded", 1)) == 16
 
 
 async def test_the_report_leads_with_the_verdict_given_at_finalization() -> None:
