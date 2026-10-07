@@ -59,7 +59,9 @@ async def overview(session: AsyncSession, workspace_id: uuid.UUID) -> dict:
         await session.scalars(select(Statement).where(Statement.workspace_id == workspace_id))
     )
     steps = await session.scalar(
-        select(func.count()).select_from(ReasoningStep).where(ReasoningStep.workspace_id == workspace_id)
+        select(func.count())
+        .select_from(ReasoningStep)
+        .where(ReasoningStep.workspace_id == workspace_id)
     )
     open_obligations = await session.scalar(
         select(func.count())
@@ -67,19 +69,25 @@ async def overview(session: AsyncSession, workspace_id: uuid.UUID) -> dict:
         .where(ProofObligation.workspace_id == workspace_id, ProofObligation.status == "open")
     )
     sources = list(
-        await session.scalars(select(Source).where(Source.workspace_id == workspace_id).order_by(Source.created_at))
+        await session.scalars(
+            select(Source).where(Source.workspace_id == workspace_id).order_by(Source.created_at)
+        )
     )
     live = [s for s in statements if s.superseded_by is None and s.lifecycle != "rejected"]
     return {
         "claims": len(live),
         "reasoning_steps": steps,
         "open_obligations": open_obligations,
-        "sources": [{"source_id": str(s.id), "title": s.title or s.original_filename} for s in sources[:40]],
+        "sources": [
+            {"source_id": str(s.id), "title": s.title or s.original_filename} for s in sources[:40]
+        ],
         "conclusions": [_brief(s) for s in live if s.role == "conclusion"][:30],
     }
 
 
-async def search(session: AsyncSession, workspace_id: uuid.UUID, query: str, limit: int = 10) -> dict:
+async def search(
+    session: AsyncSession, workspace_id: uuid.UUID, query: str, limit: int = 10
+) -> dict:
     query = query.strip()
     if not query:
         raise GraphQueryError("Give some words to search for.")
@@ -123,13 +131,19 @@ async def search(session: AsyncSession, workspace_id: uuid.UUID, query: str, lim
     return {
         "claims": [_brief(s) for s in rows],
         "reasoning_steps": [
-            {"step_id": str(s.id), "conclusion_id": str(s.conclusion_id), "explanation": _cut(s.explanation)}
+            {
+                "step_id": str(s.id),
+                "conclusion_id": str(s.conclusion_id),
+                "explanation": _cut(s.explanation),
+            }
             for s in steps
         ],
     }
 
 
-async def _premises(session: AsyncSession, step_ids: list[uuid.UUID]) -> dict[uuid.UUID, list[uuid.UUID]]:
+async def _premises(
+    session: AsyncSession, step_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, list[uuid.UUID]]:
     found: dict[uuid.UUID, list[uuid.UUID]] = {i: [] for i in step_ids}
     if step_ids:
         for step_id, statement_id in await session.execute(
@@ -151,7 +165,10 @@ async def get_node(session: AsyncSession, workspace_id: uuid.UUID, node_id: str)
     if step is not None and step.workspace_id == workspace_id:
         premises = (await _premises(session, [step.id]))[step.id]
         texts = {
-            s.id: s for s in await session.scalars(select(Statement).where(Statement.id.in_([*premises, step.conclusion_id])))
+            s.id: s
+            for s in await session.scalars(
+                select(Statement).where(Statement.id.in_([*premises, step.conclusion_id]))
+            )
         }
         return {
             "kind": "reasoning_step",
@@ -159,7 +176,9 @@ async def get_node(session: AsyncSession, workspace_id: uuid.UUID, node_id: str)
             "explanation": _cut(step.explanation, 1200),
             "lifecycle": step.lifecycle,
             "premises": [_brief(texts[p]) for p in premises if p in texts],
-            "conclusion": _brief(texts[step.conclusion_id]) if step.conclusion_id in texts else None,
+            "conclusion": _brief(texts[step.conclusion_id])
+            if step.conclusion_id in texts
+            else None,
             "open_obligations": await _obligations(session, workspace_id, [step.id]),
         }
     raise GraphQueryError("No claim or reasoning step with that id in this workspace.")
@@ -170,7 +189,10 @@ async def _obligations(session, workspace_id, node_ids) -> list[dict]:
         select(ProofObligation).where(
             ProofObligation.workspace_id == workspace_id,
             ProofObligation.status == "open",
-            or_(ProofObligation.blocks_statement_id.in_(node_ids), ProofObligation.blocks_node_id.in_(node_ids)),
+            or_(
+                ProofObligation.blocks_statement_id.in_(node_ids),
+                ProofObligation.blocks_node_id.in_(node_ids),
+            ),
         )
     )
     return [{"kind": o.kind, "description": _cut(o.description, 400)} for o in rows]
@@ -184,7 +206,9 @@ async def _statement_detail(session, workspace_id, statement: Statement) -> dict
         .where(StatementExcerpt.statement_id == statement.id)
     )
     derived_by = list(
-        await session.scalars(select(ReasoningStep).where(ReasoningStep.conclusion_id == statement.id))
+        await session.scalars(
+            select(ReasoningStep).where(ReasoningStep.conclusion_id == statement.id)
+        )
     )
     used_in = list(
         await session.scalars(
@@ -198,16 +222,27 @@ async def _statement_detail(session, workspace_id, statement: Statement) -> dict
         await session.scalars(
             select(GraphEdge).where(
                 GraphEdge.workspace_id == workspace_id,
-                or_(GraphEdge.source_node_id == statement.id, GraphEdge.target_node_id == statement.id),
+                or_(
+                    GraphEdge.source_node_id == statement.id,
+                    GraphEdge.target_node_id == statement.id,
+                ),
             )
         )
     )
-    others = {e.target_node_id if e.source_node_id == statement.id else e.source_node_id for e in edges}
+    others = {
+        e.target_node_id if e.source_node_id == statement.id else e.source_node_id for e in edges
+    }
     related = {
         s.id: s
         for s in await session.scalars(
             select(Statement).where(
-                Statement.id.in_({*others, *(c.conclusion_id for c in used_in), *(p for ps in premises.values() for p in ps)})
+                Statement.id.in_(
+                    {
+                        *others,
+                        *(c.conclusion_id for c in used_in),
+                        *(p for ps in premises.values() for p in ps),
+                    }
+                )
             )
         )
     }
@@ -237,7 +272,10 @@ async def _statement_detail(session, workspace_id, statement: Statement) -> dict
             {
                 "relation": e.relation,
                 "direction": "outgoing" if e.source_node_id == statement.id else "incoming",
-                "other": _brief(related[o]) if (o := e.target_node_id if e.source_node_id == statement.id else e.source_node_id) in related else {"id": str(o)},
+                "other": _brief(related[o])
+                if (o := e.target_node_id if e.source_node_id == statement.id else e.source_node_id)
+                in related
+                else {"id": str(o)},
                 "audit": (e.metadata_ or {}).get("audit_verdict"),
             }
             for e in edges
@@ -247,7 +285,11 @@ async def _statement_detail(session, workspace_id, statement: Statement) -> dict
 
 
 async def trace_chain(
-    session: AsyncSession, workspace_id: uuid.UUID, statement_id: str, direction: str = "support", depth: int = 4
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    statement_id: str,
+    direction: str = "support",
+    depth: int = 4,
 ) -> dict:
     """The logical chain through a claim: what it rests on (support) or what rests on it."""
     start = _id(statement_id)
@@ -264,7 +306,11 @@ async def trace_chain(
         if level >= depth:
             continue
         if direction == "support":
-            steps = list(await session.scalars(select(ReasoningStep).where(ReasoningStep.conclusion_id == current)))
+            steps = list(
+                await session.scalars(
+                    select(ReasoningStep).where(ReasoningStep.conclusion_id == current)
+                )
+            )
         else:
             steps = list(
                 await session.scalars(
@@ -300,7 +346,9 @@ async def trace_chain(
     }
 
 
-async def known_ids(session: AsyncSession, workspace_id: uuid.UUID, ids: list[str]) -> tuple[list[str], list[str]]:
+async def known_ids(
+    session: AsyncSession, workspace_id: uuid.UUID, ids: list[str]
+) -> tuple[list[str], list[str]]:
     """Split ids into (claim ids, step ids) that exist in the workspace; drop the rest."""
     parsed = []
     for value in ids:
@@ -314,7 +362,9 @@ async def known_ids(session: AsyncSession, workspace_id: uuid.UUID, ids: list[st
         select(Statement.id).where(Statement.workspace_id == workspace_id, Statement.id.in_(parsed))
     )
     steps = await session.scalars(
-        select(ReasoningStep.id).where(ReasoningStep.workspace_id == workspace_id, ReasoningStep.id.in_(parsed))
+        select(ReasoningStep.id).where(
+            ReasoningStep.workspace_id == workspace_id, ReasoningStep.id.in_(parsed)
+        )
     )
     return [str(i) for i in claims], [str(i) for i in steps]
 
@@ -330,7 +380,11 @@ async def run_tool(session: AsyncSession, workspace_id: uuid.UUID, name: str, ar
             return await get_node(session, workspace_id, args["node_id"])
         if name == "trace_chain":
             return await trace_chain(
-                session, workspace_id, args["statement_id"], args.get("direction", "support"), int(args.get("depth") or 4)
+                session,
+                workspace_id,
+                args["statement_id"],
+                args.get("direction", "support"),
+                int(args.get("depth") or 4),
             )
     except GraphQueryError as error:
         return {"error": str(error)}

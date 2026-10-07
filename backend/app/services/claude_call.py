@@ -84,7 +84,9 @@ async def structured_call[T: BaseModel](
     )
     if block is None:
         if allow_text_json:
-            text = "".join(getattr(item, "text", "") for item in response.content if item.type == "text")
+            text = "".join(
+                getattr(item, "text", "") for item in response.content if item.type == "text"
+            )
             try:
                 return schema.model_validate_json(text)
             except ValidationError:
@@ -97,7 +99,9 @@ async def structured_call[T: BaseModel](
                         pass
         kinds = ", ".join(f"{item.type}:{getattr(item, 'name', '')}" for item in response.content)
         preview = text[:400].replace("\n", " ") if allow_text_json else ""
-        raise ClaudeCallFailed(f"the {task} returned no result ({response.stop_reason}; {kinds}; {preview})")
+        raise ClaudeCallFailed(
+            f"the {task} returned no result ({response.stop_reason}; {kinds}; {preview})"
+        )
     try:
         return schema.model_validate(dict(block.input))
     except ValidationError as error:

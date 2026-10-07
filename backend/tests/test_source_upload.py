@@ -111,3 +111,8 @@ async def test_other_file_types_are_still_refused(api) -> None:
 async def test_non_utf8_text_is_rejected(api) -> None:
     response = await upload(api, "latin.txt", "café".encode("latin-1"), "text/plain")
     assert response.status_code == 422
+
+
+async def test_text_with_nul_characters_is_rejected_not_a_server_error(api) -> None:
+    response = await upload(api, "binary.txt", b"Results\x00 were measured.", "text/plain")
+    assert response.status_code == 422 and "NUL" in response.json()["detail"]

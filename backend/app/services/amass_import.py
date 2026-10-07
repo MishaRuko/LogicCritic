@@ -134,9 +134,7 @@ def split_block(text: str, start: int, section: str | None) -> list[tuple[str, i
     for piece in pieces:
         heading = ABSTRACT_HEADING.match(text[piece[0] : piece[1]].strip())
         if group and (
-            heading
-            or piece[2] != group[-1][2]
-            or piece[1] - group[0][0] > MAX_EXCERPT_CHARS
+            heading or piece[2] != group[-1][2] or piece[1] - group[0][0] > MAX_EXCERPT_CHARS
         ):
             flush()
         group.append(piece)

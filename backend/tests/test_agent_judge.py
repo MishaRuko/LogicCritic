@@ -435,7 +435,9 @@ def test_design_verdicts_on_claims_without_a_declared_design_are_dropped() -> No
     output = JudgeOutput(
         criteria=[],
         designs=[
-            DesignVerdict(statement_id="declared", design_shown=False, rationale="no randomisation"),
+            DesignVerdict(
+                statement_id="declared", design_shown=False, rationale="no randomisation"
+            ),
             DesignVerdict(statement_id="descriptive", design_shown=False, rationale="not causal"),
         ],
     )

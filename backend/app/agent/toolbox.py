@@ -5,11 +5,13 @@ Every tool returns a plain dict for the model to read. A failure is returned as
 correct itself instead of the run dying.
 """
 
+import asyncio
 import hashlib
 import json
 import logging
 import re
 import uuid
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -25,10 +27,10 @@ from app.agent.tool_models import (
     CAUSAL_DESIGNS,
     GRAPH_TOOLS,
     AbstainInput,
-    LinkClaimsInput,
     CheckConclusionInput,
     FetchUrlInput,
     FinalizeConclusionInput,
+    LinkClaimsInput,
     ReadPaperInput,
     ReadSourceInput,
     RecordClaimInput,
@@ -37,7 +39,6 @@ from app.agent.tool_models import (
     ReviseClaimInput,
     SearchPapersInput,
 )
-from app.services import graph_query
 from app.agent.web import FetchError, fetch_public, html_to_text
 from app.config import get_settings
 from app.models import (
@@ -51,7 +52,6 @@ from app.models import (
     Statement,
     StatementExcerpt,
 )
-from app.services.claude_call import ClaudeCallFailed
 from app.schemas import (
     AnnotationCreateOperation,
     GraphPatchRequest,
@@ -60,15 +60,18 @@ from app.schemas import (
     RelationCreateOperation,
     StatementCreateOperation,
 )
+from app.services import graph_query
 from app.services.amass import AmassClient, AmassError
 from app.services.amass_import import (
     amass_http_error,
     import_biomed_record,
     split_block,
 )
+from app.services.claude_call import ClaudeCallFailed
 from app.services.experiments import METHOD_SECTION
 from app.services.graph_patches import GraphPatchExecutor
 from app.services.judge import Judge
+from app.services.literature import LiteratureClient, LiteratureError, Paper, merge
 from app.services.pdf_ingestion import PdfIngestionError, parse_pdf
 from app.services.source_store import DuplicateSource, NewSource, store_source
 from app.services.text_ingestion import ParsedExcerpt, parse_structured_text
@@ -78,7 +81,7 @@ log = logging.getLogger(__name__)
 READ_PAGE_CHARS = 14_000
 MAX_VERDICT_CHARS = 300
 EXCERPT_PREVIEW_CHARS = 140
-PROMPT_VERSION = "research_agent_v10"
+PROMPT_VERSION = "research_agent_v11"
 
 
 class ToolError(Exception):
@@ -101,15 +104,18 @@ class Toolbox:
         run_id: uuid.UUID,
         amass: AmassClient | None,
         judge: Judge | None = None,
+        literature: LiteratureClient | None = None,
     ) -> None:
         self._sessions = sessions
         self._run_id = run_id
         self._amass = amass
+        self._literature = literature  # Semantic Scholar and arXiv; None searches Amass only
         self._judge = judge
         self._reads = 0  # read_source calls so far
         self._read_sources: set[uuid.UUID] = set()  # sources the agent has read
         self._protocol_recorded = False
         self._protocol_nudged = False
+        self._web_nudged = False
         self._position_id: str | None = None  # the agent's current conclusion-role claim
 
     async def call(self, name: str, arguments: dict[str, Any], tool_use_id: str) -> dict:
@@ -136,12 +142,17 @@ class Toolbox:
             return await handler(args, tool_use_id)
         except ValidationError as error:
             return {"error": f"Invalid arguments: {error.errors()[0]['msg']}"}
-        except (ToolError, FetchError, guardrail.GuardrailError) as error:
+        except (ToolError, FetchError, LiteratureError, guardrail.GuardrailError) as error:
             return {"error": str(error)}
         except AmassError as error:
             return {"error": amass_http_error(error).detail}
         except HTTPException as error:
             return {"error": str(error.detail)}
+        except Exception as error:  # noqa: BLE001 - one failed tool call must not end the run
+            log.exception("tool %s failed in run %s", name, self._run_id)
+            return {
+                "error": f"{name} failed unexpectedly ({type(error).__name__}); try another way."
+            }
 
     # -- the existing graph -------------------------------------------------------------------
 
@@ -159,14 +170,17 @@ class Toolbox:
                 s.id: s
                 for s in await session.scalars(
                     select(Statement).where(
-                        Statement.workspace_id == run.workspace_id, Statement.id.in_([source_id, target_id])
+                        Statement.workspace_id == run.workspace_id,
+                        Statement.id.in_([source_id, target_id]),
                     )
                 )
             }
             if len(claims) != 2:
                 raise ToolError("Both ids must be claims in this workspace's graph.")
             if any(claim.lifecycle == "rejected" for claim in claims.values()):
-                raise ToolError("One of these claims was withdrawn; link the claim that replaced it.")
+                raise ToolError(
+                    "One of these claims was withdrawn; link the claim that replaced it."
+                )
             duplicate = await session.scalar(
                 select(GraphEdge).where(
                     GraphEdge.workspace_id == run.workspace_id,
@@ -177,15 +191,24 @@ class Toolbox:
             )
             if duplicate is not None:
                 return {"linked": False, "already_linked": True, "relation_id": str(duplicate.id)}
-            material = {i: await _claim_material(session, claims[i]) for i in (source_id, target_id)}
+            material = {
+                i: await _claim_material(session, claims[i]) for i in (source_id, target_id)
+            }
         verdict, audit_rationale = "needs_review", "No independent audit was available."
         if self._judge is not None and hasattr(self._judge, "audit_links"):
             try:
-                audits = await self._judge.audit_links([{
-                    "source_statement_id": str(source_id), "target_statement_id": str(target_id),
-                    "relation": args.relation, "rationale": args.rationale.strip(),
-                    "source": material[source_id], "target": material[target_id],
-                }])
+                audits = await self._judge.audit_links(
+                    [
+                        {
+                            "source_statement_id": str(source_id),
+                            "target_statement_id": str(target_id),
+                            "relation": args.relation,
+                            "rationale": args.rationale.strip(),
+                            "source": material[source_id],
+                            "target": material[target_id],
+                        }
+                    ]
+                )
                 if audits.audits:
                     verdict, audit_rationale = audits.audits[0].verdict, audits.audits[0].rationale
             except ClaudeCallFailed as error:
@@ -222,7 +245,9 @@ class Toolbox:
         async def handler(args, _: str) -> dict:
             async with self._sessions() as session:
                 run = await session.get(AgentRun, self._run_id)
-                return await graph_query.run_tool(session, run.workspace_id, name, args.model_dump())
+                return await graph_query.run_tool(
+                    session, run.workspace_id, name, args.model_dump()
+                )
 
         return handler
 
@@ -234,33 +259,112 @@ class Toolbox:
         return self._amass
 
     async def search_papers(self, args: SearchPapersInput, _: str) -> dict:
+        limit = max(1, min(args.limit, 20))
+        wanted = args.sources or ["amass", "semantic_scholar", "arxiv"]
+        searches = {}
+        if "amass" in wanted and self._amass is not None:
+            searches["amass"] = self._search_amass(args, limit)
+        if self._literature is not None:
+            if "semantic_scholar" in wanted:
+                searches["semantic_scholar"] = self._literature.search_semantic_scholar(
+                    args.query, limit, args.published_after
+                )
+            if "arxiv" in wanted:
+                searches["arxiv"] = self._literature.search_arxiv(
+                    args.query, limit, args.published_after
+                )
+        if not searches:
+            if self._literature is None:
+                self._need_amass()  # explains that no Amass key is configured
+            raise ToolError("None of the requested paper indexes is available.")
+        outcomes = await asyncio.gather(*searches.values(), return_exceptions=True)
+        found, failed = [], {}
+        for name, outcome in zip(searches, outcomes, strict=True):
+            if isinstance(outcome, BaseException):
+                log.warning("paper search in %s failed: %s", name, outcome)
+                failed[name] = str(outcome) or type(outcome).__name__
+            else:
+                found.append(outcome)
+        if not found:
+            raise ToolError(f"Paper search failed: {failed}")
+        papers = merge(*found, limit=limit)
+        if args.exclude_retracted:
+            papers = [p for p in papers if not p.retracted]
+        result: dict[str, Any] = {"results": [_paper_row(p) for p in papers]}
+        if failed:
+            result["unavailable"] = failed
+        return result
+
+    async def _search_amass(self, args: SearchPapersInput, limit: int) -> list[Paper]:
         records = await self._need_amass().search_biomedcore(
             args.query,
-            max(1, min(args.limit, 15)),
+            min(limit, 15),
             min_publication_date=args.published_after,
             is_retracted=False if args.exclude_retracted else None,
         )
-        return {
-            "results": [
-                {
-                    "amass_id": r.amass_id,
-                    "pmid": r.pmid,
-                    "doi": r.doi,
-                    "title": r.title,
-                    "journal": r.journal,
-                    "published": r.publication_date,
-                    "citations": r.citation_count,
-                    "retracted": r.is_retracted,
-                    "has_fulltext": r.has_fulltext,
-                    "abstract": (r.abstract or "")[:700],
-                }
-                for r in records
-            ]
-        }
+        return [
+            Paper(
+                found_in=["amass"],
+                title=r.title,
+                abstract=r.abstract,
+                venue=r.journal,
+                published=r.publication_date,
+                citations=int(r.citation_count) if r.citation_count is not None else None,
+                retracted=r.is_retracted,
+                ids={
+                    k: v
+                    for k, v in {"amass_id": r.amass_id, "pmid": r.pmid, "doi": r.doi}.items()
+                    if v
+                },
+            )
+            for r in records
+        ]
 
     async def read_paper(self, args: ReadPaperInput, _: str) -> dict:
-        if sum(bool(v) for v in (args.amass_id, args.pmid, args.doi)) != 1:
-            raise ToolError("Give exactly one of amass_id, pmid or doi.")
+        given = {
+            name: value
+            for name in ("amass_id", "pmid", "doi", "arxiv_id", "semantic_scholar_id")
+            if (value := getattr(args, name))
+        }
+        if len(given) != 1:
+            raise ToolError(
+                "Give exactly one of amass_id, pmid, doi, arxiv_id or semantic_scholar_id."
+            )
+        if args.amass_id or ((args.pmid or args.doi) and self._amass is not None):
+            try:
+                return await self._read_from_amass(args)
+            except HTTPException as error:
+                # Amass does not have it: an open index may.
+                if args.amass_id or error.status_code != 404 or self._literature is None:
+                    raise
+        if args.arxiv_id:
+            return await self._read_pdf(
+                f"https://arxiv.org/pdf/{args.arxiv_id}", {"arxiv_id": args.arxiv_id}
+            )
+        if self._literature is None:
+            raise ToolError("This paper is not in Amass, and no other index is available.")
+        lookup = (
+            f"DOI:{args.doi}"
+            if args.doi
+            else f"PMID:{args.pmid}"
+            if args.pmid
+            else args.semantic_scholar_id
+        )
+        paper = await self._literature.lookup_semantic_scholar(lookup)
+        if paper is None:
+            raise ToolError(f"No index has a paper for {lookup}.")
+        if paper.ids.get("arxiv_id"):
+            return await self._read_pdf(
+                f"https://arxiv.org/pdf/{paper.ids['arxiv_id']}", paper.ids, paper.title
+            )
+        if paper.open_access_pdf:
+            try:
+                return await self._read_pdf(paper.open_access_pdf, paper.ids, paper.title)
+            except (FetchError, ToolError) as error:
+                log.info("open-access PDF for %s unavailable: %s", lookup, error)
+        return await self._store_abstract(paper)
+
+    async def _read_from_amass(self, args: ReadPaperInput) -> dict:
         async with self._sessions() as session:
             run = await session.get(AgentRun, self._run_id)
             result = await import_biomed_record(
@@ -289,9 +393,50 @@ class Toolbox:
             "next": "Call read_source with this source_id to read the text.",
         }
 
+    async def _read_pdf(self, url: str, ids: dict, title: str | None = None) -> dict:
+        page = await fetch_public(url, user_agent=get_settings().agent_user_agent)
+        new = _page_to_source(page)
+        new = replace(new, external_ids={**ids, **new.external_ids}, title=title or new.title)
+        return await self._store_fetched(new, page.final_url)
+
+    async def _store_abstract(self, paper: Paper) -> dict:
+        """A paper with no readable full text, stored as its title and abstract only."""
+        if not paper.abstract:
+            raise ToolError(
+                "Only the title of this paper is available, which is nothing to cite. Look for "
+                "the full text with web_search and fetch_url, or use another paper."
+            )
+        text = f"{paper.title or 'Untitled'}\n\n{paper.abstract}".replace("\x00", "")
+        new = NewSource(
+            kind="paper_abstract",
+            origin="semantic_scholar",
+            title=paper.title,
+            mime_type="text/plain",
+            filename=f"{paper.ids.get('semantic_scholar_id', 'paper')}.txt",
+            content=text.encode("utf-8"),
+            excerpts=_text_excerpts(text),
+            external_ids=paper.ids,
+            metadata={
+                "parser": "abstract_text_v1",
+                "retrieved_at": datetime.now(UTC).isoformat(),
+                "venue": paper.venue,
+                "publication_date": paper.published,
+                "citation_count": paper.citations,
+                "fulltext_imported": False,
+            },
+        )
+        result = await self._store_fetched(new, None)
+        result["abstract_only"] = (
+            "No open full text was found, so only the title and abstract were saved. Cite it as "
+            "an abstract: the methods and full results were not read."
+        )
+        return result
+
     async def fetch_url(self, args: FetchUrlInput, _: str) -> dict:
         page = await fetch_public(args.url, user_agent=get_settings().agent_user_agent)
-        new = _page_to_source(page)
+        return await self._store_fetched(_page_to_source(page), page.final_url)
+
+    async def _store_fetched(self, new: NewSource, url: str | None) -> dict:
         async with self._sessions() as session:
             run = await session.get(AgentRun, self._run_id)
             try:
@@ -307,15 +452,18 @@ class Toolbox:
                     )
                 )
                 again = True
-        return {
+        result = {
             "source_id": str(source.id),
             "title": source.title,
-            "url": page.final_url,
+            "ids": source.external_ids,
             "already_fetched": again,
             "excerpts": len(excerpts),
             "index": _index(excerpts),
             "next": "Call read_source with this source_id to read the text.",
         }
+        if url:
+            result["url"] = url
+        return result
 
     async def read_source(self, args: ReadSourceInput, _: str) -> dict:
         source_id = _uuid(args.source_id, "source_id")
@@ -694,6 +842,23 @@ class Toolbox:
             result = await guardrail.check(session, run, goal, statement_id, self._judge)
         return result.packet
 
+    async def _web_problem(self) -> str | None:
+        """One push to check the web before concluding, if searching was allowed and unused."""
+        if self._web_nudged:
+            return None
+        async with self._sessions() as session:
+            run = await session.get(AgentRun, self._run_id)
+        allowed = run.budgets.get("max_web_searches", 0)
+        if allowed <= 0 or run.usage.get("web_searches", 0) > 0:
+            return None
+        self._web_nudged = True  # one push, never a loop
+        return (
+            f"You have not searched the web, and you may ({allowed} searches). Guidelines, "
+            "regulators, news, preprints and manufacturer documents are often only there. If any "
+            "could bear on this question, call web_search now. If none could, call "
+            "finalize_conclusion again."
+        )
+
     async def _protocol_problem(self, decision: str) -> str | None:
         """Hold the agent to its own stated decision about handing over a procedure."""
         if decision == "recorded":
@@ -740,7 +905,7 @@ class Toolbox:
                 f"The verdict is the bottom line only: at most {MAX_VERDICT_CHARS} characters. "
                 "Put the evidence and deductions in the conclusion."
             )
-        problem = await self._protocol_problem(args.protocol)
+        problem = await self._protocol_problem(args.protocol) or await self._web_problem()
         if problem:
             return {"accepted": False, "reason": problem}
         async with self._sessions() as session:
@@ -814,12 +979,27 @@ def _page_to_source(page) -> NewSource:
             external_ids=ids,
             metadata={**metadata, **parsed.metadata},
         )
-    raw = page.content.decode("utf-8", errors="replace")
+    raw = page.content.decode("utf-8", errors="replace").replace("\x00", "")
     title, text = (raw, raw) if page.content_type == "text/plain" else html_to_text(raw)
     if page.content_type == "text/plain":
         title = host
     if not text.strip():
         raise ToolError("The page has no readable text (it may need JavaScript to load).")
+    return NewSource(
+        kind="web_page",
+        origin="agent",
+        title=title or host,
+        mime_type="text/plain",
+        filename="page.txt",
+        content=text.encode("utf-8"),
+        excerpts=_text_excerpts(text),
+        external_ids=ids,
+        metadata={**metadata, "parser": "web_text_v1"},
+    )
+
+
+def _text_excerpts(text: str) -> list[ParsedExcerpt]:
+    """Plain text cut into excerpts of at most MAX_EXCERPT_CHARS, with exact offsets."""
     excerpts: list[ParsedExcerpt] = []
     for item in parse_structured_text(text):
         section = item.locator.get("section")
@@ -833,17 +1013,23 @@ def _page_to_source(page) -> NewSource:
             if label is not None:
                 locator["section"] = label
             excerpts.append(ParsedExcerpt(text=body, sequence=len(excerpts), locator=locator))
-    return NewSource(
-        kind="web_page",
-        origin="agent",
-        title=title or host,
-        mime_type="text/plain",
-        filename="page.txt",
-        content=text.encode("utf-8"),
-        excerpts=excerpts,
-        external_ids=ids,
-        metadata={**metadata, "parser": "web_text_v1"},
-    )
+    return excerpts
+
+
+def _paper_row(paper: Paper) -> dict:
+    """A search result for the model: only the fields that are known."""
+    row = {
+        **paper.ids,
+        "found_in": paper.found_in,
+        "title": paper.title,
+        "venue": paper.venue,
+        "published": paper.published,
+        "citations": paper.citations,
+        "retracted": paper.retracted,
+        "open_access": bool(paper.open_access_pdf) or None,
+        "abstract": (paper.abstract or "")[:600] or None,
+    }
+    return {k: v for k, v in row.items() if v is not None}
 
 
 def _pdf_name(url: str) -> str:
@@ -863,4 +1049,8 @@ async def _claim_material(session, statement: Statement) -> dict:
         .join(StatementExcerpt, StatementExcerpt.excerpt_id == Excerpt.id)
         .where(StatementExcerpt.statement_id == statement.id)
     )
-    return {"statement_id": str(statement.id), "text": statement.text, "excerpts": [t[:1200] for t in rows]}
+    return {
+        "statement_id": str(statement.id),
+        "text": statement.text,
+        "excerpts": [t[:1200] for t in rows],
+    }

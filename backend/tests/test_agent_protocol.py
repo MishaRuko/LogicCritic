@@ -677,28 +677,7 @@ async def test_the_video_model_is_shown_the_agents_protocol_and_nothing_else(
 # -- the demo switch -----------------------------------------------------------------------------
 
 
-async def test_the_demo_switch_prepares_the_lab_protocol_whatever_source_is_chosen(
-    api, monkeypatch
-) -> None:
-    monkeypatch.setattr(get_settings(), "demo_protocol", True)
-    world = await make_world(sources=METHODS)
-    base = f"/api/workspaces/{world.workspace_id}"
-    await api.post(f"{base}/verify")
-    # "other" has no methods section at all, and would normally be refused
-    response = await api.post(f"{base}/protocols", json={"source_id": str(world.sources["other"])})
-    assert response.status_code == 201
-    body = response.json()
-    assert body["extraction_method"] == "demo_fixture"
-    steps = body["protocol"]["steps"]
-    assert len(steps) == 7 and steps[0]["description"].startswith("Using a pipette set to 5 μL")
-    assert [(c["expected"], c["unit"]) for s in steps for c in s["checks"]] == [
-        (5.0, "μL"),
-        (42.0, "°C"),
-        (50.0, "μL"),
-    ]
-
-
-async def test_without_the_switch_the_protocol_comes_from_the_source(api) -> None:
+async def test_a_source_with_no_methodology_section_is_refused(api) -> None:
     world = await make_world(sources=METHODS)
     base = f"/api/workspaces/{world.workspace_id}"
     await api.post(f"{base}/verify")
@@ -706,34 +685,31 @@ async def test_without_the_switch_the_protocol_comes_from_the_source(api) -> Non
     assert refused.status_code == 422  # no methodology section: nothing is invented
 
 
-async def test_with_the_demo_switch_a_protocol_prepared_earlier_is_replaced_by_the_lab_protocol(
-    api, monkeypatch
-) -> None:
-    world = await make_world(sources=METHODS)
-    result = await protocol(Toolbox(session_factory, world.run_id, None), world)
-    base = f"/api/workspaces/{world.workspace_id}"
-    await api.post(f"{base}/verify")
-    extracted = (
-        await api.post(f"{base}/protocols", json={"source_id": result["source_id"]})
-    ).json()
-    assert extracted["extraction_method"] == "numbered_instructions"
-    assert len(extracted["protocol"]["steps"]) == 3  # the agent's own, as extracted before
+# -- a push to look at the web before concluding ---------------------------------------------------
 
-    monkeypatch.setattr(get_settings(), "demo_protocol", True)
-    listing = (await api.get(f"{base}/experiments")).json()
-    assert [p["current"] for p in listing["protocols"]] == [False]  # no longer offered as current
+WEB_ALLOWED = {"max_turns": 12, "max_web_searches": 3, "max_total_output_tokens": 100_000}
 
-    # a client that still holds the old prepared protocol gets the lab's, not the old one
-    started = await api.post(
-        f"{base}/experiment-runs", data={"mode": "demo", "protocol_id": extracted["id"]}
-    )
-    assert started.status_code == 202, started.text
-    used = started.json()["protocol_id"]
-    assert used != extracted["id"]
+
+async def test_an_agent_that_never_searched_the_web_is_pushed_once() -> None:
+    world = await make_world(sources=METHODS, budgets=WEB_ALLOWED)
+    toolbox = Toolbox(session_factory, world.run_id, None)
+    first = await conclude(toolbox, world)
+    assert first["accepted"] is False and "have not searched the web" in first["reason"]
+    assert "3 searches" in first["reason"]
+    assert (await conclude(toolbox, world))["accepted"] is True  # never a loop
+
+
+async def test_no_push_when_the_agent_already_searched_the_web() -> None:
+    from app.models import AgentRun
+
+    world = await make_world(sources=METHODS, budgets=WEB_ALLOWED)
     async with session_factory() as session:
-        row = await session.get(ExperimentProtocol, uuid.UUID(used))
-    assert row.extraction_method == "demo_fixture" and len(row.protocol["steps"]) == 7
+        run = await session.get(AgentRun, world.run_id)
+        run.usage = {**run.usage, "web_searches": 1}
+        await session.commit()
+    assert (await conclude(Toolbox(session_factory, world.run_id, None), world))["accepted"]
 
-    # and once prepared, the lab protocol is reused rather than made again each time
-    again = await api.post(f"{base}/experiment-runs", data={"mode": "demo", "protocol_id": used})
-    assert again.json()["protocol_id"] == used
+
+async def test_no_push_when_web_search_is_not_allowed() -> None:
+    world = await make_world(sources=METHODS)  # no web searches in the budget
+    assert (await conclude(Toolbox(session_factory, world.run_id, None), world))["accepted"]

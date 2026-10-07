@@ -430,7 +430,9 @@ class EvaluationScore(Base):
 
     __tablename__ = "evaluation_scores"
     __table_args__ = (
-        UniqueConstraint("evaluation_output_id", "scorer", name="uq_evaluation_scores_output_scorer"),
+        UniqueConstraint(
+            "evaluation_output_id", "scorer", name="uq_evaluation_scores_output_scorer"
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)

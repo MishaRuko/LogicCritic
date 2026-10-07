@@ -37,7 +37,8 @@ class GraphAnswer(BaseModel):
 
 SYSTEM = """You answer questions about a research argument graph: claims (statements) grounded in
 source excerpts, reasoning steps that derive conclusions from premises, cross-source links and open
-obligations (gaps a verifier found). Query the graph with the tools; do not rely on memory or outside
+obligations (gaps a verifier found). Query the graph with the tools; do not rely on memory or \
+outside
 knowledge, and do not speculate beyond what the graph records. Start with graph_overview or
 search_graph, then read claims with get_graph_node and follow the argument with trace_chain.
 When asked why something holds or whether it is supported, trace its support chain and report
@@ -47,8 +48,13 @@ short paragraphs or '- ' bullets; no Markdown headings or bold. Finish by callin
 
 
 def _tools() -> list[dict]:
-    tools = [strict_tool(name, description, model, strict=False) for name, (description, model) in GRAPH_TOOLS.items()]
-    tools.append(strict_tool("answer", "Give the final answer and the graph nodes it rests on.", GraphAnswer))
+    tools = [
+        strict_tool(name, description, model, strict=False)
+        for name, (description, model) in GRAPH_TOOLS.items()
+    ]
+    tools.append(
+        strict_tool("answer", "Give the final answer and the graph nodes it rests on.", GraphAnswer)
+    )
     return tools
 
 
@@ -95,7 +101,11 @@ async def ask(
             break
         if not calls:
             text = "".join(b.text for b in response.content if b.type == "text").strip()
-            final = GraphAnswer(answer=text or "I could not answer from the graph.", relevant_statement_ids=[], relevant_step_ids=[])
+            final = GraphAnswer(
+                answer=text or "I could not answer from the graph.",
+                relevant_statement_ids=[],
+                relevant_step_ids=[],
+            )
             break
         messages.append({"role": "assistant", "content": response.content})
         results = []
@@ -110,11 +120,20 @@ async def ask(
                 if len(content) > RESULT_CHARS:
                     content = content[:RESULT_CHARS] + '..."truncated"'
                 results.append(
-                    {"type": "tool_result", "tool_use_id": call.id, "content": content, "is_error": "error" in result}
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": call.id,
+                        "content": content,
+                        "is_error": "error" in result,
+                    }
                 )
         messages.append({"role": "user", "content": results})
     if final is None:  # pragma: no cover - the last turn forces `answer`
-        final = GraphAnswer(answer="I could not answer from the graph.", relevant_statement_ids=[], relevant_step_ids=[])
+        final = GraphAnswer(
+            answer="I could not answer from the graph.",
+            relevant_statement_ids=[],
+            relevant_step_ids=[],
+        )
     async with sessions() as session:
         claims, steps = await graph_query.known_ids(
             session, workspace_id, [*final.relevant_statement_ids, *final.relevant_step_ids]

@@ -36,9 +36,7 @@ def test_splits_long_paragraphs_into_bounded_exact_excerpts() -> None:
     assert len(excerpts) > 1
     assert all(len(item.text) <= MAX_EXCERPT_CHARS for item in excerpts)
     assert [item.sequence for item in excerpts] == list(range(len(excerpts)))
-    assert all(
-        text[item.locator["start"] : item.locator["end"]] == item.text for item in excerpts
-    )
+    assert all(text[item.locator["start"] : item.locator["end"]] == item.text for item in excerpts)
 
 
 def test_keeps_exact_offsets_for_crlf_text_and_hard_splits_long_tokens() -> None:
@@ -48,6 +46,4 @@ def test_keeps_exact_offsets_for_crlf_text_and_hard_splits_long_tokens() -> None
 
     assert len(excerpts) == 4
     assert all(len(item.text) <= MAX_EXCERPT_CHARS for item in excerpts)
-    assert all(
-        text[item.locator["start"] : item.locator["end"]] == item.text for item in excerpts
-    )
+    assert all(text[item.locator["start"] : item.locator["end"]] == item.text for item in excerpts)

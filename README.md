@@ -72,7 +72,7 @@ opposite, because it accidentally showed the agents the answer key and rewarded 
 
 ## Running it
 
-You need Docker. Add your Anthropic key (and an Amass key if you want the agent to search papers):
+You need Docker. Add your Anthropic key (and an Amass key if you want the agent to search the biomedical literature; Semantic Scholar and arXiv need none):
 
 ```sh
 cp .env.example .env

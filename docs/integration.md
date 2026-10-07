@@ -23,4 +23,4 @@ Workers process messages in order, with one running agent per workspace. A works
 
 Claims and reasoning are already proposed graph objects; the workspace snapshot refreshes every three seconds. `GET /workspaces/{id}/sources` discovers all workspace sources, so agent-imported papers and web pages appear in Material and the exact-excerpt inspector. Agent run responses include the goal's question and kind so history remains identifiable across browser sessions.
 
-The agent requires `CLAUDE_API_KEY` and the worker. `AMASS_API_KEY` enables literature search; web search does not require a separate key. No run starts automatically on navigation or reload.
+The agent requires `CLAUDE_API_KEY` and the worker. `AMASS_API_KEY` adds Amass to literature search (Semantic Scholar, OpenAlex and arXiv need no key); web search does not require a separate key. No run starts automatically on navigation or reload.

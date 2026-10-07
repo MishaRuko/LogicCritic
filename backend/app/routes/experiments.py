@@ -23,7 +23,6 @@ from app.models import (
     SourceValidity,
 )
 from app.routes.workspaces import require_workspace
-from app.services.demo_protocol import lab_protocol
 from app.services.experiments import extract_source_protocol
 from app.services.research_state import research_fingerprint, verification_state
 
@@ -58,14 +57,6 @@ class RunResponse(BaseModel):
 
 class ExtractRequest(BaseModel):
     source_id: uuid.UUID
-
-
-def usable(protocol: ExperimentProtocol, fingerprint: str) -> bool:
-    """Prepared for the research as it stands now. With the demo switch on, only the lab's own
-    protocol counts, so a protocol extracted earlier is prepared again as the lab's."""
-    if protocol.research_fingerprint != fingerprint:
-        return False
-    return not get_settings().demo_protocol or protocol.extraction_method == "demo_fixture"
 
 
 async def agent_suggestion(
@@ -174,7 +165,7 @@ async def list_experiments(workspace_id: uuid.UUID, session: AsyncSession = Depe
         "protocols": [
             {
                 **ProtocolResponse.model_validate(p).model_dump(mode="json"),
-                "current": usable(p, fingerprint),
+                "current": p.research_fingerprint == fingerprint,
             }
             for p in protocols
         ],
@@ -208,19 +199,16 @@ async def prepare_protocol(
         )
     )
     protocol_id = uuid.uuid4()
-    if get_settings().demo_protocol:
-        protocol, method, citations = lab_protocol(str(protocol_id))
-    else:
-        try:
-            protocol, method, citations = await asyncio.to_thread(
-                extract_source_protocol,
-                source,
-                excerpts,
-                str(protocol_id),
-                source.title or source.original_filename,
-            )
-        except (ValueError, RuntimeError) as error:
-            raise HTTPException(422, str(error)) from error
+    try:
+        protocol, method, citations = await asyncio.to_thread(
+            extract_source_protocol,
+            source,
+            excerpts,
+            str(protocol_id),
+            source.title or source.original_filename,
+        )
+    except (ValueError, RuntimeError) as error:
+        raise HTTPException(422, str(error)) from error
     # Model calls can take time; reject if the research changed during extraction.
     session.expire_all()
     if await require_research_ready(session, workspace_id) != fingerprint:
@@ -282,8 +270,10 @@ async def start_experiment(
         if suggestion:
             source_id = uuid.UUID(suggestion["source_id"])
             if suggestion["current"]:
-                protocol = await session.get(ExperimentProtocol, uuid.UUID(suggestion["protocol_id"]))
-    if protocol is None or not usable(protocol, fingerprint):
+                protocol = await session.get(
+                    ExperimentProtocol, uuid.UUID(suggestion["protocol_id"])
+                )
+    if protocol is None or protocol.research_fingerprint != fingerprint:
         selected_source = source_id or (protocol.source_id if protocol else None)
         if selected_source is None:
             raise HTTPException(422, "Choose the research source for this experiment.")

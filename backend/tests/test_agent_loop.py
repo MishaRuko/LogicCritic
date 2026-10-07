@@ -76,8 +76,11 @@ def statement_id_from(client: FakeClaude, request_index: int) -> str:
 # -- the research contract ---------------------------------------------------------------------
 
 
+WITH_SEARCH = {"max_turns": 12, "max_web_searches": 3, "max_total_output_tokens": 100_000}
+
+
 async def test_a_guarded_run_records_checks_and_finalizes() -> None:
-    world = await make_world(sources=SOURCES)
+    world = await make_world(sources=SOURCES, budgets=WITH_SEARCH)
     claim = claim_args(
         world, "Drug X reduced mortality in a randomised trial.", "trial", criteria_satisfied=[0, 1]
     )  # the run proposes two criteria of its own, since the goal gave none
@@ -243,7 +246,7 @@ async def test_finalization_on_the_last_allowed_turn_succeeds() -> None:
 
 
 async def test_a_baseline_run_has_no_guard_tools_and_just_reports() -> None:
-    world = await make_world(mode="baseline", sources=SOURCES)
+    world = await make_world(mode="baseline", sources=SOURCES, budgets=WITH_SEARCH)
     client = FakeClaude(reply(text("Drug X works. Sources: Trial of X.")))
     await execute_run(world.run_id, client=client)
 
@@ -252,8 +255,15 @@ async def test_a_baseline_run_has_no_guard_tools_and_just_reports() -> None:
     assert run.certainty is None
     names = [t["name"] for t in client.requests[0]["tools"]]
     assert names == [
-        "search_papers", "read_paper", "fetch_url", "read_source",
-        "graph_overview", "search_graph", "get_graph_node", "trace_chain", "web_search",
+        "search_papers",
+        "read_paper",
+        "fetch_url",
+        "read_source",
+        "graph_overview",
+        "search_graph",
+        "get_graph_node",
+        "trace_chain",
+        "web_search",
     ]
     assert "check_conclusion" not in client.requests[0]["system"]
 

@@ -61,7 +61,9 @@ async def _score(args) -> None:
 
 async def _scifact(args) -> None:
     cases = balanced_sample(args.per_label, seed=args.seed)
-    evaluation_id = await create_evaluation(args.name, cases, extra_config={"benchmark": "scifact-dev"})
+    evaluation_id = await create_evaluation(
+        args.name, cases, extra_config={"benchmark": "scifact-dev"}
+    )
     print("evaluation", evaluation_id, flush=True)
     await run_evaluation(evaluation_id, concurrency=args.concurrency)
     print(await render_report(evaluation_id))
@@ -82,7 +84,10 @@ async def _paper_pilot(args) -> None:
         if case.packet["id"] not in packets:
             packets[case.packet["id"]] = await fetch_packet(case.packet["id"])
     keep = ("question", "completion_criteria", "rubric", "trap")
-    cases = [{"packet": packets[c.packet["id"]], **{k: c.rubric[k] for k in keep if k in c.rubric}} for c in old]
+    cases = [
+        {"packet": packets[c.packet["id"]], **{k: c.rubric[k] for k in keep if k in c.rubric}}
+        for c in old
+    ]
     for pmcid, packet in packets.items():
         if args.extra_per_packet <= 0:
             break
@@ -105,7 +110,9 @@ async def _report(args) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run a stored blind baseline-versus-guarded evaluation")
+    parser = argparse.ArgumentParser(
+        description="Run a stored blind baseline-versus-guarded evaluation"
+    )
     commands = parser.add_subparsers(required=True)
     fetch_pmc = commands.add_parser("fetch-pmc")
     fetch_pmc.add_argument("pmcids", nargs="+")

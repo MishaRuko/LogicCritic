@@ -34,17 +34,28 @@ async def test_follow_up_reads_prior_answer_and_the_existing_workspace_graph():
         unrelated.status = "succeeded"
         unrelated.final_report = "PRIVATE OTHER WORKSPACE ANSWER"
         claim = Statement(
-            workspace_id=previous.workspace_id, text="Mouse evidence only.",
-            assertion_mode="reported", role="premise", lifecycle="proposed",
+            workspace_id=previous.workspace_id,
+            text="Mouse evidence only.",
+            assertion_mode="reported",
+            role="premise",
+            lifecycle="proposed",
             provenance={"actor_type": "agent", "actor_id": "test"},
         )
         session.add(claim)
         await session.flush()
-        session.add(StatementExcerpt(statement_id=claim.id, excerpt_id=previous.excerpts["study"][0]))
+        session.add(
+            StatementExcerpt(statement_id=claim.id, excerpt_id=previous.excerpts["study"][0])
+        )
         await session.commit()
-        current = await create_run(session, previous.workspace_id, AgentRunCreate(
-            idempotency_key=str(uuid.uuid4()), question="What about evidence in humans?", mode="baseline",
-        ))
+        current = await create_run(
+            session,
+            previous.workspace_id,
+            AgentRunCreate(
+                idempotency_key=str(uuid.uuid4()),
+                question="What about evidence in humans?",
+                mode="baseline",
+            ),
+        )
         current.status = "running"
         current.heartbeat_at = datetime.now(UTC)
         await session.commit()
@@ -65,9 +76,15 @@ async def test_follow_up_reads_prior_answer_and_the_existing_workspace_graph():
 async def test_context_excludes_future_prompts_and_queued_runs():
     world = await make_world(mode="baseline")
     async with session_factory() as session:
-        future = await create_run(session, world.workspace_id, AgentRunCreate(
-            idempotency_key=str(uuid.uuid4()), question="FUTURE USER MESSAGE", mode="baseline",
-        ))
+        future = await create_run(
+            session,
+            world.workspace_id,
+            AgentRunCreate(
+                idempotency_key=str(uuid.uuid4()),
+                question="FUTURE USER MESSAGE",
+                mode="baseline",
+            ),
+        )
         future.status = "succeeded"
         future.final_report = "FUTURE ANSWER"
         await session.commit()
@@ -80,18 +97,26 @@ async def test_follow_up_queue_waits_for_prior_run_and_survives_competing_worker
         workspace = Workspace(title="conversation queue test")
         session.add(workspace)
         await session.commit()
-        first = await create_run(session, workspace.id, AgentRunCreate(
-            idempotency_key=str(uuid.uuid4()), question="First queued question?",
-        ))
-        second = await create_run(session, workspace.id, AgentRunCreate(
-            idempotency_key=str(uuid.uuid4()), question="Second queued follow-up?",
-        ))
+        first = await create_run(
+            session,
+            workspace.id,
+            AgentRunCreate(
+                idempotency_key=str(uuid.uuid4()),
+                question="First queued question?",
+            ),
+        )
+        second = await create_run(
+            session,
+            workspace.id,
+            AgentRunCreate(
+                idempotency_key=str(uuid.uuid4()),
+                question="Second queued follow-up?",
+            ),
+        )
         first_id, second_id = first.id, second.id
     isolation = session_factory()
     # Other tests leave queued runs; make their workspaces unavailable to these workers.
-    await isolation.execute(
-        select(Workspace).where(Workspace.id != workspace.id).with_for_update()
-    )
+    await isolation.execute(select(Workspace).where(Workspace.id != workspace.id).with_for_update())
     try:
         claimed = await asyncio.gather(claim_next_agent_run(), claim_next_agent_run())
         assert sorted(str(item) for item in claimed if item) == [str(first_id)]

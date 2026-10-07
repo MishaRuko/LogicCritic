@@ -8,6 +8,7 @@ from types import SimpleNamespace
 
 from anthropic.types import (
     Message,
+    ServerToolUsage,
     ServerToolUseBlock,
     TextBlock,
     ThinkingBlock,
@@ -70,6 +71,7 @@ def web_search(query: str, *urls: str) -> list:
 
 def reply(*blocks, stop="end_turn", tokens_in=1000, tokens_out=200, cache_read=0) -> Message:
     flat = [b for item in blocks for b in (item if isinstance(item, list) else [item])]
+    searches = sum(1 for b in flat if b.type == "server_tool_use" and b.name == "web_search")
     return Message(
         id=f"msg_{next(_ids)}",
         type="message",
@@ -83,6 +85,9 @@ def reply(*blocks, stop="end_turn", tokens_in=1000, tokens_out=200, cache_read=0
             output_tokens=tokens_out,
             cache_creation_input_tokens=0,
             cache_read_input_tokens=cache_read,
+            server_tool_use=ServerToolUsage(web_search_requests=searches, web_fetch_requests=0)
+            if searches
+            else None,
         ),
     )
 
@@ -157,7 +162,7 @@ async def make_world(
             model="claude-sonnet-5-5",
             status="running",
             budgets=budgets
-            or {"max_turns": 12, "max_web_searches": 3, "max_total_output_tokens": 100_000},
+            or {"max_turns": 12, "max_web_searches": 0, "max_total_output_tokens": 100_000},
             usage={"input_tokens": 0, "output_tokens": 0, "turns": 0, "web_searches": 0},
         )
         session.add(run)

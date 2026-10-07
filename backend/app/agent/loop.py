@@ -24,6 +24,7 @@ from app.agent.toolbox import Toolbox, tool_result_text
 from app.config import get_settings
 from app.database import session_factory
 from app.models import AgentEvent, AgentRun, ResearchGoal, Source, Statement
+from app.services import literature as literature_service
 from app.services.amass import AmassNotConfigured, get_amass_client
 from app.services.claude_call import ClaudeCallFailed
 from app.services.claude_errors import describe_claude_failure
@@ -100,6 +101,7 @@ async def execute_run(
     client: Any = None,
     amass: Any = None,
     judge: Judge | None = None,
+    literature: Any = None,
 ) -> None:
     settings = get_settings()
     async with sessions() as session:
@@ -122,7 +124,10 @@ async def execute_run(
         judge = None
     elif judge is None:
         judge = Judge(client)
-    toolbox = Toolbox(sessions, run_id, amass, judge)
+    if literature is None:
+        literature = literature_service.get_literature_client()
+    # False switches the open indexes off (evaluations answer from their packet only).
+    toolbox = Toolbox(sessions, run_id, amass, judge, literature or None)
     state = _State(run_id, sessions, log_, toolbox, mode, model, budgets, judge)
     try:
         if state.assurance is not None:
@@ -598,7 +603,9 @@ async def _prepare_experiment(state: _State) -> None:
 PUBLIC_CAVEATS = {
     "missing_premise": "Part of the reasoning relies on a premise the cited passages do not state.",
     "unreasoned_conclusion": "The conclusion was not formally derived from the recorded claims.",
-    "causal_design_not_shown": "A causal claim rests on a study design the cited text does not show.",
+    "causal_design_not_shown": (
+        "A causal claim rests on a study design the cited text does not show."
+    ),
     "withdrawn_premise": "Part of the reasoning uses a claim that was later withdrawn.",
     "judge_unavailable": "The independent evidence check could not run.",
 }

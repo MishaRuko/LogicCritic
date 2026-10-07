@@ -1,8 +1,10 @@
 import json
-from types import SimpleNamespace
 import uuid
+from types import SimpleNamespace
 
+from app.evaluations import scoring
 from app.evaluations.europe_pmc import packet_from_xml
+from app.evaluations.scifact_cases import to_eval_case, verdict_cases
 from app.evaluations.service import (
     GeneratedCases,
     PairwiseVerdict,
@@ -25,7 +27,9 @@ def test_generated_case_requires_a_question_and_hidden_rubric() -> None:
         {
             "cases": [
                 {
-                    "question": "Does the evidence establish that the intervention caused the outcome?",
+                    "question": (
+                        "Does the evidence establish that the intervention caused the outcome?"
+                    ),
                     "completion_criteria": ["Identify the study design", "Account for limitations"],
                     "rubric": ["It is observational", "It cannot establish causation"],
                     "trap": "The abstract uses causal language despite observational methods.",
@@ -56,8 +60,9 @@ def test_pairwise_verdict_keeps_scores_and_anonymous_winner() -> None:
 def test_europe_pmc_packet_keeps_article_body_and_drops_references() -> None:
     packet = packet_from_xml(
         "PMC123",
-        "<article><front><article-title>Study title</article-title><abstract>Abstract text</abstract>"
-        "</front><body><sec><title>Results</title><p>Observed result.</p></sec></body>"
+        "<article><front><article-title>Study title</article-title>"
+        "<abstract>Abstract text</abstract></front>"
+        "<body><sec><title>Results</title><p>Observed result.</p></sec></body>"
         "<ref-list><ref>Reference omitted.</ref></ref-list></article>",
     )
 
@@ -120,14 +125,14 @@ def test_europe_pmc_article_becomes_bounded_sectioned_excerpts() -> None:
 
 # -- v3 scoring ----------------------------------------------------------------------------------
 
-from app.evaluations import scoring
-from app.evaluations.scifact_cases import to_eval_case, verdict_cases
-
 
 KEY = {
     "verdict_options": scoring.PAPER_VERDICTS,
     "expected_verdict": "partially_supported",
-    "required_deductions": [{"deduction": "a", "evidence": "x"}, {"deduction": "b", "evidence": "y"}],
+    "required_deductions": [
+        {"deduction": "a", "evidence": "x"},
+        {"deduction": "b", "evidence": "y"},
+    ],
 }
 
 
@@ -164,7 +169,10 @@ def test_missing_deduction_reports_count_as_absent() -> None:
 
 def test_explicit_scifact_verdict_is_read_deterministically() -> None:
     options = scoring.SCIFACT_VERDICTS
-    assert scoring.explicit_verdict("Verdict: **NOT ENOUGH INFO**\nThe abstract...", options) == "NOT ENOUGH INFO"
+    assert (
+        scoring.explicit_verdict("Verdict: **NOT ENOUGH INFO**\nThe abstract...", options)
+        == "NOT ENOUGH INFO"
+    )
     assert scoring.explicit_verdict("verdict: contradicts", options) == "CONTRADICTS"
     assert scoring.explicit_verdict("It supports the claim.", options) is None
 
@@ -179,10 +187,17 @@ def test_paired_summary_reports_guarded_minus_baseline() -> None:
 
 
 def test_scifact_cases_include_not_enough_info_and_gold_labels() -> None:
-    corpus = [{"doc_id": 1, "title": "T", "abstract": ["S0.", "S1."]}, {"doc_id": 2, "title": "U", "abstract": ["Z."]}]
+    corpus = [
+        {"doc_id": 1, "title": "T", "abstract": ["S0.", "S1."]},
+        {"doc_id": 2, "title": "U", "abstract": ["Z."]},
+    ]
     claims = [
-        {"id": 7, "claim": "X helps.", "cited_doc_ids": [1, 2],
-         "evidence": {"1": [{"label": "CONTRADICT", "sentences": [1]}]}},
+        {
+            "id": 7,
+            "claim": "X helps.",
+            "cited_doc_ids": [1, 2],
+            "evidence": {"1": [{"label": "CONTRADICT", "sentences": [1]}]},
+        },
     ]
 
     cases = verdict_cases(corpus, claims)
@@ -206,14 +221,26 @@ async def test_scifact_key_is_the_gold_label_and_scorer_never_sees_it() -> None:
 
         async def create(self, **request):
             self.requests.append(request)
-            return reply(text(json.dumps({
-                "claims": [{"claim": "S1 says no effect", "status": "supported", "note": ""}],
-                "verdict_given": "SUPPORTS", "invalid_inferences": [], "deductions": [],
-            })))
+            return reply(
+                text(
+                    json.dumps(
+                        {
+                            "claims": [
+                                {"claim": "S1 says no effect", "status": "supported", "note": ""}
+                            ],
+                            "verdict_given": "SUPPORTS",
+                            "invalid_inferences": [],
+                            "deductions": [],
+                        }
+                    )
+                )
+            )
 
     client = Client()
     tally = {"calls": 0, "input_tokens": 0, "output_tokens": 0}
-    key = await scoring.derive_key(client, "m", {"gold_label": "CONTRADICTS", "question": "q"}, {}, tally)
+    key = await scoring.derive_key(
+        client, "m", {"gold_label": "CONTRADICTS", "question": "q"}, {}, tally
+    )
     _, result = await scoring.score_answer(
         client, "m", "q", {"sources": []}, key, "Verdict: CONTRADICTS. S1 shows no effect.", tally
     )
@@ -225,19 +252,30 @@ async def test_scifact_key_is_the_gold_label_and_scorer_never_sees_it() -> None:
 
 
 async def test_cost_cap_ignores_arms_still_running() -> None:
+    from sqlalchemy import select
+
     from app.database import engine, session_factory
     from app.evaluations.service import _spent, create_evaluation
     from app.models import EvaluationCase, EvaluationOutput
     from tests.agent_helpers import make_world
-    from sqlalchemy import select
 
     await engine.dispose()
     world = await make_world()
     evaluation_id = await create_evaluation("t", [{"packet": {"sources": []}, "question": "q?"}])
     async with session_factory() as session:
-        case = await session.scalar(select(EvaluationCase).where(EvaluationCase.evaluation_run_id == evaluation_id))
-        session.add(EvaluationOutput(evaluation_case_id=case.id, arm="baseline", workspace_id=world.workspace_id,
-                                     agent_run_id=world.run_id, status="running", usage={}))
+        case = await session.scalar(
+            select(EvaluationCase).where(EvaluationCase.evaluation_run_id == evaluation_id)
+        )
+        session.add(
+            EvaluationOutput(
+                evaluation_case_id=case.id,
+                arm="baseline",
+                workspace_id=world.workspace_id,
+                agent_run_id=world.run_id,
+                status="running",
+                usage={},
+            )
+        )
         await session.commit()
 
     try:

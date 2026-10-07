@@ -228,3 +228,13 @@ def test_protocol_phases_and_steps_survive_page_breaks():
     assert groups[3] == groups[4] and groups[3] != groups[0]
     assert groups[5] not in {groups[0], groups[3]}
     assert not parsed.excerpts[-1].locator.get("methodology_section")
+
+
+def test_nul_characters_are_dropped_from_page_text() -> None:
+    """Some font encodings extract as NUL, which Postgres cannot store in a text column."""
+
+    class Page:
+        def extract_text(self) -> str:
+            return "π\x00 0.5 reached\x00 97%."
+
+    assert pdf_ingestion._page_text(Page()) == "π 0.5 reached 97%."

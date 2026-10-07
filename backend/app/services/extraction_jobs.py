@@ -105,9 +105,7 @@ async def process_extraction_job(job_id: uuid.UUID) -> None:
                     for excerpt in excerpts
                     if is_extractable_excerpt(
                         excerpt,
-                        fulltext_available=bool(
-                            (source.metadata_ or {}).get("fulltext_imported")
-                        ),
+                        fulltext_available=bool((source.metadata_ or {}).get("fulltext_imported")),
                     )
                 ],
                 settings.max_extraction_context_chars,

@@ -38,7 +38,7 @@ those stay queued), `postgres` (pgvector image, but no vectors are used), `redis
 ## Commands
 
 ```sh
-cp .env.example .env            # set CLAUDE_API_KEY; AMASS_API_KEY for paper search
+cp .env.example .env            # set CLAUDE_API_KEY; AMASS_API_KEY for biomedical paper search
 make up                         # full stack at http://localhost
 make backend && make frontend   # dev: API in Docker, frontend on :5173
 ```
@@ -46,21 +46,19 @@ make backend && make frontend   # dev: API in Docker, frontend on :5173
 Backend tests (run inside the API image; install dev extras first):
 
 ```sh
-DEMO_PROTOCOL=false AMASS_API_KEY= CLAUDE_API_KEY= docker compose run --rm --no-deps --user root \
+AMASS_API_KEY= CLAUDE_API_KEY= docker compose run --rm --no-deps --user root \
   -v "$PWD/backend:/app" api sh -c "pip install -e '.[dev]' >/dev/null && python -m pytest -q"
 ```
 
 - Blank both API keys. With real keys in the environment some tests make live calls and fail
   (the critic flags steps, Amass answers searches).
-- Set `DEMO_PROTOCOL=false`. Compose turns the demo protocol on by default, and the experiment
-  tests expect the protocol to come from the source.
 - Do not run pytest in parallel (`-n`): tests share one database and interfere.
 - Schema check: `docker compose run --rm --no-deps -v "$PWD/backend:/app" api alembic check`.
 
 Frontend: `pnpm --dir frontend test`, `pnpm --dir frontend typecheck`, `pnpm --dir frontend build`.
 Vision: run `python -m pytest` in `vision/` (install `vision[dev]`).
 
-Current baseline: backend 372 passed, frontend 64 passed, vision 75 passed.
+Current baseline: backend 406 passed, frontend 81 passed, vision 75 passed.
 
 ## Rules that are easy to break
 
@@ -80,6 +78,19 @@ Current baseline: backend 372 passed, frontend 64 passed, vision 75 passed.
   verifiers see cited excerpts, so a giant excerpt silently breaks verification (this happened).
 - **Tests use the live Docker database.** A test that opens connections should dispose the engine
   at the end (`await engine.dispose()`), or the next test file fails with event-loop errors.
+
+## Paper search
+
+The agent's `search_papers` queries Amass (biomedical, needs `AMASS_API_KEY`), Semantic Scholar
+(all fields) and arXiv at once and merges duplicates (`app/services/literature.py`). Semantic
+Scholar's keyless pool is shared and often answers 429; OpenAlex (about 100 free searches a day)
+answers instead. `SEMANTIC_SCHOLAR_API_KEY` (free, by application) raises that limit.
+`read_paper` uses Amass full text, then arXiv or an open-access PDF, then the abstract only.
+Tests never reach these indexes (`tests/conftest.py`), and evaluations switch them off.
+
+Planned: Google Scholar through SerpAPI (paid; the user has had good results with it), as one
+more optional source behind a `SERPAPI_KEY`. Do not use the `scholarly` scraper: Google blocks
+it from servers. Scholar returns snippets only, so its hits still need full text from elsewhere.
 
 ## Models (backend/app/config.py)
 

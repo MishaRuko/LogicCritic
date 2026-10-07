@@ -20,6 +20,7 @@ from app.models import (
     Statement,
 )
 from app.services.amass import BiomedRecord
+from app.services.literature import LiteratureError, Paper
 from tests.agent_helpers import claim_args, make_world
 
 
@@ -309,6 +310,33 @@ async def test_fetch_url_saves_a_web_page_as_a_source_once(monkeypatch) -> None:
     assert source.external_ids == {"url": "https://who.example/guidance"}
 
 
+async def test_a_page_with_nul_characters_is_saved_without_them(monkeypatch) -> None:
+    async def fetch(url, **kwargs):
+        return FetchedPage(url, url, 200, "text/plain", b"Mortality\x00 fell by 30%.")
+
+    monkeypatch.setattr("app.agent.toolbox.fetch_public", fetch)
+    toolbox = box(await make_world())
+    result = await call(toolbox, "fetch_url", url="https://nul.example/a.txt")
+    page = await call(toolbox, "read_source", source_id=result["source_id"], offset=0)
+    assert [e["text"] for e in page["excerpts"]] == ["Mortality fell by 30%."]
+
+
+async def test_an_unexpected_failure_is_a_tool_error_not_a_crashed_run(monkeypatch) -> None:
+    async def broken_store(*args, **kwargs):
+        raise RuntimeError("database refused the row")
+
+    async def fetch(url, **kwargs):
+        return FetchedPage(url, url, 200, "text/plain", b"Some text.")
+
+    monkeypatch.setattr("app.agent.toolbox.fetch_public", fetch)
+    monkeypatch.setattr("app.agent.toolbox.store_source", broken_store)
+    toolbox = box(await make_world())
+    result = await call(toolbox, "fetch_url", url="https://broken.example/")
+    assert result == {"error": "fetch_url failed unexpectedly (RuntimeError); try another way."}
+    # The toolbox still works afterwards.
+    assert "error" not in await call(toolbox, "graph_overview")
+
+
 async def test_fetch_failures_are_reported_to_the_agent(monkeypatch) -> None:
     from app.agent.web import FetchError
 
@@ -368,7 +396,7 @@ async def test_paper_search_and_reading_through_amass() -> None:
         {"min_publication_date": None, "is_retracted": False},
     )
     assert (
-        found["results"][0]["amass_id"] == "AMBC_1" and len(found["results"][0]["abstract"]) == 700
+        found["results"][0]["amass_id"] == "AMBC_1" and len(found["results"][0]["abstract"]) == 600
     )
 
     paper = await call(toolbox, "read_paper", amass_id="AMBC_1", pmid=None, doi=None)
@@ -402,6 +430,116 @@ async def test_paper_tools_explain_when_amass_is_not_configured() -> None:
     assert "no Amass API key" in result["error"]
     both = await call(box(world, FakeAmass()), "read_paper", amass_id="AMBC_1", pmid="1", doi=None)
     assert "exactly one" in both["error"]
+
+
+class FakeLiterature:
+    """Semantic Scholar and arXiv stand-ins. `papers` maps a lookup id to the paper found."""
+
+    def __init__(self, papers: dict[str, Paper] | None = None, arxiv_down: bool = False) -> None:
+        self.papers = papers or {}
+        self.arxiv_down = arxiv_down
+        self.lookups = []
+
+    async def search_semantic_scholar(self, query, limit, published_after=None):
+        return [
+            Paper(["semantic_scholar"], "Trial of X", ids={"doi": "10.1/X", "pmid": "1"}),
+            Paper(["semantic_scholar"], "Cohort of X", ids={"semantic_scholar_id": "s2b"}),
+        ]
+
+    async def search_arxiv(self, query, limit, published_after=None):
+        if self.arxiv_down:
+            raise LiteratureError("arXiv returned 503.")
+        return [Paper(["arxiv"], "A model of X", ids={"arxiv_id": "2601.00001"})]
+
+    async def lookup_semantic_scholar(self, paper_id):
+        self.lookups.append(paper_id)
+        return self.papers.get(paper_id)
+
+
+async def test_paper_search_merges_the_indexes_and_reports_one_that_failed() -> None:
+    world = await make_world()
+    toolbox = Toolbox(
+        session_factory, world.run_id, FakeAmass(), None, FakeLiterature(arxiv_down=True)
+    )
+    found = await call(
+        toolbox, "search_papers", query="x", limit=10, published_after=None,
+        exclude_retracted=False, sources=None,
+    )  # fmt: skip
+    # Amass's "Trial of X" and Semantic Scholar's (same title) are one result found in both.
+    assert [(r["title"], r["found_in"]) for r in found["results"]] == [
+        ("Trial of X", ["amass", "semantic_scholar"]),
+        ("Cohort of X", ["semantic_scholar"]),
+    ]
+    assert found["results"][0]["amass_id"] == "AMBC_1" and found["results"][0]["doi"] == "10.1/X"
+    assert found["unavailable"] == {"arxiv": "arXiv returned 503."}
+
+    only_arxiv = await call(
+        Toolbox(session_factory, world.run_id, None, None, FakeLiterature()), "search_papers",
+        query="x", limit=10, published_after=None, exclude_retracted=False, sources=["arxiv"],
+    )  # fmt: skip
+    assert [r["arxiv_id"] for r in only_arxiv["results"]] == ["2601.00001"]
+
+
+def paper_ids(**given) -> dict:
+    """read_paper arguments: every id null except the ones given."""
+    return {"amass_id": None, "pmid": None, "doi": None, **given}
+
+
+def _page(title: str, body: str):
+    def html(url: str) -> bytes:
+        return f"<html><head><title>{title}</title></head><body><p>{body}</p><p>{url}</p>".encode()
+
+    return lambda url, **kwargs: _async(FetchedPage(url, url, 200, "text/html", html(url)))
+
+
+async def _async(value):
+    return value
+
+
+async def test_a_paper_amass_lacks_is_read_from_its_open_access_copy(monkeypatch) -> None:
+    world = await make_world()
+    fetched = []
+    page = _page("Cohort", "Mortality was unchanged in the cohort.")
+    monkeypatch.setattr(
+        "app.agent.toolbox.fetch_public", lambda url, **kw: fetched.append(url) or page(url, **kw)
+    )
+    paper = Paper(
+        ["semantic_scholar"], "Cohort of X", open_access_pdf="https://oa.example/c.pdf",
+        ids={"semantic_scholar_id": "s2b", "doi": "10.2/c"},
+    )  # fmt: skip
+    literature = FakeLiterature({"DOI:10.2/c": paper})
+    toolbox = Toolbox(session_factory, world.run_id, None, None, literature)
+
+    result = await call(toolbox, "read_paper", **paper_ids(doi="10.2/c"))
+    assert fetched == ["https://oa.example/c.pdf"] and result["title"] == "Cohort of X"
+    assert result["ids"]["doi"] == "10.2/c" and "abstract_only" not in result
+    text = await call(toolbox, "read_source", source_id=result["source_id"], offset=0)
+    assert any("unchanged" in e["text"] for e in text["excerpts"])
+
+    arxiv = await call(toolbox, "read_paper", **paper_ids(arxiv_id="2601.00001"))
+    assert fetched[-1] == "https://arxiv.org/pdf/2601.00001" and arxiv["ids"]["arxiv_id"]
+
+
+async def test_a_paper_with_no_open_full_text_is_saved_as_its_abstract() -> None:
+    world = await make_world()
+    paper = Paper(
+        ["semantic_scholar"], "Paywalled trial", abstract="Drug X lowered mortality by 12%.",
+        ids={"semantic_scholar_id": "s2c", "pmid": "77"},
+    )  # fmt: skip
+    toolbox = Toolbox(session_factory, world.run_id, None, None, FakeLiterature({"PMID:77": paper}))
+    result = await call(toolbox, "read_paper", **paper_ids(pmid="77"))
+    assert "abstract" in result["abstract_only"]
+    async with session_factory() as session:
+        source = await session.get(Source, uuid.UUID(result["source_id"]))
+    assert (source.kind, source.origin) == ("paper_abstract", "semantic_scholar")
+    text = await call(toolbox, "read_source", source_id=result["source_id"], offset=0)
+    assert [e["text"] for e in text["excerpts"]] == [
+        "Paywalled trial",
+        "Drug X lowered mortality by 12%.",
+    ]
+
+    missing = await call(toolbox, "read_paper", **paper_ids(semantic_scholar_id="nope"))
+    assert "No index has a paper" in missing["error"]
 
 
 async def test_an_unknown_tool_is_an_error_not_a_crash() -> None:

@@ -11,14 +11,20 @@ from pydantic import BaseModel, Field
 
 
 class SearchPapersInput(BaseModel):
-    query: str = Field(
-        description="What to search for in the biomedical literature (PubMed-scale)."
-    )
-    limit: int = Field(description="How many results, 1 to 15.")
+    query: str = Field(description="What to search for in the scholarly literature.")
+    limit: int = Field(description="How many results, 1 to 20.")
     published_after: str | None = Field(
         description="Earliest publication date as YYYY-MM-DD, or null."
     )
     exclude_retracted: bool = Field(description="True to leave out retracted papers.")
+    sources: list[Literal["amass", "semantic_scholar", "arxiv"]] | None = Field(
+        default=None,
+        description=(
+            "Which indexes to search, or null for all: amass (biomedical, PubMed-scale, with "
+            "retraction flags), semantic_scholar (all fields, ~200M papers), arxiv (preprints in "
+            "physics, CS, maths, quantitative biology)."
+        ),
+    )
 
 
 class ReadPaperInput(BaseModel):
@@ -27,6 +33,12 @@ class ReadPaperInput(BaseModel):
     )
     pmid: str | None = Field(description="A PubMed ID, or null.")
     doi: str | None = Field(description="A DOI, or null.")
+    arxiv_id: str | None = Field(
+        default=None, description="An arXiv ID such as 2603.23361, or null."
+    )
+    semantic_scholar_id: str | None = Field(
+        default=None, description="A semantic_scholar_id from search_papers, or null."
+    )
 
 
 class ReadSourceInput(BaseModel):
@@ -47,7 +59,9 @@ class LinkClaimsInput(BaseModel):
 
 
 class GraphSearchInput(BaseModel):
-    query: str = Field(description="Words to look for in the claims of the workspace's argument graph.")
+    query: str = Field(
+        description="Words to look for in the claims of the workspace's argument graph."
+    )
     limit: int = Field(description="How many claims, 1 to 25.")
 
 
@@ -255,13 +269,16 @@ class AbstainInput(BaseModel):
 # name -> (description, model). The order is the order the agent sees them in.
 RESEARCH_TOOLS: dict[str, tuple[str, type[BaseModel]]] = {
     "search_papers": (
-        "Search the biomedical literature (Amass BiomedCore). Returns titles, abstracts, dates, "
-        "citation counts and whether each paper is retracted. Does not save anything.",
+        "Search the scholarly literature: Amass (biomedical), Semantic Scholar (all fields) and "
+        "arXiv (preprints), merged. Returns titles, abstracts, dates, citation counts, the ids to "
+        "read each paper with, and retraction flags where known. Does not save anything.",
         SearchPapersInput,
     ),
     "read_paper": (
-        "Import one paper into the workspace so you can read and cite it. Returns a source_id and "
-        "an index of its excerpts. Retracted papers are flagged. Call read_source to read text.",
+        "Import one paper into the workspace so you can read and cite it: give exactly one of its "
+        "ids. Uses the full text where it is available (Amass, arXiv, open-access PDFs), otherwise "
+        "the abstract only, which the result says. Returns a source_id and an index of its "
+        "excerpts. Retracted papers are flagged. Call read_source to read text.",
         ReadPaperInput,
     ),
     "fetch_url": (
@@ -301,9 +318,10 @@ GRAPH_TOOLS = {
 
 RECORDING_TOOLS: dict[str, tuple[str, type[BaseModel]]] = {
     "link_claims": (
-        "Add a supports, rebuts or qualifies link between two claims in the graph, including claims "
-        "from added material or earlier runs. The graph is additive: never edit an earlier claim; "
-        "record your own claim and link it. Each link is audited against the claims' cited text.",
+        "Add a supports, rebuts or qualifies link between two claims in the graph, including "
+        "claims from added material or earlier runs. The graph is additive: never edit an "
+        "earlier claim; record your own claim and link it. Each link is audited against the "
+        "claims' cited text.",
         LinkClaimsInput,
     ),
     "record_claim": (

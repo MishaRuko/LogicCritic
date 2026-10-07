@@ -37,6 +37,7 @@ from app.services.text_ingestion import parse_structured_text
 MAX_PACKET_CHARS = 81_000
 JUDGE_ATTEMPTS = 3
 
+
 class GeneratedCase(BaseModel):
     question: str = Field(min_length=10, max_length=700)
     completion_criteria: list[str] = Field(min_length=2, max_length=5)
@@ -57,7 +58,8 @@ class PairwiseVerdict(BaseModel):
     rationale: str = Field(min_length=1)
 
 
-CASE_SYSTEM = """You design difficult, answerable scientific-reasoning evaluation cases from supplied
+CASE_SYSTEM = """You design difficult, answerable scientific-reasoning evaluation cases from \
+supplied
 full-text source material. Write questions whose answer requires careful attention to methods,
 limitations, study design, scope, contradictory evidence, or uncertainty rather than paraphrasing
 an abstract. Do not require information outside the supplied packet. Give a concise hidden rubric
@@ -66,21 +68,27 @@ that names the evidence and calibration expected. Each case should hinge on a cr
 existing_questions_do_not_repeat is given, test different claims and reasoning than those
 questions. Do not invent facts or citations. Keep every
 question under 700 characters and every rubric/trap item under 500 characters. Return only JSON
-without Markdown: {"cases":[{"question":string,"completion_criteria":[string],"rubric":[string],"trap":string}]}."""
+without Markdown: {"cases":[{"question":string,"completion_criteria":[string],\
+"rubric":[string],"trap":string}]}."""
 
-JUDGE_SYSTEM = """You are a blind evaluator for a scientific-reasoning experiment. Score Answer A and
+JUDGE_SYSTEM = """You are a blind evaluator for a scientific-reasoning experiment. Score Answer A \
+and
 Answer B independently against the supplied question, source packet, and hidden rubric. You do not
 know which system produced either answer and must not infer or discuss it. Reward factual accuracy,
 use of the supplied evidence, appropriate uncertainty, and direct handling of the trap. Penalize
 unsupported claims, causal overreach, ignored limitations, and confident answers where abstention
 or qualification is warranted. Treat facts stated in the question as claims to assess, not source
-evidence: reward them only when the supplied packet supports them. A score of 4 is fully correct and well calibrated; 0 is materially
+evidence: reward them only when the supplied packet supports them. A score of 4 is fully \
+correct and well calibrated; 0 is materially
 wrong or unsupported. Choose the higher score as winner, or tie only when equal. Return only JSON
-without Markdown: {"answer_a_score":integer,"answer_b_score":integer,"winner":"A"|"B"|"tie","critical_errors_a":[string],"critical_errors_b":[string],"rationale":string}."""
+without Markdown: {"answer_a_score":integer,"answer_b_score":integer,"winner":"A"|"B"|"tie",\
+"critical_errors_a":[string],"critical_errors_b":[string],"rationale":string}."""
 
 
 def packet_hash(packet: dict) -> str:
-    return hashlib.sha256(json.dumps(packet, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    return hashlib.sha256(
+        json.dumps(packet, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
 
 
 async def generate_cases(
@@ -130,7 +138,10 @@ async def create_evaluation(
                 "effort": settings.agent_effort,
                 "max_cost_usd": settings.eval_max_cost_usd,
                 "source_access": "packet only; web search disabled",
-                "method_note": "Synthetic cases and blind LLM judging are a hackathon signal, not independent validation.",
+                "method_note": (
+                    "Synthetic cases and blind LLM judging are a hackathon signal, "
+                    "not independent validation."
+                ),
                 "scoring": scoring.SCORER,
                 **(extra_config or {}),
             },
@@ -164,7 +175,9 @@ async def _materialize_workspace(session: AsyncSession, packet: dict, title: str
     for position, source in enumerate(packet["sources"], start=1):
         text = source["text"]
         if len(text) > MAX_PACKET_CHARS:
-            raise ValueError(f"Source {position} exceeds the {MAX_PACKET_CHARS}-character evaluation limit")
+            raise ValueError(
+                f"Source {position} exceeds the {MAX_PACKET_CHARS}-character evaluation limit"
+            )
         await store_source(
             session,
             workspace.id,
@@ -191,7 +204,9 @@ async def _run_arm(
     client: Any,
 ) -> EvaluationOutput:
     async with sessions() as session:
-        workspace = await _materialize_workspace(session, case.packet, f"Evaluation {case.id} {arm}")
+        workspace = await _materialize_workspace(
+            session, case.packet, f"Evaluation {case.id} {arm}"
+        )
         payload = _arm_payload(case, arm, config)
         run = await create_run(session, workspace.id, payload)
         run.budgets = {
@@ -212,7 +227,9 @@ async def _run_arm(
         await session.commit()
         output_id = output.id
     guard_judge = Judge(client, model=config.get("guard_judge_model")) if arm == "guarded" else None
-    await execute_run(run.id, sessions=sessions, client=client, amass=None, judge=guard_judge)
+    await execute_run(
+        run.id, sessions=sessions, client=client, amass=None, judge=guard_judge, literature=False
+    )
     async with sessions() as session:
         run = await session.get(AgentRun, run.id)
         output = await session.get(EvaluationOutput, output_id)
@@ -251,7 +268,12 @@ async def _judge_case(
         return None
     labels = case.blind_labels
     answers = _blind_answers(labels, by_arm)
-    material = {"packet": case.packet, "question": case.rubric["question"], "rubric": case.rubric, "answers": answers}
+    material = {
+        "packet": case.packet,
+        "question": case.rubric["question"],
+        "rubric": case.rubric,
+        "answers": answers,
+    }
     tally = new_tally()
     for attempt in range(JUDGE_ATTEMPTS):
         try:
@@ -315,7 +337,13 @@ async def run_evaluation(
             raise ValueError(f"Unknown evaluation {evaluation_id}")
         evaluation.status = "running"
         await session.commit()
-        cases = list(await session.scalars(select(EvaluationCase).where(EvaluationCase.evaluation_run_id == evaluation_id).order_by(EvaluationCase.position)))
+        cases = list(
+            await session.scalars(
+                select(EvaluationCase)
+                .where(EvaluationCase.evaluation_run_id == evaluation_id)
+                .order_by(EvaluationCase.position)
+            )
+        )
         config = dict(evaluation.config)
     gate = asyncio.Semaphore(concurrency)
     over_budget = False
@@ -323,10 +351,15 @@ async def run_evaluation(
     async def one(case: EvaluationCase) -> None:
         nonlocal over_budget
         async with gate:
-            if over_budget or await _spent(evaluation_id, sessions=sessions) >= config["max_cost_usd"]:
+            if (
+                over_budget
+                or await _spent(evaluation_id, sessions=sessions) >= config["max_cost_usd"]
+            ):
                 over_budget = True
                 return
-            await _run_case(case, config, sessions=sessions, client=client, retry_failed=retry_failed)
+            await _run_case(
+                case, config, sessions=sessions, client=client, retry_failed=retry_failed
+            )
 
     results = await asyncio.gather(*(one(case) for case in cases), return_exceptions=True)
     for case, result in zip(cases, results):
@@ -339,7 +372,11 @@ async def run_evaluation(
 
 async def _run_case(case, config, *, sessions, client, retry_failed: bool) -> None:
     async with sessions() as session:
-        existing = list(await session.scalars(select(EvaluationOutput).where(EvaluationOutput.evaluation_case_id == case.id)))
+        existing = list(
+            await session.scalars(
+                select(EvaluationOutput).where(EvaluationOutput.evaluation_case_id == case.id)
+            )
+        )
         if retry_failed:
             for output in [o for o in existing if o.status != "succeeded"]:
                 await session.delete(output)
@@ -352,12 +389,18 @@ async def _run_case(case, config, *, sessions, client, retry_failed: bool) -> No
     )
     by_arm.update({output.arm: output for output in ran})
     if config.get("scoring") == scoring.SCORER:
-        done = await _score_case(case, list(by_arm.values()), config, sessions=sessions, client=client)
+        done = await _score_case(
+            case, list(by_arm.values()), config, sessions=sessions, client=client
+        )
     else:
         async with sessions() as session:
-            done = await session.scalar(select(EvaluationJudgment).where(EvaluationJudgment.evaluation_case_id == case.id))
+            done = await session.scalar(
+                select(EvaluationJudgment).where(EvaluationJudgment.evaluation_case_id == case.id)
+            )
         if done is None:
-            done = await _judge_case(case, list(by_arm.values()), config, sessions=sessions, client=client)
+            done = await _judge_case(
+                case, list(by_arm.values()), config, sessions=sessions, client=client
+            )
     async with sessions() as session:
         row = await session.get(EvaluationCase, case.id)
         row.status = "completed" if done else "incomplete"
@@ -392,7 +435,13 @@ async def _score_case(case, outputs, config, *, sessions, client) -> bool:
             continue
         usage = new_tally()
         material, result = await scoring.score_answer(
-            client, model, case.rubric["question"], case.packet, key, _normalize_answer(output.answer), usage
+            client,
+            model,
+            case.rubric["question"],
+            case.packet,
+            key,
+            _normalize_answer(output.answer),
+            usage,
         )
         async with sessions() as session:
             session.add(
@@ -422,19 +471,32 @@ async def score_evaluation(
     async with sessions() as session:
         evaluation = await session.get(EvaluationRun, evaluation_id)
         config = dict(evaluation.config)
-        cases = list(await session.scalars(select(EvaluationCase).where(EvaluationCase.evaluation_run_id == evaluation_id)))
+        cases = list(
+            await session.scalars(
+                select(EvaluationCase).where(EvaluationCase.evaluation_run_id == evaluation_id)
+            )
+        )
     gate = asyncio.Semaphore(concurrency)
 
     async def one(case):
         async with gate:
             async with sessions() as session:
-                outputs = list(await session.scalars(select(EvaluationOutput).where(EvaluationOutput.evaluation_case_id == case.id)))
+                outputs = list(
+                    await session.scalars(
+                        select(EvaluationOutput).where(
+                            EvaluationOutput.evaluation_case_id == case.id
+                        )
+                    )
+                )
             await _score_case(case, outputs, config, sessions=sessions, client=client)
 
     results = await asyncio.gather(*(one(case) for case in cases), return_exceptions=True)
     for case, result in zip(cases, results):
         if isinstance(result, Exception):
-            print(f"case {case.position} scoring failed: {type(result).__name__}: {result}", flush=True)
+            print(
+                f"case {case.position} scoring failed: {type(result).__name__}: {result}",
+                flush=True,
+            )
     await render_report(evaluation_id, sessions=sessions)
 
 
@@ -455,10 +517,34 @@ def _blind_answers(labels: dict, by_arm: dict[str, EvaluationOutput]) -> dict[st
 async def _spent(evaluation_id: uuid.UUID, *, sessions: async_sessionmaker[AsyncSession]) -> float:
     """Use persisted usage only, so a resumed run cannot silently exceed its run budget."""
     async with sessions() as session:
-        cases = list(await session.scalars(select(EvaluationCase).where(EvaluationCase.evaluation_run_id == evaluation_id)))
+        cases = list(
+            await session.scalars(
+                select(EvaluationCase).where(EvaluationCase.evaluation_run_id == evaluation_id)
+            )
+        )
         case_ids = [case.id for case in cases]
-        outputs = list(await session.scalars(select(EvaluationOutput).where(EvaluationOutput.evaluation_case_id.in_(case_ids)))) if case_ids else []
-        judgments = list(await session.scalars(select(EvaluationJudgment).where(EvaluationJudgment.evaluation_case_id.in_(case_ids)))) if case_ids else []
+        outputs = (
+            list(
+                await session.scalars(
+                    select(EvaluationOutput).where(
+                        EvaluationOutput.evaluation_case_id.in_(case_ids)
+                    )
+                )
+            )
+            if case_ids
+            else []
+        )
+        judgments = (
+            list(
+                await session.scalars(
+                    select(EvaluationJudgment).where(
+                        EvaluationJudgment.evaluation_case_id.in_(case_ids)
+                    )
+                )
+            )
+            if case_ids
+            else []
+        )
     # An arm still running has not recorded its cost yet; only a finished one must be priced.
     costs = [output.usage.get("cost_usd") for output in outputs if output.status != "running"]
     if any(cost is None for cost in costs):
@@ -470,7 +556,17 @@ async def _spent(evaluation_id: uuid.UUID, *, sessions: async_sessionmaker[Async
     judge_cost = sum(estimated)
     async with sessions() as session:
         output_ids = [output.id for output in outputs]
-        score_rows = list(await session.scalars(select(EvaluationScore).where(EvaluationScore.evaluation_output_id.in_(output_ids)))) if output_ids else []
+        score_rows = (
+            list(
+                await session.scalars(
+                    select(EvaluationScore).where(
+                        EvaluationScore.evaluation_output_id.in_(output_ids)
+                    )
+                )
+            )
+            if output_ids
+            else []
+        )
     score_cost = sum(estimate_cost(row.model, row.usage) or 0 for row in score_rows)
     return agent_cost + judge_cost + score_cost
 
@@ -483,8 +579,23 @@ async def render_report(
 ) -> str:
     async with sessions() as session:
         evaluation = await session.get(EvaluationRun, evaluation_id)
-        cases = list(await session.scalars(select(EvaluationCase).where(EvaluationCase.evaluation_run_id == evaluation_id).order_by(EvaluationCase.position)))
-        lines = [f"# {evaluation.name}", "", "## Configuration", "", "```json", json.dumps(evaluation.config, indent=2), "```", ""]
+        cases = list(
+            await session.scalars(
+                select(EvaluationCase)
+                .where(EvaluationCase.evaluation_run_id == evaluation_id)
+                .order_by(EvaluationCase.position)
+            )
+        )
+        lines = [
+            f"# {evaluation.name}",
+            "",
+            "## Configuration",
+            "",
+            "```json",
+            json.dumps(evaluation.config, indent=2),
+            "```",
+            "",
+        ]
         agent_cost = {"baseline": 0.0, "guarded": 0.0}
         statuses = {"baseline": {}, "guarded": {}}
         scoring_cost = 0.0
@@ -493,27 +604,43 @@ async def render_report(
         legacy = {"baseline": [], "guarded": []}
         legacy_lines, judge_cost = [], 0.0
         for case in cases:
-            outputs = {o.arm: o for o in await session.scalars(select(EvaluationOutput).where(EvaluationOutput.evaluation_case_id == case.id))}
+            outputs = {
+                o.arm: o
+                for o in await session.scalars(
+                    select(EvaluationOutput).where(EvaluationOutput.evaluation_case_id == case.id)
+                )
+            }
             scores = {}
             for arm, output in outputs.items():
                 agent_cost[arm] += float(output.usage.get("cost_usd") or 0)
                 statuses[arm][output.status] = statuses[arm].get(output.status, 0) + 1
-                row = await session.scalar(select(EvaluationScore).where(EvaluationScore.evaluation_output_id == output.id, EvaluationScore.scorer == scoring.SCORER))
+                row = await session.scalar(
+                    select(EvaluationScore).where(
+                        EvaluationScore.evaluation_output_id == output.id,
+                        EvaluationScore.scorer == scoring.SCORER,
+                    )
+                )
                 if row:
                     scoring_cost += estimate_cost(row.model, row.usage) or 0
                     scores[arm] = row.score
             if len(scores) == 2:
                 pairs.append((scores["baseline"], scores["guarded"]))
             per_case.append((case, scores))
-            judgment = await session.scalar(select(EvaluationJudgment).where(EvaluationJudgment.evaluation_case_id == case.id))
+            judgment = await session.scalar(
+                select(EvaluationJudgment).where(EvaluationJudgment.evaluation_case_id == case.id)
+            )
             if judgment:
                 judge_cost += estimate_cost(judgment.model, judgment.usage) or 0
                 winner = judgment.verdict["winner"]
-                arm = next((name for name, label in case.blind_labels.items() if label == winner), winner)
+                arm = next(
+                    (name for name, label in case.blind_labels.items() if label == winner), winner
+                )
                 wins[arm] += 1
                 for arm_name, label in case.blind_labels.items():
                     legacy[arm_name].append(judgment.verdict[f"answer_{label.lower()}_score"])
-                legacy_lines.extend([f"### Case {case.position}: {arm}", "", judgment.verdict["rationale"], ""])
+                legacy_lines.extend(
+                    [f"### Case {case.position}: {arm}", "", judgment.verdict["rationale"], ""]
+                )
 
         lines += ["## Run", ""]
         for arm in ("baseline", "guarded"):
@@ -533,19 +660,35 @@ async def render_report(
             for row in scoring.paired_summary(pairs):
                 lines.append(
                     f"| {row['label']} | {row['baseline']:.2f} | {row['guarded']:.2f} | "
-                    f"{row['diff']:+.2f} [{row['ci_low']:+.2f}, {row['ci_high']:+.2f}] | {row['better'] or '-'} |"
+                    f"{row['diff']:+.2f} [{row['ci_low']:+.2f}, {row['ci_high']:+.2f}] | "
+                    f"{row['better'] or '-'} |"
                 )
-            lines += ["", "### Per case", "", "| # | Expected | Baseline verdict / errors / deductions | Guarded verdict / errors / deductions |", "|---|---|---|---|"]
+            lines += [
+                "",
+                "### Per case",
+                "",
+                "| # | Expected | Baseline verdict / errors / deductions "
+                "| Guarded verdict / errors / deductions |",
+                "|---|---|---|---|",
+            ]
             for case, scores in per_case:
+
                 def cell(arm):
                     sc = scores.get(arm)
                     if not sc:
                         return "not scored"
                     mark = "ok" if sc["verdict_correct"] else "wrong"
-                    ded = f"{sc['deductions_valid']}/{sc['deductions_required']}" if sc["deductions_required"] else "-"
+                    ded = (
+                        f"{sc['deductions_valid']}/{sc['deductions_required']}"
+                        if sc["deductions_required"]
+                        else "-"
+                    )
                     return f"{sc['verdict_given']} ({mark}) / {sc['errors']} / {ded}"
+
                 expected = (case.rubric.get("scoring_key") or {}).get("expected_verdict", "?")
-                lines.append(f"| {case.position} | {expected} | {cell('baseline')} | {cell('guarded')} |")
+                lines.append(
+                    f"| {case.position} | {expected} | {cell('baseline')} | {cell('guarded')} |"
+                )
             lines.append("")
 
         if legacy_lines:
@@ -553,13 +696,18 @@ async def render_report(
             lines += [
                 "## Legacy pairwise judgment (coverage-weighted; superseded)",
                 "",
-                f"- Cases judged: {judged}/{len(cases)}; guarded wins {wins['guarded']}, baseline wins {wins['baseline']}, ties {wins['tie']}",
-                f"- Mean score: guarded {sum(legacy['guarded']) / len(legacy['guarded']):.2f}, baseline {sum(legacy['baseline']) / len(legacy['baseline']):.2f}",
+                f"- Cases judged: {judged}/{len(cases)}; guarded wins {wins['guarded']}, "
+                f"baseline wins {wins['baseline']}, ties {wins['tie']}",
+                f"- Mean score: guarded {sum(legacy['guarded']) / len(legacy['guarded']):.2f}, "
+                f"baseline {sum(legacy['baseline']) / len(legacy['baseline']):.2f}",
                 f"- Judge cost: ${judge_cost:.2f}",
                 "",
                 *legacy_lines,
             ]
-        lines.append("Limitation: LLM-derived keys and LLM scoring (except SciFact gold labels); a hackathon signal, not independent validation.")
+        lines.append(
+            "Limitation: LLM-derived keys and LLM scoring (except SciFact gold labels); "
+            "a hackathon signal, not independent validation."
+        )
         report = "\n".join(lines)
         evaluation.report = report
         if status is not None:

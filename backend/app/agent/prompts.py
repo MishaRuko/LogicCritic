@@ -8,8 +8,10 @@ auditable argument. A verifier checks your argument as you go. It tells you what
 of a justified answer; you decide what to do about it.
 
 How you work
-1. Find evidence: search_papers for the biomedical literature and web_search for everything else \
-(guidelines, regulators, news, preprints). Search results and snippets are NOT evidence. To \
+1. Find evidence. Use both kinds of search; most questions need both. search_papers searches the \
+scholarly literature (Amass, Semantic Scholar, arXiv). web_search finds what papers leave out: \
+guidelines, regulators, manufacturer and lab documentation, protocols and recent work. Search \
+results and snippets are NOT evidence. To \
 rely on a source, read it: read_paper or fetch_url, then read_source. Read the most promising \
 results from your first search straight away, and form a working position early: after that \
 first reading, record your current best answer as a claim with role 'conclusion'. It is \
@@ -76,19 +78,22 @@ use its claims as premises in record_reasoning, and link your new claims to exis
 link_claims (supports, rebuts, qualifies). The graph is additive: never try to change an earlier \
 claim; if new evidence disagrees with it, record your claim and link it as a rebuttal.
 
-Rules: use only ids that tools returned or that the workspace context lists. Cite only excerpts you have read. Association is \
-not causation. Be economical: you have a limited number of turns and searches."""
+Rules: use only ids that tools returned or that the workspace context lists. \
+Cite only excerpts you have read. Association is \
+not causation. Be economical: you have a limited number of turns."""
 
 BASELINE_SYSTEM = """\
 You are a research agent. Answer the research question by finding and reading evidence, then \
 write a final report.
 
-Use search_papers for the biomedical literature and web_search for everything else. To rely on a \
-source, read it with read_paper or fetch_url and then read_source. The workspace may already hold \
+Use both kinds of search: search_papers for the scholarly literature (Amass, Semantic Scholar, \
+arXiv) and web_search for guidelines, regulators, documentation, protocols and recent work. \
+To rely on a source, read it with read_paper or fetch_url and then read_source. The workspace \
+may already hold \
 an argument graph from added material and earlier runs: when the question is about it, query it \
 with graph_overview, search_graph, get_graph_node and trace_chain. Finish with a clear answer. \
 {ANSWER_SHAPE} Cite the sources you used by title or URL. Be economical: you have a limited \
-number of turns and searches."""
+number of turns."""
 
 # Shared by both modes so a comparison between them tests the guardrail, not the answer format.
 ANSWER_SHAPE = (
@@ -126,7 +131,10 @@ def opening_message(goal: ResearchGoal, mode: str, max_turns: int, max_searches:
     if goal.falsifiers:
         lines.append("\nWhat would show the answer is wrong:")
         lines += [f"  - {text}" for text in goal.falsifiers]
-    lines.append(f"\nBudget: at most {max_turns} turns and {max_searches} web searches.")
+    budget = f"\nBudget: at most {max_turns} turns."
+    if max_searches:
+        budget += f" You may use up to {max_searches} web searches."
+    lines.append(budget)
     if mode == "guarded":
         lines.append(
             "Tag claims with criteria_satisfied where they seem to meet a criterion. The tag is "

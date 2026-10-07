@@ -133,6 +133,8 @@ def _page_text(page) -> str:
         text = page.extract_text() or ""
     except (PyPdfError, ValueError, KeyError, TypeError, RecursionError):
         return ""  # one unreadable page should not lose the document
+    # Some font encodings extract as NUL characters, which Postgres text cannot store.
+    text = text.replace("\x00", "")
     return HYPHEN_BREAK.sub("", text.replace("\r\n", "\n").replace("\r", "\n"))
 
 
@@ -141,7 +143,7 @@ def _title(reader: PdfReader) -> str | None:
         title = (reader.metadata.title if reader.metadata else None) or ""
     except (PyPdfError, ValueError, KeyError):
         return None
-    title = " ".join(str(title).split())
+    title = " ".join(str(title).replace("\x00", "").split())
     return title[:512] if len(title) >= 4 else None
 
 

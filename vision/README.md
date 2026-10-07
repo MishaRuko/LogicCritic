@@ -77,7 +77,7 @@ Environment variables or `.env` (see [config.py](src/lab_vision/config.py)):
 | Variable | Default | Notes |
 | --- | --- | --- |
 | `CLAUDE_API_KEY` | none | shared with the backend. If unset, the Anthropic SDK looks for its own credentials |
-| `VISION_MODEL` | `claude-opus-5-5` | **separate from the backend's `CLAUDE_MODEL`**, which defaults to Sonnet 4.5; that model rejects the `effort` parameter used here |
+| `VISION_MODEL` | `claude-opus-5-5` | **separate from the backend's `CLAUDE_MODEL`** (`claude-sonnet-5`) |
 | `VISION_EFFORT` | `medium` | set empty to omit, for models without effort levels |
 | `VISION_FALLBACKS` | `true` | server-side fallback if Claude's safety classifiers decline a window |
 | `SAMPLE_FPS` | `1.0` | frames sampled from the video |
@@ -312,6 +312,51 @@ In priority order. The first two address what the data shows is wrong.
    10 fps) was proposed but not run. SAM 2 needs about 10 fps, so expect minutes per clip.
    transformers 4.57 has SAM 2 image and video models but not SAM 3, and no automatic mask
    generator. **Do this only after 1-5**; detection currently buys nothing.
+
+## Reducing cost (ideas, not started)
+
+The video agent (`perception/experiment_agent.py`) is expensive because it runs on Opus 5.5 with
+adaptive thinking and must look at the video to find where things happen. It sends 8-40
+evenly spaced overview frames, then up to `max(48, 4 x steps)` 1024 px frames over up to 20
+turns, and every turn re-sends the conversation (cached, but still billed). Ideas, none built:
+
+**Measure first.** `ClaudeLLM._record` (`llm.py`) counts only `input_tokens` and `output_tokens`,
+not cache reads or writes, so the real split between images, re-reads and thinking output is
+unknown. Thinking output costs 5x input and may dominate. Fix the accounting, then do one
+paid run on a labelled clip before changing anything else.
+
+**Cheaper within the current design:**
+- Pick overview frames where something changes (OpenCV frame difference or scene change: free)
+  instead of one every 3 s; lab videos have long static stretches.
+- Tile overview frames into contact sheets: four 512 px frames in one 1024 px image cost the
+  same as one frame.
+- Smaller or cropped close-ups: 768 px instead of 1024 px is about 44% fewer image tokens;
+  crop to the bench area (OWLv2 is already here).
+- Use Sonnet or Haiku for the overview and Opus only for close inspection of uncertain steps;
+  lower `VISION_EFFORT`.
+- The Batch API halves the price for runs that do not need live progress.
+
+**A different design (the bigger win): find the moments first, then judge only those.**
+1. Index the video locally for free: a frame embedding (SigLIP or CLIP) for text search over
+   frames, motion and scene-change detection, optionally OWLv2 objects.
+2. For each protocol step, search the index with the step's text and take the 2-3 best windows.
+3. Ask a model only about those windows ("does this show the step, done correctly?"). Cost then
+   scales with the number of steps, not the length of the video. Fall back to a wider look when a
+   step has no confident match.
+
+   Variant: a cheap model (Haiku, or a local open model such as Qwen-VL) captions those windows
+   into a timestamped text log; a text-only model checks the protocol against it, and Opus is
+   called only for ambiguous steps.
+
+   Risk: general embeddings may not separate fine actions (pipetting vs aspirating). A free first
+   test: embed a labelled clip's frames and check whether each step's query retrieves the right
+   moment. If it does not, use the captioning variant on its own.
+
+**Other signals.** Many steps cannot be seen at all (concentrations, temperatures, durations;
+see `UNVERIFIABLE`). Narration ("adding 2 ml trypsin now") through speech-to-text, timer
+sounds, or centrifuge and incubator logs give cheap, timestamped evidence for those. Models that
+take video natively (Gemini, for example) cost far less per second, but would add a second
+provider.
 
 ## Extension points
 

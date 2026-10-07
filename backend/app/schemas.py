@@ -255,7 +255,11 @@ class ExtractedStatement(BaseModel):
     assertion_mode: AssertionMode
     role: StatementRole | None = None
     salience: StatementSalience = Field(
-        description="core for the paper's minimum central contribution; secondary for consequential but noncentral results, limitations, or implications; supporting for direct evidence or design premises."
+        description=(
+            "core for the paper's minimum central contribution; secondary for consequential but "
+            "noncentral results, limitations, or implications; supporting for direct evidence or "
+            "design premises."
+        )
     )
     supports_ref: str | None = Field(
         description="For a supporting statement: the client_ref of the core or secondary "

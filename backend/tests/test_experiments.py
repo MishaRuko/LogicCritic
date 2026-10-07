@@ -249,10 +249,15 @@ async def test_experiment_waits_for_extraction_without_requiring_verification(ap
 
     source = await upload(api)
     async with session_factory() as session:
-        session.add(ExtractionJob(
-            workspace_id=uuid.UUID(api.workspace), source_id=uuid.UUID(source["id"]),
-            idempotency_key=str(uuid.uuid4()), model="test", status="running",
-        ))
+        session.add(
+            ExtractionJob(
+                workspace_id=uuid.UUID(api.workspace),
+                source_id=uuid.UUID(source["id"]),
+                idempotency_key=str(uuid.uuid4()),
+                model="test",
+                status="running",
+            )
+        )
         await session.commit()
     response = await api.post(
         f"{api.base}/experiment-runs", data={"source_id": source["id"], "mode": "demo"}

@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.database import get_session, session_factory
 from app.models import (
     GraphEdge,
@@ -43,7 +44,6 @@ from app.schemas import (
 from app.services import graph_qa
 from app.services.argument_check import check_arguments
 from app.services.claude_call import get_client
-from app.config import get_settings
 from app.services.graph_patches import GraphPatchExecutor
 from app.services.synthesis import synthesize_workspace
 from app.services.verification import run_verification
@@ -240,7 +240,8 @@ async def stream_verification(
             await asyncio.gather(task, return_exceptions=True)
 
     return StreamingResponse(
-        events(), media_type="application/x-ndjson",
+        events(),
+        media_type="application/x-ndjson",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
@@ -257,19 +258,29 @@ async def argument_check_workspace(
 
 @router.post("/workspaces/{workspace_id}/graph-questions", response_model=GraphQuestionResponse)
 async def ask_graph(
-    workspace_id: uuid.UUID, payload: GraphQuestionRequest, session: AsyncSession = Depends(get_session)
+    workspace_id: uuid.UUID,
+    payload: GraphQuestionRequest,
+    session: AsyncSession = Depends(get_session),
 ) -> GraphQuestionResponse:
     """Answer a question about the argument graph by querying it; returns the nodes to highlight."""
     await require_workspace(workspace_id, session)
     if not get_settings().claude_api_key:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Claude is not configured")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Claude is not configured"
+        )
     try:
         result = await graph_qa.ask(
-            session_factory, workspace_id, payload.question, [t.model_dump() for t in payload.history], get_client()
+            session_factory,
+            workspace_id,
+            payload.question,
+            [t.model_dump() for t in payload.history],
+            get_client(),
         )
     except Exception as error:  # noqa: BLE001 - report model failures as a clear gateway error
         logging.getLogger(__name__).exception("graph question failed")
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"The graph question failed: {error}") from error
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY, detail=f"The graph question failed: {error}"
+        ) from error
     return GraphQuestionResponse(**result)
 
 

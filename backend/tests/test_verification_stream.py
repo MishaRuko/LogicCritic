@@ -15,9 +15,9 @@ async def client():
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://test"
     ) as client:
-        workspace = (await client.post(
-            "/api/workspaces", json={"title": "Live verification test"}
-        )).json()
+        workspace = (
+            await client.post("/api/workspaces", json={"title": "Live verification test"})
+        ).json()
         client.base = f"/api/workspaces/{workspace['id']}"
         yield client
         await client.delete(client.base)
@@ -25,14 +25,23 @@ async def client():
 
 
 async def test_stream_reports_real_rule_findings_and_commits_verification(client):
-    patch = await client.post(f"{client.base}/graph-patches", json={
-        "idempotency_key": str(uuid.uuid4()),
-        "operations": [{
-            "op": "create_statement", "client_ref": "claim", "text": "Unsupported claim",
-            "assertion_mode": "asserted", "role": "conclusion", "excerpt_ids": [],
-            "provenance": {"actor_type": "user", "actor_id": "test"},
-        }],
-    })
+    patch = await client.post(
+        f"{client.base}/graph-patches",
+        json={
+            "idempotency_key": str(uuid.uuid4()),
+            "operations": [
+                {
+                    "op": "create_statement",
+                    "client_ref": "claim",
+                    "text": "Unsupported claim",
+                    "assertion_mode": "asserted",
+                    "role": "conclusion",
+                    "excerpt_ids": [],
+                    "provenance": {"actor_type": "user", "actor_id": "test"},
+                }
+            ],
+        },
+    )
     assert patch.status_code == 200, patch.text
     graph = (await client.get(f"{client.base}/graph")).json()
     node_id = graph["statements"][0]["id"]

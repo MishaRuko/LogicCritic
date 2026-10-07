@@ -34,7 +34,14 @@ def verdict_cases(corpus: list[dict], claims: list[dict]) -> list[dict]:
                 continue
             sets = evidence.get(str(doc_id))
             label = LABELS[sets[0]["label"]] if sets else "NOT ENOUGH INFO"
-            cases.append({"claim_id": claim["id"], "claim": claim["claim"], "document": document, "label": label})
+            cases.append(
+                {
+                    "claim_id": claim["id"],
+                    "claim": claim["claim"],
+                    "document": document,
+                    "label": label,
+                }
+            )
     return cases
 
 
@@ -61,7 +68,9 @@ def balanced_sample(per_label: int, seed: int = 0) -> list[dict]:
         with tarfile.open(archive, "r:gz") as tar:
             tar.extractall(tmp, filter="data")
         data = Path(tmp) / "data"
-        cases = verdict_cases(read_jsonl(data / "corpus.jsonl"), read_jsonl(data / "claims_dev.jsonl"))
+        cases = verdict_cases(
+            read_jsonl(data / "corpus.jsonl"), read_jsonl(data / "claims_dev.jsonl")
+        )
     rng = random.Random(seed)
     picked = []
     for label in ("SUPPORTS", "CONTRADICTS", "NOT ENOUGH INFO"):

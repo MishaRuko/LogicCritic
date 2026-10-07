@@ -159,7 +159,11 @@ async def score_answer(
     raw = await _ask(client, model, SCORE_SYSTEM, material, AnswerScore, "answer scoring", tally)
     # Only SciFact asks for a fixed 'Verdict: LABEL' line; free-text paper verdicts such as
     # 'supported only in part' must be read by the scorer, not matched by a pattern.
-    stated = explicit_verdict(answer, SCIFACT_VERDICTS) if key["verdict_options"] == SCIFACT_VERDICTS else None
+    stated = (
+        explicit_verdict(answer, SCIFACT_VERDICTS)
+        if key["verdict_options"] == SCIFACT_VERDICTS
+        else None
+    )
     return material, metrics(raw.model_dump(), key, stated)
 
 
@@ -174,7 +178,10 @@ def explicit_verdict(answer: str, options: list[str]) -> str | None:
 
 def metrics(raw: dict, key: dict, stated: str | None = None) -> dict:
     claims = raw["claims"]
-    counts = {s: sum(c["status"] == s for c in claims) for s in ("supported", "contradicted", "unsupported")}
+    counts = {
+        s: sum(c["status"] == s for c in claims)
+        for s in ("supported", "contradicted", "unsupported")
+    }
     total = len(claims)
     verdict = stated or raw["verdict_given"]
     required = len(key["required_deductions"])

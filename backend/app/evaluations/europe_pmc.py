@@ -21,8 +21,9 @@ def packet_from_xml(pmcid: str, xml: str) -> dict:
     body_element = root.find(".//body")
     if body_element is None or not _text(body_element):
         raise ValueError(f"{pmcid} has no article body")
-    # References, acknowledgements and supplements add substantial context cost but do not form the
-    # evidence body being evaluated. The cap keeps every paired run within the declared pilot budget.
+    # References, acknowledgements and supplements add substantial context cost but do not form
+    # the evidence body being evaluated. The cap keeps every paired run within the declared pilot
+    # budget.
     parts = [f"# {title}", "## Abstract", abstract, "## Article body"]
     for element in body_element.iter():
         tag = element.tag.rsplit("}", 1)[-1]
@@ -35,7 +36,10 @@ def packet_from_xml(pmcid: str, xml: str) -> dict:
             parts.append(content)
     text = "\n\n".join(parts)
     if len(text) > MAX_BODY_CHARS:
-        text = text[:MAX_BODY_CHARS].rsplit(" ", 1)[0] + "\n\n[Article body truncated at evaluation packet limit.]"
+        text = (
+            text[:MAX_BODY_CHARS].rsplit(" ", 1)[0]
+            + "\n\n[Article body truncated at evaluation packet limit.]"
+        )
     return {
         "id": pmcid,
         "sources": [

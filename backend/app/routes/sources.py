@@ -57,6 +57,10 @@ def new_text_source(filename: str, content_type: str | None, content: bytes) -> 
         ) from error
     if not text.strip():
         raise HTTPException(status_code=422, detail="Source is empty")
+    if "\x00" in text:
+        raise HTTPException(
+            status_code=422, detail="Text uploads cannot contain NUL characters (is it binary?)"
+        )
     excerpts = parse_structured_text(text)
     if not excerpts:
         raise HTTPException(status_code=422, detail="No text excerpts found")

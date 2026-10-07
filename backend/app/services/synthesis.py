@@ -94,7 +94,9 @@ async def synthesize_workspace(
     # Existing links are shown so the model proposes only new ones; the graph is append-only.
     linked = [
         {"source": str(e.source_node_id), "target": str(e.target_node_id), "relation": e.relation}
-        for e in await session.scalars(select(GraphEdge).where(GraphEdge.workspace_id == workspace_id))
+        for e in await session.scalars(
+            select(GraphEdge).where(GraphEdge.workspace_id == workspace_id)
+        )
     ]
     try:
         proposals = await structured_call(
@@ -144,11 +146,16 @@ async def synthesize_workspace(
     }
     existing_edges = {
         (row.source_node_id, row.target_node_id, row.relation)
-        for row in await session.scalars(select(GraphEdge).where(GraphEdge.workspace_id == workspace_id))
+        for row in await session.scalars(
+            select(GraphEdge).where(GraphEdge.workspace_id == workspace_id)
+        )
     }
     for link in links:
         audit = audit_map.get((link.source_statement_id, link.target_statement_id, link.relation))
-        if audit is None or (link.source_statement_id, link.target_statement_id, link.relation) in existing_edges:
+        if (
+            audit is None
+            or (link.source_statement_id, link.target_statement_id, link.relation) in existing_edges
+        ):
             continue
         session.add(
             GraphEdge(

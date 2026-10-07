@@ -92,21 +92,37 @@ async def run_verification(
     statement_ids = [str(item.id) for item in statements]
     step_ids = [str(item.id) for item in steps]
     source_ids = (
-        [str(item) for item in await session.scalars(
-            select(Source.id).where(Source.workspace_id == workspace_id)
-        )]
-        if on_progress else []
+        [
+            str(item)
+            for item in await session.scalars(
+                select(Source.id).where(Source.workspace_id == workspace_id)
+            )
+        ]
+        if on_progress
+        else []
     )
     rules = [
-        ("ungrounded_statement", statement_ids,
-         lambda: _ungrounded_findings(statements, evidence_ids, inferred_ids)),
-        ("missing_premise", step_ids,
-         lambda: _missing_premise_findings(steps, premise_map, annotation_map)),
-        ("causality_overclaim", statement_ids,
-         lambda: _causality_findings(statements, annotation_map)),
+        (
+            "ungrounded_statement",
+            statement_ids,
+            lambda: _ungrounded_findings(statements, evidence_ids, inferred_ids),
+        ),
+        (
+            "missing_premise",
+            step_ids,
+            lambda: _missing_premise_findings(steps, premise_map, annotation_map),
+        ),
+        (
+            "causality_overclaim",
+            statement_ids,
+            lambda: _causality_findings(statements, annotation_map),
+        ),
         ("scope_leap", step_ids, lambda: _scope_leap_findings(steps, annotation_map)),
-        ("direct_conflict", statement_ids,
-         lambda: _direct_conflict_findings(statements, annotation_map)),
+        (
+            "direct_conflict",
+            statement_ids,
+            lambda: _direct_conflict_findings(statements, annotation_map),
+        ),
         ("invalidated_source", source_ids, None),
         ("reported_limitation", statement_ids, lambda: _reported_limitation_findings(statements)),
     ]
@@ -119,12 +135,21 @@ async def run_verification(
         current = check() if check else await _invalidated_source_findings(session, workspace_id)
         findings.extend(current)
         if on_progress:
-            await on_progress({
-                "type": "rule_completed", "rule_code": code, "node_ids": node_ids,
-                "findings": [{"node_id": str(item.node_id), "node_type": item.node_type,
-                              "message": item.details.get("message", item.obligation_description)}
-                             for item in current],
-            })
+            await on_progress(
+                {
+                    "type": "rule_completed",
+                    "rule_code": code,
+                    "node_ids": node_ids,
+                    "findings": [
+                        {
+                            "node_id": str(item.node_id),
+                            "node_type": item.node_type,
+                            "message": item.details.get("message", item.obligation_description),
+                        }
+                        for item in current
+                    ],
+                }
+            )
     return await _reconcile_findings(session, workspace_id, findings)
 
 

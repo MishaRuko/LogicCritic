@@ -3,28 +3,390 @@ import { Button, Input } from '@cloudflare/kumo';
 import { XIcon } from '@phosphor-icons/react';
 import type { Snapshot } from '../../types/api';
 import * as api from '../../lib/research/api';
-import { allObligations, humanize } from '../../lib/research/graph';
+import { allObligations, humanize, sourceName } from '../../lib/research/graph';
 import { inspectorFrame, panelSection } from '../ui/classes';
 import type { Perform } from './ResearchPanels';
-function Json({ value }: { value: unknown }) { return <pre className="mt-2 overflow-auto text-[10px] leading-relaxed whitespace-pre-wrap break-all">{JSON.stringify(value, null, 2)}</pre>; }
-export function ResearchInspector({ state, id, busy, perform, refresh, onClose, onSelect }: { state: Snapshot; id: string; busy: boolean; perform: Perform; refresh: () => Promise<void>; onClose: () => void; onSelect: (id: string) => void }) {
-  const [reason, setReason] = useState(''); const [annotationType, setAnnotationType] = useState('required_premise'); const [annotationValue, setAnnotationValue] = useState('{"satisfied": false, "description": "Describe the missing premise"}'); const [notice, setNotice] = useState('');
-  const statement = state.graph.statements.find(s => s.id === id); const step = state.graph.reasoning_steps.find(r => r.id === id);
-  const excerpt = state.sources.flatMap(s => s.excerpts).find(e => e.id === id); const source = state.sources.find(s => s.id === id);
-  const relation = state.graph.relations.find(r => r.id === id); const obligation = allObligations(state).find(o => o.id === id);
-  const node = statement ?? step; const type = statement ? 'statement' : 'reasoning_step'; const context = state.contexts.find(c => c.focus_statement.id === id);
-  const heading = statement ? statement.role ?? 'Statement' : step ? 'Reasoning step' : source ? 'Source' : excerpt ? 'Exact excerpt' : relation ? 'Cross-source relation' : obligation ? 'Proof obligation' : 'Linked excerpt';
-  function linked(ids: string[]) { return ids.map(item => <Button key={item} size="xs" variant="ghost" className="mt-2 h-auto! w-full justify-start! text-left whitespace-normal!" onClick={() => onSelect(item)}>{state.graph.statements.find(s => s.id === item)?.text ?? state.sources.flatMap(s => s.excerpts).find(e => e.id === item)?.text ?? item}</Button>); }
-  return <aside aria-label="Argument inspector" className={inspectorFrame}><div className="flex items-center justify-between border-b border-line pb-3"><h2 className="text-[11px] capitalize">{humanize(heading)}</h2><Button size="xs" variant="ghost" shape="square" aria-label="Close inspector" icon={<XIcon size={14}/>} onClick={onClose}/></div><div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto pb-5 [scrollbar-width:thin] [&_button]:max-w-full [&_button_span]:whitespace-normal [&_button_span]:min-w-0">
-    <p className="mt-4 text-[10px] break-all text-zinc-400">{id}</p>
-    {node && <><p className="mt-4 text-[14px] leading-relaxed">{statement?.text ?? step?.explanation}</p><p className="mt-3 text-[10px] text-zinc-500">{node.lifecycle}{statement && ` · ${statement.assertion_mode}`}</p><section className={panelSection}><h2>Review decision</h2><p className="mb-3 text-[10px] text-zinc-500">Acceptance records your review of this argument object. It does not establish scientific truth.</p><div className="flex gap-2"><Button size="sm" disabled={busy || node.lifecycle === 'accepted'} onClick={() => perform(async () => { await api.review(state.workspace.id, type, id, 'accepted'); await refresh(); })}>Accept</Button><Button size="sm" variant="outline" disabled={busy || node.lifecycle === 'rejected'} onClick={() => perform(async () => { await api.review(state.workspace.id, type, id, 'rejected'); await refresh(); })}>Reject</Button></div></section><section className={panelSection}><h2>Provenance</h2><Json value={node.provenance}/><p className="mt-2 text-[10px] text-zinc-500">Created {new Date(node.created_at).toLocaleString()}</p></section></>}
-    {statement && <><section className={panelSection}><h2>Grounding excerpts</h2>{statement.excerpt_ids.length ? linked(statement.excerpt_ids) : <p className="text-[11px] text-zinc-500">No linked excerpts.</p>}</section><section className={panelSection}><h2>Argument context</h2><p className="text-[10px] text-zinc-500">Upstream premises</p>{linked(context?.upstream_statements.map(s => s.id) ?? [])}<p className="mt-3 text-[10px] text-zinc-500">Downstream conclusions</p>{linked(context?.downstream_statements.map(s => s.id) ?? [])}{context?.reasoning_steps.map(r => <Button key={r.id} variant="ghost" size="xs" className="mt-2 h-auto! text-left whitespace-normal!" onClick={() => onSelect(r.id)}>{r.explanation}</Button>)}</section><section className={panelSection}><h2>Verifier findings</h2>{context?.issues.map(i => <div key={i.id} className="mt-3"><p className="text-[11px]">{humanize(i.rule_code)} · {i.status}</p><Json value={i.details}/></div>)}{context?.obligations.map(o => <Button key={o.id} size="xs" variant="ghost" className="mt-3 h-auto! text-left whitespace-normal!" onClick={() => onSelect(o.id)}>{o.description} · {o.status}</Button>)}{!context?.issues.length && <p className="text-[11px] text-zinc-500">No recorded findings for this statement. Run verification to check current material.</p>}</section></>}
-    {step && <><section className={panelSection}><h2>Required premises</h2>{linked(step.premise_ids)}<h2 className="mt-4">Conclusion</h2>{linked([step.conclusion_id])}</section><p className="mt-4 text-[10px] text-zinc-500">Reasoning-step issues are included in verification counts. This API exposes detailed context for statements only.</p></>}
-    {node && <details className={panelSection}><summary className="cursor-pointer text-[11px]">Propose an annotation</summary><p className="my-3 text-[10px] text-zinc-500">Annotations add explicit metadata for the verifier. The API records them as proposed and does not return an annotation listing.</p><Input size="sm" label="Annotation type" value={annotationType} onChange={e => setAnnotationType(e.target.value)}/><label className="mt-3 block text-[10px]">Annotation value (JSON object)<textarea aria-label="Annotation value" className="mt-2 min-h-24 w-full rounded border border-line p-2 font-mono text-[10px]" value={annotationValue} onChange={e => setAnnotationValue(e.target.value)}/></label><Button size="xs" className="mt-3" disabled={busy || !annotationType.trim()} onClick={() => perform(async () => { const value: unknown = JSON.parse(annotationValue); if (!value || Array.isArray(value) || typeof value !== 'object') throw new Error('Annotation value must be a JSON object.'); const result = await api.patchGraph(state.workspace.id, [{ op: 'create_annotation', subject_type: type, subject_id: id, type: annotationType.trim(), value: value as Record<string, unknown>, provenance: api.userProvenance }]); setNotice(`Annotation recorded in patch ${result.patch_id}. Run verification to see its effect.`); await refresh(); })}>Propose annotation</Button>{notice && <p role="status" className="mt-3 text-[10px]">{notice}</p>}</details>}
-    {excerpt && <><blockquote className="mt-4 border-l-2 border-zinc-300 pl-3 text-[12px] leading-relaxed whitespace-pre-wrap">{excerpt.text}</blockquote><section className={panelSection}><h2>Immutable locator</h2><Json value={excerpt.locator}/><p className="mt-3 text-[10px]">Excerpt sequence {excerpt.sequence}</p><Button size="xs" variant="ghost" className="mt-3" onClick={() => onSelect(excerpt.source_id)}>Inspect source</Button></section></>}
-    {source && <><h3 className="mt-4 text-[14px]">{source.original_filename}</h3><p className="mt-2 text-[10px] text-zinc-500">{source.mime_type} · {source.origin}</p><section className={panelSection}><h2>Source provenance</h2><p className="text-[10px] break-all">SHA-256 {source.content_hash}</p><Json value={source.metadata}/><Json value={source.external_ids}/></section><section className={panelSection}><h2>Source validity</h2><p className="mb-3 text-[10px] text-zinc-500">Record an invalidation or restore source validity, with a reason. Run verification to update affected statements.</p>{state.validity[id] && <p className="mb-3 text-[11px]">Latest recorded decision: {state.validity[id].status} · {state.validity[id].reason}</p>}<Input size="sm" label="Validity reason" value={reason} onChange={e => setReason(e.target.value)}/><div className="mt-3 flex flex-wrap gap-2">{(['invalidated', 'valid'] as const).map(status => <Button key={status} size="xs" variant="outline" disabled={busy || !reason.trim()} onClick={() => perform(async () => { await api.setValidity(state.workspace.id, id, status, reason.trim()); await api.verify(state.workspace.id); setReason(''); await refresh(); })}>{status === 'valid' ? 'Mark valid' : 'Invalidate source'}</Button>)}</div></section><section className={panelSection}><h2>Exact excerpts</h2>{linked(source.excerpts.map(e => e.id))}</section></>}
-    {relation && <><p className="mt-4 text-sm">Proposed {humanize(relation.relation)} link</p><section className={panelSection}><h2>Connected objects</h2>{linked([relation.source_node_id, relation.target_node_id])}</section><section className={panelSection}><h2>Audit and provenance</h2>{relation.metadata.audit_verdict === 'needs_review' && <p className="text-warn">Needs review. Do not treat this link as corroboration or contradiction.</p>}<Json value={relation.metadata}/></section></>}
-    {obligation && <><p className="mt-4 text-[14px] leading-relaxed">{obligation.description}</p><p className="mt-3 text-[10px]">{humanize(obligation.kind)} · {obligation.status}</p><section className={panelSection}><h2>Required condition</h2><p className="text-[12px] leading-relaxed">{obligation.required_condition}</p><p className="mt-3 text-[10px]">Rule: {obligation.generated_by_rule}</p>{linked([obligation.blocks_node_id ?? obligation.blocks_statement_id ?? ''].filter(Boolean))}</section></>}
-    {!node && !excerpt && !source && !relation && !obligation && <p className="mt-5 text-[11px] leading-relaxed text-zinc-500">The graph links to this excerpt, but its source could not be loaded. Refresh the workspace to retrieve its exact text and locator.</p>}
-  </div></aside>;
+function Json({ value }: { value: unknown }) {
+  return (
+    <pre className="mt-2 overflow-auto text-[10px] leading-relaxed whitespace-pre-wrap break-all">
+      {JSON.stringify(value, null, 2)}
+    </pre>
+  );
+}
+export function ResearchInspector({
+  state,
+  id,
+  busy,
+  perform,
+  refresh,
+  onClose,
+  onSelect,
+}: {
+  state: Snapshot;
+  id: string;
+  busy: boolean;
+  perform: Perform;
+  refresh: () => Promise<void>;
+  onClose: () => void;
+  onSelect: (id: string) => void;
+}) {
+  const [reason, setReason] = useState('');
+  const [annotationType, setAnnotationType] = useState('required_premise');
+  const [annotationValue, setAnnotationValue] = useState(
+    '{"satisfied": false, "description": "Describe the missing premise"}',
+  );
+  const [notice, setNotice] = useState('');
+  const statement = state.graph.statements.find(s => s.id === id);
+  const step = state.graph.reasoning_steps.find(r => r.id === id);
+  const excerpt = state.sources.flatMap(s => s.excerpts).find(e => e.id === id);
+  const source = state.sources.find(s => s.id === id);
+  const relation = state.graph.relations.find(r => r.id === id);
+  const obligation = allObligations(state).find(o => o.id === id);
+  const node = statement ?? step;
+  const type = statement ? 'statement' : 'reasoning_step';
+  const context = state.contexts.find(c => c.focus_statement.id === id);
+  const heading = statement
+    ? (statement.role ?? 'Statement')
+    : step
+      ? 'Reasoning step'
+      : source
+        ? 'Source'
+        : excerpt
+          ? 'Exact excerpt'
+          : relation
+            ? 'Cross-source relation'
+            : obligation
+              ? 'Proof obligation'
+              : 'Linked excerpt';
+  function linked(ids: string[]) {
+    return ids.map(item => (
+      <Button
+        key={item}
+        size="xs"
+        variant="ghost"
+        className="mt-2 h-auto! w-full justify-start! text-left whitespace-normal!"
+        onClick={() => onSelect(item)}
+      >
+        {state.graph.statements.find(s => s.id === item)?.text ??
+          state.sources.flatMap(s => s.excerpts).find(e => e.id === item)?.text ??
+          item}
+      </Button>
+    ));
+  }
+  return (
+    <aside aria-label="Argument inspector" className={inspectorFrame}>
+      <div className="flex items-center justify-between border-b border-line pb-3">
+        <h2 className="text-[11px] capitalize">{humanize(heading)}</h2>
+        <Button
+          size="xs"
+          variant="ghost"
+          shape="square"
+          aria-label="Close inspector"
+          icon={<XIcon size={14} />}
+          onClick={onClose}
+        />
+      </div>
+      <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto pb-5 [scrollbar-width:thin] [&_button]:max-w-full [&_button_span]:whitespace-normal [&_button_span]:min-w-0">
+        <p className="mt-4 text-[10px] break-all text-zinc-500">{id}</p>
+        {node && (
+          <>
+            <p className="mt-4 text-[14px] leading-relaxed">
+              {statement?.text ?? step?.explanation}
+            </p>
+            <p className="mt-3 text-[10px] text-zinc-500">
+              {node.lifecycle}
+              {statement && ` · ${statement.assertion_mode}`}
+            </p>
+            <section className={panelSection}>
+              <h2>Review decision</h2>
+              <p className="mb-3 text-[10px] text-zinc-500">
+                Acceptance records your review of this argument object. It does not establish
+                scientific truth.
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  disabled={busy || node.lifecycle === 'accepted'}
+                  onClick={() =>
+                    perform(async () => {
+                      await api.review(state.workspace.id, type, id, 'accepted');
+                      await refresh();
+                    })
+                  }
+                >
+                  Accept
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busy || node.lifecycle === 'rejected'}
+                  onClick={() =>
+                    perform(async () => {
+                      await api.review(state.workspace.id, type, id, 'rejected');
+                      await refresh();
+                    })
+                  }
+                >
+                  Reject
+                </Button>
+              </div>
+            </section>
+            <section className={panelSection}>
+              <h2>Provenance</h2>
+              <Json value={node.provenance} />
+              <p className="mt-2 text-[10px] text-zinc-500">
+                Created {new Date(node.created_at).toLocaleString()}
+              </p>
+            </section>
+          </>
+        )}
+        {statement && (
+          <>
+            <section className={panelSection}>
+              <h2>Grounding excerpts</h2>
+              {statement.excerpt_ids.length ? (
+                linked(statement.excerpt_ids)
+              ) : (
+                <p className="text-[11px] text-zinc-500">No linked excerpts.</p>
+              )}
+            </section>
+            <section className={panelSection}>
+              <h2>Argument context</h2>
+              <p className="text-[10px] text-zinc-500">Upstream premises</p>
+              {linked(context?.upstream_statements.map(s => s.id) ?? [])}
+              <p className="mt-3 text-[10px] text-zinc-500">Downstream conclusions</p>
+              {linked(context?.downstream_statements.map(s => s.id) ?? [])}
+              {context?.reasoning_steps.map(r => (
+                <Button
+                  key={r.id}
+                  variant="ghost"
+                  size="xs"
+                  className="mt-2 h-auto! w-full! justify-start! text-left whitespace-normal!"
+                  onClick={() => onSelect(r.id)}
+                >
+                  {r.explanation}
+                </Button>
+              ))}
+            </section>
+            <section className={panelSection}>
+              <h2>Verifier findings</h2>
+              {context?.issues.map(i => (
+                <div key={i.id} className="mt-3">
+                  <p className="text-[11px]">
+                    {humanize(i.rule_code)} · {i.status}
+                  </p>
+                  <Json value={i.details} />
+                </div>
+              ))}
+              {context?.obligations.map(o => (
+                <Button
+                  key={o.id}
+                  size="xs"
+                  variant="ghost"
+                  className="mt-3 h-auto! w-full! justify-start! text-left whitespace-normal!"
+                  onClick={() => onSelect(o.id)}
+                >
+                  {o.description} · {o.status}
+                </Button>
+              ))}
+              {!context?.issues.length && (
+                <p className="text-[11px] text-zinc-500">
+                  No recorded findings for this statement. Run verification to check current
+                  material.
+                </p>
+              )}
+            </section>
+          </>
+        )}
+        {step && (
+          <>
+            <section className={panelSection}>
+              <h2>Required premises</h2>
+              {linked(step.premise_ids)}
+              <h2 className="mt-4">Conclusion</h2>
+              {linked([step.conclusion_id])}
+            </section>
+            <p className="mt-4 text-[10px] text-zinc-500">
+              Reasoning-step issues are included in verification counts. This API exposes detailed
+              context for statements only.
+            </p>
+          </>
+        )}
+        {node && (
+          <details className={panelSection}>
+            <summary className="cursor-pointer text-[11px]">Propose an annotation</summary>
+            <p className="my-3 text-[10px] text-zinc-500">
+              Annotations add explicit metadata for the verifier. The API records them as proposed
+              and does not return an annotation listing.
+            </p>
+            <Input
+              size="sm"
+              label="Annotation type"
+              value={annotationType}
+              onChange={e => setAnnotationType(e.target.value)}
+            />
+            <label className="mt-3 block text-[10px]">
+              Annotation value (JSON object)
+              <textarea
+                aria-label="Annotation value"
+                className="mt-2 min-h-24 w-full rounded border border-line p-2 font-mono text-[10px]"
+                value={annotationValue}
+                onChange={e => setAnnotationValue(e.target.value)}
+              />
+            </label>
+            <Button
+              size="xs"
+              className="mt-3"
+              disabled={busy || !annotationType.trim()}
+              onClick={() =>
+                perform(async () => {
+                  const value: unknown = JSON.parse(annotationValue);
+                  if (!value || Array.isArray(value) || typeof value !== 'object')
+                    throw new Error('Annotation value must be a JSON object.');
+                  const result = await api.patchGraph(state.workspace.id, [
+                    {
+                      op: 'create_annotation',
+                      subject_type: type,
+                      subject_id: id,
+                      type: annotationType.trim(),
+                      value: value as Record<string, unknown>,
+                      provenance: api.userProvenance,
+                    },
+                  ]);
+                  setNotice(
+                    `Annotation recorded in patch ${result.patch_id}. Run verification to see its effect.`,
+                  );
+                  await refresh();
+                })
+              }
+            >
+              Propose annotation
+            </Button>
+            {notice && (
+              <p role="status" className="mt-3 text-[10px]">
+                {notice}
+              </p>
+            )}
+          </details>
+        )}
+        {excerpt && (
+          <>
+            <blockquote className="mt-4 border-l-2 border-zinc-300 pl-3 text-[12px] leading-relaxed whitespace-pre-wrap">
+              {excerpt.text}
+            </blockquote>
+            <section className={panelSection}>
+              <h2>Immutable locator</h2>
+              <Json value={excerpt.locator} />
+              <p className="mt-3 text-[10px]">Excerpt sequence {excerpt.sequence}</p>
+              <Button
+                size="xs"
+                variant="ghost"
+                className="mt-3"
+                onClick={() => onSelect(excerpt.source_id)}
+              >
+                Inspect source
+              </Button>
+            </section>
+          </>
+        )}
+        {source && (
+          <>
+            <h3 className="mt-4 text-[14px]">{sourceName(source)}</h3>
+            <p className="mt-2 text-[10px] text-zinc-500">
+              {source.mime_type} · {source.origin}
+            </p>
+            <section className={panelSection}>
+              <h2>Source provenance</h2>
+              <p className="text-[10px] break-all">SHA-256 {source.content_hash}</p>
+              <Json value={source.metadata} />
+              <Json value={source.external_ids} />
+            </section>
+            <section className={panelSection}>
+              <h2>Source validity</h2>
+              <p className="mb-3 text-[10px] text-zinc-500">
+                Record an invalidation or restore source validity, with a reason. Run verification
+                to update affected statements.
+              </p>
+              {state.validity[id] && (
+                <p className="mb-3 text-[11px]">
+                  Latest recorded decision: {state.validity[id].status} ·{' '}
+                  {state.validity[id].reason}
+                </p>
+              )}
+              <Input
+                size="sm"
+                label="Validity reason"
+                value={reason}
+                onChange={e => setReason(e.target.value)}
+              />
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(['invalidated', 'valid'] as const).map(status => (
+                  <Button
+                    key={status}
+                    size="xs"
+                    variant="outline"
+                    disabled={busy || !reason.trim()}
+                    onClick={() =>
+                      perform(async () => {
+                        await api.setValidity(state.workspace.id, id, status, reason.trim());
+                        await api.verify(state.workspace.id);
+                        setReason('');
+                        await refresh();
+                      })
+                    }
+                  >
+                    {status === 'valid' ? 'Mark valid' : 'Invalidate source'}
+                  </Button>
+                ))}
+              </div>
+            </section>
+            <section className={panelSection}>
+              <h2>Exact excerpts</h2>
+              {linked(source.excerpts.map(e => e.id))}
+            </section>
+          </>
+        )}
+        {relation && (
+          <>
+            <p className="mt-4 text-sm">Proposed {humanize(relation.relation)} link</p>
+            <section className={panelSection}>
+              <h2>Connected objects</h2>
+              {linked([relation.source_node_id, relation.target_node_id])}
+            </section>
+            <section className={panelSection}>
+              <h2>Audit and provenance</h2>
+              {relation.metadata.audit_verdict === 'needs_review' && (
+                <p className="text-warn">
+                  Needs review. Do not treat this link as corroboration or contradiction.
+                </p>
+              )}
+              <Json value={relation.metadata} />
+            </section>
+          </>
+        )}
+        {obligation && (
+          <>
+            <p className="mt-4 text-[14px] leading-relaxed">{obligation.description}</p>
+            <p className="mt-3 text-[10px]">
+              {humanize(obligation.kind)} · {obligation.status}
+            </p>
+            <section className={panelSection}>
+              <h2>Required condition</h2>
+              <p className="text-[12px] leading-relaxed">{obligation.required_condition}</p>
+              <p className="mt-3 text-[10px]">Rule: {obligation.generated_by_rule}</p>
+              {linked(
+                [obligation.blocks_node_id ?? obligation.blocks_statement_id ?? ''].filter(Boolean),
+              )}
+            </section>
+          </>
+        )}
+        {!node && !excerpt && !source && !relation && !obligation && (
+          <p className="mt-5 text-[11px] leading-relaxed text-zinc-500">
+            The graph links to this excerpt, but its source could not be loaded. Refresh the
+            workspace to retrieve its exact text and locator.
+          </p>
+        )}
+      </div>
+    </aside>
+  );
 }

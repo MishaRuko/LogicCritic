@@ -2,9 +2,7 @@ import re
 from dataclasses import dataclass
 
 MAX_EXCERPT_CHARS = 1_500
-PARAGRAPH = re.compile(
-    r"\S(?:.*?\S)?(?=(?:\r\n|\r|\n)[ \t]*(?:\r\n|\r|\n)|\s*\Z)", re.DOTALL
-)
+PARAGRAPH = re.compile(r"\S(?:.*?\S)?(?=(?:\r\n|\r|\n)[ \t]*(?:\r\n|\r|\n)|\s*\Z)", re.DOTALL)
 SENTENCE_END = re.compile(r"[.!?](?:[\"')\]]*)\s+")
 
 

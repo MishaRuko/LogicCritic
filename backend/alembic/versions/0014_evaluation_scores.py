@@ -31,8 +31,12 @@ def upgrade() -> None:
         sa.Column("material", postgresql.JSONB(), nullable=False),
         sa.Column("score", postgresql.JSONB(), nullable=False),
         sa.Column("usage", postgresql.JSONB(), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.UniqueConstraint("evaluation_output_id", "scorer", name="uq_evaluation_scores_output_scorer"),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.UniqueConstraint(
+            "evaluation_output_id", "scorer", name="uq_evaluation_scores_output_scorer"
+        ),
     )
 
 

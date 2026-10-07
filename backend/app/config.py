@@ -12,8 +12,6 @@ class Settings(BaseSettings):
     upload_dir: str = "/data/uploads"
     max_upload_bytes: int = 10 * 1024 * 1024
     max_experiment_upload_bytes: int = 100 * 1024 * 1024
-    # Demo only: prepare the lab's real protocol for every experiment (see services/demo_protocol).
-    demo_protocol: bool = False
     vision_model: str = "claude-opus-5-5"
     vision_effort: str | None = "medium"
     vision_fallbacks: bool = True
@@ -26,6 +24,7 @@ class Settings(BaseSettings):
     extraction_retry_base_seconds: int = 5
     extraction_stale_after_seconds: int = 300
     amass_api_key: str | None = None
+    semantic_scholar_api_key: str | None = None  # optional: a key raises the shared rate limit
     agent_model: str = "claude-sonnet-5-5"
     agent_effort: str | None = "medium"
     agent_judge_model: str = "claude-sonnet-5"
