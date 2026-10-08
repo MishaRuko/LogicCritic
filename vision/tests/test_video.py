@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import pytest
 
-from lab_vision.video import Frame, VideoError, VideoFileSource, make_windows
+from lab_vision.video import Frame, LiveFrameSource, VideoError, VideoFileSource, make_windows
 
 
 @pytest.fixture
@@ -43,3 +43,46 @@ def test_windows_group_and_thin_frames():
     windows = list(make_windows(frames, window_seconds=5, max_frames=3))
     assert [(w.span.start_s, len(w.frames)) for w in windows] == [(0, 3), (5, 3), (10, 2)]
     assert [f.index for f in windows[0].frames] == [0, 2, 4]
+
+
+def _jpeg() -> bytes:
+    ok, buffer = cv2.imencode(".jpg", np.zeros((8, 8, 3), dtype=np.uint8))
+    assert ok
+    return buffer.tobytes()
+
+
+def test_live_source_yields_frames_in_time_order_as_they_arrive(tmp_path):
+    arrivals = [["000002000.jpg", "000001000.jpg"], [], ["000003500.jpg", "notes.txt"]]
+    ended = {"value": False}
+
+    def sleep(_):
+        batch = arrivals.pop(0) if arrivals else []
+        for name in batch:
+            (tmp_path / name).write_bytes(_jpeg())
+        if not arrivals:
+            ended["value"] = True
+
+    sleep(0)  # the first frames are already there
+    source = LiveFrameSource(tmp_path, ended=lambda: ended["value"], sleep=sleep)
+    frames = list(source.frames())
+    assert [f.timestamp_s for f in frames] == [1.0, 2.0, 3.5]
+    assert [f.index for f in frames] == [0, 1, 2]
+
+
+def test_live_source_stops_at_the_cap_and_when_the_camera_goes_quiet(tmp_path):
+    for ms in (1000, 2000, 905000):
+        (tmp_path / f"{ms:09d}.jpg").write_bytes(_jpeg())
+    capped = LiveFrameSource(tmp_path, ended=lambda: False, max_seconds=900, sleep=lambda _: None)
+    assert [f.timestamp_s for f in capped.frames()] == [1.0, 2.0]
+
+    now = {"t": 0.0}
+
+    def wait(seconds):
+        now["t"] += seconds
+
+    quiet = LiveFrameSource(
+        tmp_path / "empty", ended=lambda: False, idle_seconds=5, clock=lambda: now["t"], sleep=wait
+    )
+    (tmp_path / "empty").mkdir()
+    assert list(quiet.frames()) == []
+    assert now["t"] > 5

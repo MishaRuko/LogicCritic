@@ -253,12 +253,14 @@ export interface VideoAgentEvent {
 export interface ExperimentRun {
   id: string;
   protocol_id: string;
-  mode: 'demo' | 'replay' | 'video';
+  mode: 'demo' | 'replay' | 'video' | 'live';
   status: string;
   filename: string;
   result: {
     coverage?: 'excerpt' | 'complete_recording';
     processed_seconds?: number;
+    /** What a live session has found so far, while the camera is still streaming. */
+    live?: { observations: ExperimentObservation[]; deviations: ExperimentDeviation[] };
     source_id?: string;
     observations?: ExperimentObservation[];
     deviations?: ExperimentDeviation[];

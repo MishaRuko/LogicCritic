@@ -32,7 +32,7 @@ docs/               experiments.md, integration.md
 ```
 
 Services (docker-compose.yml): `caddy` (ingress), `frontend`, `api`, `worker` (extraction jobs,
-agent runs, video experiment runs), `replay-worker` (demo and replay experiment runs; without it
+agent runs, video experiment runs, live camera sessions), `replay-worker` (demo and replay experiment runs; without it
 those stay queued), `postgres` (pgvector image, but no vectors are used), `redis`.
 
 ## Commands
@@ -58,7 +58,7 @@ AMASS_API_KEY= CLAUDE_API_KEY= docker compose run --rm --no-deps --user root \
 Frontend: `pnpm --dir frontend test`, `pnpm --dir frontend typecheck`, `pnpm --dir frontend build`.
 Vision: run `python -m pytest` in `vision/` (install `vision[dev]`).
 
-Current baseline: backend 406 passed, frontend 81 passed, vision 75 passed.
+Current baseline: backend 413 passed, frontend 91 passed, vision 77 passed.
 
 ## Rules that are easy to break
 

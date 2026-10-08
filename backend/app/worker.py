@@ -44,7 +44,14 @@ async def run_experiment_loop(modes: tuple[str, ...] = ("video",)) -> None:
 
 
 async def run() -> None:
-    await asyncio.gather(run_extraction_loop(), run_agent_loop(), run_experiment_loop())
+    # Live sessions last up to 15 minutes, so they get a loop of their own and never hold up
+    # analysis of uploaded videos.
+    await asyncio.gather(
+        run_extraction_loop(),
+        run_agent_loop(),
+        run_experiment_loop(),
+        run_experiment_loop(("live",)),
+    )
 
 
 if __name__ == "__main__":

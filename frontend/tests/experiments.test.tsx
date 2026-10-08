@@ -90,7 +90,7 @@ describe('research to experiment handoff', () => {
         data={{ ...data, protocols: [], suggested: suggested('handed-over') }}
       />,
     );
-    expect(screen.getByLabelText('Research source')).toHaveValue('handed-over');
+    expect(screen.getByLabelText('Methodology source')).toHaveValue('handed-over');
     fireEvent.click(screen.getByRole('button', { name: 'Run sample experiment' }));
     await waitFor(() =>
       expect(start).toHaveBeenCalledWith(
@@ -113,7 +113,7 @@ describe('research to experiment handoff', () => {
         data={{ ...data, protocols: [], suggested: suggested('handed-over') }}
       />,
     );
-    fireEvent.change(screen.getByLabelText('Research source'), { target: { value: 'paper' } });
+    fireEvent.change(screen.getByLabelText('Methodology source'), { target: { value: 'paper' } });
     fireEvent.click(screen.getByRole('button', { name: 'Run sample experiment' }));
     await waitFor(() =>
       expect(start).toHaveBeenCalledWith('workspace', undefined, 'demo', undefined, 'paper', false),
@@ -156,10 +156,10 @@ describe('research to experiment handoff', () => {
       />,
     );
     expect(screen.getByRole('region', { name: 'Selected protocol' })).toHaveTextContent(
-      'From the research agent',
+      'Written by the research agent',
     );
     expect(screen.getByText('Follows the paper method.')).toBeInTheDocument();
-    fireEvent.click(screen.getByText('Review protocol steps'));
+    fireEvent.click(screen.getByText(/Review the \d+ steps/));
     fireEvent.click(screen.getByText('Research evidence · 1 passage'));
     fireEvent.click(screen.getByRole('button', { name: 'A paper' }));
     expect(props.onSource).toHaveBeenCalledWith('paper');
@@ -242,7 +242,7 @@ describe('research to experiment handoff', () => {
       'Bench study',
     );
     fireEvent.click(screen.getByRole('button', { name: 'New experiment' }));
-    expect(screen.getByLabelText('Research source')).toHaveValue('newer');
+    expect(screen.getByLabelText('Methodology source')).toHaveValue('newer');
   });
 
   it('does not pick an agent protocol the backend is not suggesting', () => {
@@ -254,7 +254,7 @@ describe('research to experiment handoff', () => {
         data={{ ...data, protocols: [], suggested: null }}
       />,
     );
-    expect(screen.getByLabelText('Research source')).toHaveValue('paper');
+    expect(screen.getByLabelText('Methodology source')).toHaveValue('paper');
   });
 
   it('ignores a suggestion for a source that is not in the workspace', () => {
@@ -265,7 +265,7 @@ describe('research to experiment handoff', () => {
         data={{ ...data, protocols: [], suggested: suggested('missing') }}
       />,
     );
-    expect(screen.getByLabelText('Research source')).toHaveValue('paper');
+    expect(screen.getByLabelText('Methodology source')).toHaveValue('paper');
   });
 
   it('opens the requested protocol setup even when a previous result exists', () => {
@@ -547,7 +547,7 @@ describe('retracted research', () => {
     render(
       <ResearchExperiments {...props} state={withValidity} data={{ ...data, protocols: [] }} />,
     );
-    const select = screen.getByLabelText('Research source');
+    const select = screen.getByLabelText('Methodology source');
     expect(select).toHaveValue('sound');
     expect(screen.getByRole('option', { name: '(Retracted) Withdrawn trial' })).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();

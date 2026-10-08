@@ -333,7 +333,7 @@ export const fetchExperiments = (id: string) =>
 export function startExperiment(
   id: string,
   protocol: string | undefined,
-  mode: 'demo' | 'replay' | 'video',
+  mode: 'demo' | 'replay' | 'video' | 'live',
   file?: File,
   source?: string,
   partial = false,
@@ -349,6 +349,31 @@ export function startExperiment(
     body,
   });
 }
+export const fetchExperimentRun = (run: string) =>
+  request<import('../../types/api').ExperimentRun>(`/experiment-runs/${run}`);
+/** Still frames from a live camera, each with its time in seconds since the stream began. */
+export function sendLiveFrames(run: string, frames: { blob: Blob; seconds: number }[]) {
+  const body = new FormData();
+  for (const frame of frames) {
+    body.append('frames', frame.blob, `${Math.round(frame.seconds * 1000)}.jpg`);
+    body.append('timestamps', String(frame.seconds));
+  }
+  return request<{ received: number; max_seconds: number }>(`/experiment-runs/${run}/frames`, {
+    method: 'POST',
+    body,
+  });
+}
+/** One piece of the camera's recording; pieces are appended in order on the server. */
+export const sendRecordingPiece = (run: string, index: number, piece: Blob) =>
+  request<{ stored: number }>(`/experiment-runs/${run}/recording?index=${index}`, {
+    method: 'POST',
+    headers: { 'Content-Type': piece.type || 'video/webm' },
+    body: piece,
+  });
+export const stopLiveSession = (run: string) =>
+  request<import('../../types/api').ExperimentRun>(`/experiment-runs/${run}/stop`, {
+    method: 'POST',
+  });
 export const checkArguments = (id: string) =>
   post<{ event_id: string; checked_steps: number; flagged_steps: number }>(
     `/workspaces/${id}/argument-check`,

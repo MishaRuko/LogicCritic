@@ -412,3 +412,12 @@ button.bg-kumo-brand {
     background-position: -80% 0;
   }
 }
+/* A re-laid-out graph glides into place instead of jumping; never while a node is dragged. */
+.research-canvas .react-flow__node:not(.dragging) {
+  transition: transform 0.35s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .research-canvas .react-flow__node {
+    transition: none;
+  }
+}

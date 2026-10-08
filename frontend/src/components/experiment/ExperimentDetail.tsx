@@ -14,6 +14,16 @@ import { time } from '../../lib/experiment/demo';
 import type { ExperimentRecord, RecordSnapshot } from '../../lib/experiment/types';
 import type { ExperimentProtocol, ExperimentRun, SourceWithExcerpts } from '../../types/api';
 
+/** Whether two passages say the same thing, ignoring case, spacing, quotes and end punctuation. */
+const sameText = (a?: string, b?: string) => {
+  const plain = (s?: string) =>
+    (s ?? '')
+      .toLowerCase()
+      .replace(/[\s"'“”‘’.]+/g, ' ')
+      .trim();
+  return plain(a) === plain(b);
+};
+
 export function ExperimentDetail({
   job,
   protocol,
@@ -140,14 +150,33 @@ export function ExperimentDetail({
           <p>
             {job.filename} <span className="sep">·</span> {time(run.duration)} recording{' '}
             <span className="sep">·</span> {run.subtitle}
+            {job.result.source_id && (
+              <>
+                {' '}
+                <span className="sep">·</span>{' '}
+                <button
+                  className="underline underline-offset-2"
+                  onClick={() => onSource(job.result.source_id!)}
+                >
+                  Evidence in the research graph
+                </button>
+              </>
+            )}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           {actions}
-          <Button size="sm" variant="outline" loading={generating} onClick={() => void generate()}>
-            <FileTextIcon size={14} className="mr-2" />
-            Generate record
-          </Button>
+          {!(tab === 'record' && !currentRecord) && (
+            <Button
+              size="sm"
+              variant="outline"
+              loading={generating}
+              onClick={() => void generate()}
+            >
+              <FileTextIcon size={14} className="mr-2" />
+              Generate record
+            </Button>
+          )}
         </div>
       </div>
       <div className="tabbar">
@@ -224,10 +253,10 @@ export function ExperimentDetail({
             <Button
               size="sm"
               variant="ghost"
+              icon={DownloadSimpleIcon}
               onClick={() => downloadJSON(method, 'trial-method.json')}
             >
-              <DownloadSimpleIcon size={14} className="mr-2" />
-              Export
+              Export steps
             </Button>
           </div>
           <Button
@@ -245,7 +274,10 @@ export function ExperimentDetail({
                 <div>
                   <strong>{requirement.title}</strong>
                   <p>{requirement.description}</p>
-                  <blockquote className="source-quote">{requirement.quote}</blockquote>
+                  {/* The quote earns its place only when it says more than the description. */}
+                  {sameText(requirement.quote, requirement.description) ? null : (
+                    <blockquote className="source-quote">{requirement.quote}</blockquote>
+                  )}
                   {!!requirement.checks?.length && (
                     <ul className="checks">
                       {requirement.checks.map(check => (
@@ -285,31 +317,34 @@ export function ExperimentDetail({
           }}
         />
       ) : (
-        <div className="py-12">
-          <h2>Experiment record</h2>
-          <p className="muted mt-3 mb-5">
-            A traceable report of the methodology, observations, findings and what this recording
-            could not establish.
-          </p>
-          {stored.error && (
-            <p role="alert" className="text-fail mb-3">
-              {stored.error.message}
+        <div className="py-10">
+          <div className="setup-card max-w-2xl">
+            <h3>
+              <FileTextIcon size={18} aria-hidden />
+              Experiment record
+            </h3>
+            <p>
+              A shareable, tamper-evident report of this run: the methodology and the passages it
+              came from, what the recording showed at each step, the findings, and what the
+              recording could not establish. It gets its own link and downloads as PDF or JSON.
             </p>
-          )}
-          <Button size="sm" variant="outline" loading={generating} onClick={() => void generate()}>
-            Generate record
-          </Button>
+            {stored.error && (
+              <p role="alert" className="text-fail mt-3!">
+                {stored.error.message}
+              </p>
+            )}
+            <div className="pt-5">
+              <Button
+                size="sm"
+                variant="primary"
+                loading={generating}
+                onClick={() => void generate()}
+              >
+                Generate record
+              </Button>
+            </div>
+          </div>
         </div>
-      )}
-      {job.result.source_id && (
-        <Button
-          size="xs"
-          variant="ghost"
-          className="mt-6"
-          onClick={() => onSource(job.result.source_id!)}
-        >
-          View experiment evidence in the research graph
-        </Button>
       )}
     </section>
   );

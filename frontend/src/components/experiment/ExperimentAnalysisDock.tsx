@@ -18,7 +18,8 @@ export function ExperimentAnalysisDock({
   protocol?: ExperimentProtocol;
   onSkipDemo?: () => void;
 }) {
-  const [open, setOpen] = useState(true);
+  // Open while the analysis runs, to watch it; a finished run opens on its result instead.
+  const [open, setOpen] = useState(() => ['queued', 'running'].includes(job.status));
   const [hidden, setHidden] = useState(false);
   const panelId = useId();
   const toggle = useRef<HTMLButtonElement>(null);

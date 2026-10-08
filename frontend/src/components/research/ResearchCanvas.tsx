@@ -151,6 +151,7 @@ function AboveEdge(props: EdgeProps) {
   return <BaseEdge {...props} path={path} labelX={(sourceX + targetX) / 2} labelY={top} />;
 }
 const edgeTypes = { above: AboveEdge };
+const STRUCTURAL = new Set(['premise_of', 'concludes', 'grounds']);
 // Below this zoom node text cannot be read, so the first view never zooms out further.
 const READABLE_ZOOM = 0.6;
 /** Where a workspace first opens: the top-most conclusion and its neighbours, else the top of the
@@ -194,6 +195,7 @@ export function ResearchCanvas({
   const [hovered, setHovered] = useState<string>();
   const [layoutVersion, setLayoutVersion] = useState(0);
   const savedViewport = useRef<SavedLayout['viewport']>(undefined);
+  const manual = useRef(false); // the person has dragged nodes into place
   const [ready, setReady] = useState(false);
   const initialFit = useRef(false);
   const lastHighlightFocus = useRef('');
@@ -203,6 +205,7 @@ export function ResearchCanvas({
     const saved = storageKey ? readLayout(storageKey) : { positions: {} };
     positions.current = saved.positions;
     savedViewport.current = saved.viewport;
+    manual.current = saved.manual ?? false;
     initialFit.current = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- saved positions live in localStorage, readable only after mount
     setReady(true);
@@ -211,12 +214,19 @@ export function ResearchCanvas({
   const reducedMotion = useReducedMotion();
   useMemo(() => {
     if (ready)
-      positions.current = { ...positions.current, ...stableLayout(layoutGraph, positions.current) };
+      positions.current = {
+        ...positions.current,
+        ...stableLayout(layoutGraph, positions.current, manual.current),
+      };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- layoutVersion forces a relayout after saved positions load
   }, [layoutGraph, layoutVersion, ready]);
   useEffect(() => {
     if (ready && storageKey)
-      writeLayout(storageKey, { positions: positions.current, viewport: savedViewport.current });
+      writeLayout(storageKey, {
+        positions: positions.current,
+        viewport: savedViewport.current,
+        manual: manual.current,
+      });
   }, [storageKey, layoutGraph, layoutVersion, ready]);
   const highlights = useMemo(() => verificationHighlights(verification), [verification]);
   const checkingIds = useMemo(
@@ -289,6 +299,11 @@ export function ResearchCanvas({
       const backwards = source && target && source.x > target.x;
       const checking = checkingIds.has(e.source) || checkingIds.has(e.target);
       const chained = !!highlight?.has(e.source) && !!highlight?.has(e.target);
+      const focus = hovered ?? selected;
+      // Structural links read from the arrows and shapes; their labels only crowd the canvas, so
+      // they appear when either end is in focus or an audit has something to say.
+      const labelled =
+        !STRUCTURAL.has(e.relation) || !!e.auditVerdict || e.source === focus || e.target === focus;
       return {
         ...e,
         markerEnd: { type: MarkerType.ArrowClosed, color: '#a1a1aa', width: 14, height: 14 },
@@ -296,7 +311,9 @@ export function ResearchCanvas({
         data: { routeY: above ? top - lane++ * 24 : undefined },
         sourceHandle: above ? 'above-out' : backwards ? 'back-out' : 'out',
         targetHandle: above ? 'above-in' : backwards ? 'back-in' : 'in',
-        label: `${e.relation.replace(/_/g, ' ')}${e.auditVerdict === 'needs_review' ? ' · needs review' : e.auditVerdict === 'supported' ? ' · audited' : ''}`,
+        label: labelled
+          ? `${e.relation.replace(/_/g, ' ')}${e.auditVerdict === 'needs_review' ? ' · needs review' : e.auditVerdict === 'supported' ? ' · audited' : ''}`
+          : undefined,
         animated: checking && !reducedMotion,
         style: {
           opacity: highlight?.size && !chained && !checking ? 0.25 : 1,
@@ -317,7 +334,7 @@ export function ResearchCanvas({
         labelBgPadding: [6, 3] as [number, number],
       };
     });
-  }, [graph, nodes, checkingIds, reducedMotion, highlight]);
+  }, [graph, nodes, checkingIds, reducedMotion, highlight, hovered, selected]);
   useEffect(() => {
     if (!flow || !ready) return;
     if (!highlight?.size) {
@@ -378,6 +395,7 @@ export function ResearchCanvas({
     return () => cancelAnimationFrame(frame);
   }, [flow, tidying, reducedMotion]);
   function tidy() {
+    manual.current = false; // tidying hands the layout back to the automatic one
     positions.current = dagrePositions(layoutGraph);
     setLayoutVersion(v => v + 1);
     setTidying(true);
@@ -385,7 +403,7 @@ export function ResearchCanvas({
   return (
     <div
       ref={container}
-      className={cn('absolute inset-0', selected && 'min-[900px]:right-[350px]')}
+      className={cn('research-canvas absolute inset-0', selected && 'min-[900px]:right-[350px]')}
       data-testid="research-canvas"
     >
       <ReactFlow
@@ -421,16 +439,22 @@ export function ResearchCanvas({
         }}
         onNodeDragStop={(_, n) => {
           positions.current[n.id] = n.position;
+          manual.current = true;
           if (storageKey)
             writeLayout(storageKey, {
               positions: positions.current,
               viewport: savedViewport.current,
+              manual: true,
             });
         }}
         onMoveEnd={(_, viewport) => {
           savedViewport.current = viewport;
           if (ready && storageKey)
-            writeLayout(storageKey, { positions: positions.current, viewport });
+            writeLayout(storageKey, {
+              positions: positions.current,
+              viewport,
+              manual: manual.current,
+            });
         }}
         minZoom={0.15}
         maxZoom={2}

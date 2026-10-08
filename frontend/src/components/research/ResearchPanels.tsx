@@ -178,25 +178,28 @@ export function MaterialPanel({
                       <summary className="cursor-pointer text-zinc-500">
                         View source excerpts ({source.excerpts.length})
                       </summary>
-                      <Button
-                        size="xs"
-                        variant="ghost"
-                        className="mt-3"
-                        onClick={() => onSelect(source.id)}
-                      >
-                        Inspect source
-                      </Button>
-                      {source.excerpts.map(excerpt => (
-                        <Button
-                          key={excerpt.id}
-                          size="sm"
-                          variant="ghost"
-                          className="mt-2 h-auto! w-full justify-start! text-left text-xs! whitespace-normal!"
-                          onClick={() => onSelect(excerpt.id)}
+                      <p className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-zinc-500">
+                        Click a passage to see the claims that cite it.
+                        <button
+                          className="underline underline-offset-2"
+                          onClick={() => onSelect(source.id)}
                         >
-                          {excerpt.text}
-                        </Button>
-                      ))}
+                          Source details and provenance
+                        </button>
+                      </p>
+                      <div className="mt-2 divide-y divide-line">
+                        {source.excerpts.map(excerpt => (
+                          <Button
+                            key={excerpt.id}
+                            size="sm"
+                            variant="ghost"
+                            className="h-auto! w-full justify-start! py-2! text-left text-xs! font-normal! whitespace-normal!"
+                            onClick={() => onSelect(excerpt.id)}
+                          >
+                            <span className="line-clamp-3">{excerpt.text}</span>
+                          </Button>
+                        ))}
+                      </div>
                     </details>
                   </div>
                 );

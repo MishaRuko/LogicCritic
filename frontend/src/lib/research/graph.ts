@@ -1,4 +1,12 @@
-import type { AgentEvent, AgentRun, Obligation, Snapshot, Source } from '../../types/api';
+import type {
+  AgentEvent,
+  AgentRun,
+  Obligation,
+  ReasoningStep,
+  Snapshot,
+  Source,
+  Statement,
+} from '../../types/api';
 /** What to call a source on screen: its title (a paper's name), else the uploaded file's name. */
 export const sourceName = (source: Pick<Source, 'title' | 'original_filename'>) =>
   source.title?.trim() || source.original_filename;
@@ -45,6 +53,22 @@ const nodeDetail = (...parts: (string | false | null | undefined)[]) =>
   parts.filter(Boolean).join(' · ');
 const reviewState = (lifecycle: string) =>
   lifecycle === 'proposed' ? 'Needs review' : lifecycle === 'rejected' ? 'Rejected' : undefined;
+/** The one-line summary of a claim, shown under graph nodes and in the inspector. */
+export const describeStatement = (s: Statement) =>
+  nodeDetail(
+    reviewState(s.lifecycle),
+    s.role && capital(s.role),
+    s.assertion_mode === 'hypothesis' && 'Hypothesis',
+    s.salience === 'secondary' && 'Secondary',
+    origin(s.provenance),
+  );
+/** The one-line summary of a reasoning step. */
+export const describeStep = (r: ReasoningStep) =>
+  nodeDetail(
+    reviewState(r.lifecycle),
+    `${r.premise_ids.length} ${r.premise_ids.length === 1 ? 'premise' : 'premises, all required'}`,
+    origin(r.provenance),
+  );
 export function allObligations(state: Snapshot): Obligation[] {
   return [...new Map(state.contexts.flatMap(c => c.obligations).map(o => [o.id, o])).values()];
 }
@@ -132,13 +156,7 @@ export function projectWorkspace(
       id: s.id,
       kind: s.role === 'conclusion' ? 'conclusion' : 'statement',
       label: s.text,
-      detail: nodeDetail(
-        reviewState(s.lifecycle),
-        s.role && capital(s.role),
-        s.assertion_mode === 'hypothesis' && 'Hypothesis',
-        s.salience === 'secondary' && 'Secondary',
-        origin(s.provenance),
-      ),
+      detail: describeStatement(s),
       lifecycle: s.lifecycle,
       state: status,
       proposed: s.lifecycle === 'proposed',
@@ -164,11 +182,7 @@ export function projectWorkspace(
       id: r.id,
       kind: 'step',
       label: r.explanation,
-      detail: nodeDetail(
-        reviewState(r.lifecycle),
-        `${r.premise_ids.length} ${r.premise_ids.length === 1 ? 'premise' : 'premises, all required'}`,
-        origin(r.provenance),
-      ),
+      detail: describeStep(r),
       lifecycle: r.lifecycle,
       state: r.lifecycle === 'proposed' ? 'warn' : r.lifecycle === 'rejected' ? 'unknown' : 'idle',
       proposed: r.lifecycle === 'proposed',

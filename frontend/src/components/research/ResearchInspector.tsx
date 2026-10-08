@@ -1,9 +1,15 @@
 import { useState } from 'react';
-import { Button, Input } from '@cloudflare/kumo';
+import { Button, Input, cn } from '@cloudflare/kumo';
 import { XIcon } from '@phosphor-icons/react';
 import type { Snapshot } from '../../types/api';
 import * as api from '../../lib/research/api';
-import { allObligations, humanize, sourceName } from '../../lib/research/graph';
+import {
+  allObligations,
+  describeStatement,
+  describeStep,
+  humanize,
+  sourceName,
+} from '../../lib/research/graph';
 import { inspectorFrame, panelSection } from '../ui/classes';
 import type { Perform } from './ResearchPanels';
 function Json({ value }: { value: unknown }) {
@@ -36,6 +42,7 @@ export function ResearchInspector({
     '{"satisfied": false, "description": "Describe the missing premise"}',
   );
   const [notice, setNotice] = useState('');
+  const [fullText, setFullText] = useState(false);
   const statement = state.graph.statements.find(s => s.id === id);
   const step = state.graph.reasoning_steps.find(r => r.id === id);
   const excerpt = state.sources.flatMap(s => s.excerpts).find(e => e.id === id);
@@ -87,16 +94,23 @@ export function ResearchInspector({
         />
       </div>
       <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto pb-5 [scrollbar-width:thin] [&_button]:max-w-full [&_button_span]:whitespace-normal [&_button_span]:min-w-0">
-        <p className="mt-4 text-[10px] break-all text-zinc-500">{id}</p>
         {node && (
           <>
-            <p className="mt-4 text-[14px] leading-relaxed">
+            <p className="mt-3 text-[11px] text-zinc-500">
+              {statement ? describeStatement(statement) : step && describeStep(step)}
+            </p>
+            {/* Long claims (an agent's final answer) are clamped so the review buttons stay in view. */}
+            <p className={cn('mt-2 text-[14px] leading-relaxed', !fullText && 'line-clamp-6')}>
               {statement?.text ?? step?.explanation}
             </p>
-            <p className="mt-3 text-[10px] text-zinc-500">
-              {node.lifecycle}
-              {statement && ` · ${statement.assertion_mode}`}
-            </p>
+            {(statement?.text ?? step?.explanation ?? '').length > 320 && (
+              <button
+                className="mt-1 text-[11px] text-zinc-500 underline"
+                onClick={() => setFullText(value => !value)}
+              >
+                {fullText ? 'Show less' : 'Show all'}
+              </button>
+            )}
             <section className={panelSection}>
               <h2>Review decision</h2>
               <p className="mb-3 text-[10px] text-zinc-500">
@@ -386,6 +400,7 @@ export function ResearchInspector({
             workspace to retrieve its exact text and locator.
           </p>
         )}
+        <p className="mt-8 text-[10px] break-all text-zinc-500">ID {id}</p>
       </div>
     </aside>
   );

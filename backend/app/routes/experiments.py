@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
@@ -23,7 +23,7 @@ from app.models import (
     SourceValidity,
 )
 from app.routes.workspaces import require_workspace
-from app.services.experiments import extract_source_protocol
+from app.services.experiments import extract_source_protocol, live_directory
 from app.services.research_state import research_fingerprint, verification_state
 
 router = APIRouter(tags=["experiments"])
@@ -255,7 +255,7 @@ async def start_experiment(
     workspace_id: uuid.UUID,
     protocol_id: uuid.UUID | None = Form(None),
     source_id: uuid.UUID | None = Form(None),
-    mode: Literal["demo", "replay", "video"] = Form(...),
+    mode: Literal["demo", "replay", "video", "live"] = Form(...),
     file: UploadFile | None = File(None),
     partial_recording: bool = Form(False),
     session: AsyncSession = Depends(get_session),
@@ -282,7 +282,7 @@ async def start_experiment(
         )
     # Starting a run authorizes using the grounded methodology; explicit review remains optional.
     protocol_id = protocol.id
-    if mode == "video" and not get_settings().claude_api_key:
+    if mode in ("video", "live") and not get_settings().claude_api_key:
         raise HTTPException(
             503,
             "Video analysis requires CLAUDE_API_KEY. "
@@ -291,7 +291,10 @@ async def start_experiment(
     filename = "Synthetic sample observations"
     storage_key = None
     run_id = uuid.uuid4()
-    if mode != "demo":
+    if mode == "live":
+        # Frames and the recording arrive later, from the camera page, while the run is live.
+        filename = "Live session"
+    elif mode != "demo":
         if file is None:
             raise HTTPException(422, "Attach a video or observations JSONL file.")
         filename = Path(file.filename or "recording").name
@@ -316,7 +319,10 @@ async def start_experiment(
         mode=mode,
         filename=filename,
         storage_key=storage_key,
-        result={"coverage": "excerpt" if partial_recording else "complete_recording"},
+        result={
+            "coverage": "excerpt" if partial_recording else "complete_recording",
+            **({"live": {"observations": [], "deviations": []}} if mode == "live" else {}),
+        },
     )
     session.add(run)
     await session.commit()
@@ -324,10 +330,118 @@ async def start_experiment(
     return run
 
 
+RECORDING_TYPES = {"video/webm": ".webm", "video/mp4": ".mp4", "video/quicktime": ".mov"}
+
+
+async def live_run(session: AsyncSession, run_id: uuid.UUID) -> ExperimentRun:
+    """A live session that is still accepting frames and recording."""
+    run = await session.get(ExperimentRun, run_id)
+    if run is None or run.mode != "live":
+        raise HTTPException(404, "Live session not found")
+    if run.status not in ("queued", "running") or (live_directory(run) / "ended").exists():
+        raise HTTPException(409, "This live session has ended.")
+    return run
+
+
+@router.get("/experiment-runs/{run_id}", response_model=RunResponse)
+async def get_experiment_run(run_id: uuid.UUID, session: AsyncSession = Depends(get_session)):
+    run = await session.get(ExperimentRun, run_id)
+    if run is None:
+        raise HTTPException(404, "Experiment run not found")
+    return run
+
+
+@router.post("/experiment-runs/{run_id}/frames")
+async def receive_live_frames(
+    run_id: uuid.UUID,
+    frames: list[UploadFile] = File(...),
+    timestamps: list[float] = Form(...),
+    session: AsyncSession = Depends(get_session),
+):
+    """Still frames from the camera page, each with its time in seconds since the stream began."""
+    run = await live_run(session, run_id)
+    settings = get_settings()
+    if len(frames) != len(timestamps):
+        raise HTTPException(422, "Send one timestamp per frame.")
+    directory = live_directory(run) / "frames"
+    directory.mkdir(parents=True, exist_ok=True)
+    saved = 0
+    for frame, seconds in zip(frames, timestamps, strict=True):
+        if not 0 <= seconds <= settings.live_max_seconds:
+            continue  # past the session cap; the analysis stops there anyway
+        content = await frame.read(settings.max_live_frame_bytes + 1)
+        if not content or len(content) > settings.max_live_frame_bytes:
+            raise HTTPException(413, "Each frame must be a JPEG of at most 2 MB.")
+        # Write then rename, so the analysis never reads a half-written frame.
+        target = directory / f"{round(seconds * 1000):09d}.jpg"
+        partial = target.with_suffix(".part")
+        await asyncio.to_thread(partial.write_bytes, content)
+        partial.rename(target)
+        saved += 1
+    return {"received": saved, "max_seconds": settings.live_max_seconds}
+
+
+@router.post("/experiment-runs/{run_id}/recording")
+async def receive_recording_chunk(
+    run_id: uuid.UUID,
+    request: Request,
+    index: int = Query(ge=0),
+    session: AsyncSession = Depends(get_session),
+):
+    """One piece of the camera's own recording, appended in order to a single file.
+
+    Pieces are small (each request stays far below Cloudflare's 100 MB limit) and streamed to
+    disk, so a long session never sits in memory. Resending a piece already stored is harmless.
+    """
+    run = await live_run(session, run_id)
+    settings = get_settings()
+    kind = (request.headers.get("content-type") or "").split(";")[0].strip()
+    if kind not in RECORDING_TYPES:
+        raise HTTPException(415, "Send the recording as WebM or MP4.")
+    directory = live_directory(run)
+    directory.mkdir(parents=True, exist_ok=True)
+    recording = directory / f"recording{RECORDING_TYPES[kind]}"
+    count = directory / "recording.pieces"
+    stored = int(count.read_text()) if count.exists() else 0
+    if index < stored:
+        return {"stored": stored}
+    if index > stored:
+        raise HTTPException(409, f"Recording piece {stored} is missing; send it first.")
+    size = recording.stat().st_size if recording.exists() else 0
+    received = 0
+    with recording.open("ab") as file:
+        async for block in request.stream():
+            received += len(block)
+            if received > settings.max_live_chunk_bytes or (
+                size + received > settings.max_live_recording_bytes
+            ):
+                file.truncate(size)  # drop the partial piece; the file stays consistent
+                raise HTTPException(413, "The recording piece or the whole recording is too large.")
+            file.write(block)
+    count.write_text(str(stored + 1))
+    if run.storage_key is None:
+        run.storage_key = str(recording.relative_to(get_settings().upload_dir))
+        run.filename = f"Live session{recording.suffix}"
+        await session.commit()
+    return {"stored": stored + 1}
+
+
+@router.post("/experiment-runs/{run_id}/stop", response_model=RunResponse)
+async def stop_live_session(run_id: uuid.UUID, session: AsyncSession = Depends(get_session)):
+    """End the stream. The analysis finishes the frames it has, then completes the run."""
+    run = await session.get(ExperimentRun, run_id)
+    if run is None or run.mode != "live":
+        raise HTTPException(404, "Live session not found")
+    directory = live_directory(run)
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "ended").touch()
+    return run
+
+
 @router.get("/experiment-runs/{run_id}/recording")
 async def experiment_recording(run_id: uuid.UUID, session: AsyncSession = Depends(get_session)):
     run = await session.get(ExperimentRun, run_id)
-    if run is None or run.mode != "video" or not run.storage_key:
+    if run is None or run.mode not in ("video", "live") or not run.storage_key:
         raise HTTPException(404, "Experiment recording not found")
     path = Path(get_settings().upload_dir) / run.storage_key
     if not path.is_file():

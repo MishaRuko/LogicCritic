@@ -2,6 +2,11 @@ import type { ExperimentProtocol, ExperimentRun, SourceWithExcerpts } from '../.
 import type { Evidence, MethodContract, Observation, Run, VerificationResult } from './types';
 import { sourceName } from '../research/graph';
 
+/** Whether a run has a recording to play: an uploaded video, or a live session whose phone sent
+ *  at least one recording piece (the backend then names the run after the file). */
+export const hasRecording = (job: ExperimentRun) =>
+  job.mode === 'video' || (job.mode === 'live' && job.filename !== 'Live session');
+
 export function experimentPresentation(
   job: ExperimentRun,
   protocol: ExperimentProtocol,
@@ -182,18 +187,19 @@ export function experimentPresentation(
     subtitle:
       job.mode === 'demo'
         ? 'Synthetic observations'
-        : sample
-          ? 'Saved sample analysis · partial recording'
-          : partial
-            ? 'Video analysis · partial recording'
-            : 'Video analysis',
+        : job.mode === 'live'
+          ? 'Live session'
+          : sample
+            ? 'Saved sample analysis · partial recording'
+            : partial
+              ? 'Video analysis · partial recording'
+              : 'Video analysis',
     date: job.created_at.slice(0, 10),
-    video:
-      job.mode === 'video'
-        ? `/api/experiment-runs/${job.id}/recording`
-        : sample
-          ? '/demo/lsv/DJI_08-first-30s.mp4'
-          : '',
+    video: hasRecording(job)
+      ? `/api/experiment-runs/${job.id}/recording`
+      : sample
+        ? '/demo/lsv/DJI_08-first-30s.mp4'
+        : '',
     duration: Math.max(
       1,
       duration ?? (sample ? 30 : Math.max(0, ...recorded.map(o => o.span.end_s))),

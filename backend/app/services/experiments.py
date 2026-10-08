@@ -203,11 +203,11 @@ def extract_source_protocol(
     return extract_protocol(excerpts, protocol_id, title, methodology=methodology)
 
 
-def make_llm() -> ClaudeLLM:
+def make_llm(model: str | None = None) -> ClaudeLLM:
     settings = get_settings()
     return ClaudeLLM(
         api_key=settings.claude_api_key,
-        model=settings.vision_model,
+        model=model or settings.vision_model,
         effort=settings.vision_effort or None,
         fallbacks=settings.vision_fallbacks,
         max_tokens=16_000,
@@ -281,8 +281,84 @@ def verify_observations(
     }
 
 
+def live_directory(run: ExperimentRun) -> Path:
+    """Where a live session's frames, recording and end marker are kept."""
+    return Path(get_settings().upload_dir) / str(run.workspace_id) / str(run.id)
+
+
+class LiveResults:
+    """Publishes what a live session finds as soon as it is found, for the dashboard."""
+
+    def __init__(self, progress) -> None:
+        self.progress = progress
+        self.observations: list[dict] = []
+        self.deviations: list[dict] = []
+
+    def _publish(self) -> None:
+        self.progress({"live": {"observations": self.observations, "deviations": self.deviations}})
+
+    def on_observation(self, observation) -> None:
+        self.observations.append(observation.model_dump(mode="json"))
+        self._publish()
+
+    def on_deviation(self, deviation) -> None:
+        self.deviations.append(deviation.model_dump(mode="json"))
+        self._publish()
+
+    def on_run_complete(self, summary) -> None:
+        pass
+
+    def on_window(self, window, steps) -> None:
+        self.progress({"processed_seconds": window.span.end_s})
+
+
+def execute_live(protocol: Protocol, run: ExperimentRun, progress) -> dict:
+    """Analyse a live stream window by window while the phone is still sending frames."""
+    from lab_vision.perception.claude import ClaudePerceiver
+    from lab_vision.pipeline import Pipeline
+    from lab_vision.video import LiveFrameSource
+
+    settings = get_settings()
+    directory = live_directory(run)
+    frames = directory / "frames"
+    frames.mkdir(parents=True, exist_ok=True)
+    source = LiveFrameSource(
+        frames,
+        ended=(directory / "ended").exists,
+        max_seconds=settings.live_max_seconds,
+        idle_seconds=settings.live_idle_seconds,
+    )
+    live = LiveResults(progress)
+    llm = make_llm(settings.vision_live_model)
+    result = Pipeline(
+        protocol,
+        source,
+        ClaudePerceiver(llm),
+        sinks=[live],
+        window_observers=[live],
+        window_seconds=settings.live_window_seconds,
+        lookahead_steps=10,
+        source_name=run.filename,
+        run_id_factory=lambda: str(run.id),
+        complete_recording=(run.result or {}).get("coverage") != "excerpt",
+    ).run()
+    if not result.summary.windows:
+        raise ValueError("No frames arrived from the camera. Open the camera link and try again.")
+    if not result.observations:
+        raise ValueError("No protocol steps were seen in the live stream.")
+    return {
+        "summary": result.summary.model_dump(mode="json"),
+        "usage": llm.usage,
+        "observations": [o.model_dump(mode="json") for o in result.observations],
+        "deviations": [d.model_dump(mode="json") for d in result.deviations],
+        "duration": source.last_timestamp_s,
+    }
+
+
 def execute_protocol(protocol: Protocol, run: ExperimentRun, progress) -> dict:
     complete_recording = (run.result or {}).get("coverage") != "excerpt"
+    if run.mode == "live":
+        return execute_live(protocol, run, progress)
     if run.mode == "demo":
         return verify_observations(protocol, demo_observations(protocol, str(run.id)), str(run.id))
     path = Path(get_settings().upload_dir) / run.storage_key
@@ -332,7 +408,7 @@ def execute_protocol(protocol: Protocol, run: ExperimentRun, progress) -> dict:
 
 
 async def claim_next_experiment_run(
-    modes: tuple[str, ...] = ("demo", "replay", "video"),
+    modes: tuple[str, ...] = ("demo", "replay", "video", "live"),
 ) -> uuid.UUID | None:
     async with session_factory() as session, session.begin():
         # Interrupted jobs become explicit failures instead of hanging indefinitely.
@@ -400,7 +476,7 @@ async def process_experiment_run(run_id: uuid.UUID) -> None:
             result = await asyncio.to_thread(execute_protocol, protocol, run, progress)
             result["coverage"] = (run.result or {}).get("coverage", "complete_recording")
             result_bytes = json.dumps(result).encode()
-            prefix = "Synthetic demo" if run.mode == "demo" else "Experiment"
+            prefix = {"demo": "Synthetic demo", "live": "Live session"}.get(run.mode, "Experiment")
             # Persist a source with temporal excerpts and reported claims in the same graph.
             source = Source(
                 id=uuid.uuid4(),

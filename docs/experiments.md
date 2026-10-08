@@ -74,3 +74,26 @@ The agent derives visible core checks, supporting detail checks and caveats from
 The worker samples 8–40 overview frames, then the model requests denser frames from selected windows (up to eight per request, with a total frame budget and 20-turn limit). Findings must cover every source step exactly once, stay inside the recording and cite frames actually supplied. Incomplete or invalid findings are returned to the agent for correction.
 
 The same Execution, Method and Record screens present the per-check findings, timestamped evidence and caveats. Core checks decide whether a located step is established; unseen supporting details do not block it. Below 0.7 confidence, or without timestamped evidence, a step stays unverifiable. Unlocated steps remain unverifiable, including steps outside an excerpt. The stored verdicts and full check-level observations must match a generated report exactly. Existing replay, sample and older window runs remain readable.
+
+## Live sessions (phone as camera)
+
+Start one from Experiments with **Start live session**. The dashboard shows a QR code; scanning it
+on a phone opens `/live/<run id>`, a full-screen camera page. The phone films the bench and:
+
+- sends one still frame a second (`POST /api/experiment-runs/{id}/frames`, multipart `frames` with
+  matching `timestamps` in seconds since the stream began);
+- uploads its own recording in 5-second pieces (`POST /api/experiment-runs/{id}/recording?index=n`,
+  raw WebM or MP4 body). Pieces are appended in order and streamed to disk, so no request comes
+  near Cloudflare's 100 MB limit; a resent piece is ignored and a gap is refused (409);
+- ends with `POST /api/experiment-runs/{id}/stop` (the dashboard has the same button).
+
+The worker's live loop (`mode = "live"`, separate from uploaded-video analysis) feeds the frames
+to the window pipeline through `lab_vision.video.LiveFrameSource` as they arrive: 10-second
+windows on `VISION_LIVE_MODEL` (default `claude-sonnet-5-5`). Each observation and deviation is
+written to `result.live` at once, and the dashboard shows each step as it is recognised, about
+10-20 seconds behind the camera. A session stops at 15 minutes (`LIVE_MAX_SECONDS`) or after 60
+seconds without frames. The live result is final; the recording is attached for playback.
+
+Phones only allow the camera on https pages, so use the deployed site, or an https tunnel when
+testing locally. `GET /api/experiment-runs/{id}` returns one run (the camera page uses it).
+

@@ -1,5 +1,6 @@
 import logging
-from collections.abc import Iterable, Iterator
+import time
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
@@ -106,6 +107,65 @@ class VideoFileSource:
         if not ok:
             raise VideoError("JPEG encoding failed")
         return buffer.tobytes()
+
+
+class LiveFrameSource:
+    """Frames from a live stream, delivered as JPEG files into a directory while it runs.
+
+    Each file is named by its stream time in milliseconds (`000012500.jpg` is 12.5 s in). Frames
+    are yielded in time order as they arrive, so the pipeline analyses the stream while it is
+    still being recorded. It ends when `ended()` says the stream stopped and every frame has been
+    read, when the stream passes `max_seconds`, or when nothing arrives for `idle_seconds`
+    (the camera went away without saying so).
+    """
+
+    def __init__(
+        self,
+        directory: Path,
+        ended: Callable[[], bool],
+        max_seconds: float = 900.0,
+        idle_seconds: float = 60.0,
+        poll_seconds: float = 0.5,
+        clock: Callable[[], float] = time.monotonic,
+        sleep: Callable[[float], None] = time.sleep,
+    ) -> None:
+        self.directory = directory
+        self.ended = ended
+        self.max_seconds = max_seconds
+        self.idle_seconds = idle_seconds
+        self.poll_seconds = poll_seconds
+        self._clock = clock
+        self._sleep = sleep
+        self.last_timestamp_s = 0.0
+
+    def frames(self) -> Iterator[Frame]:
+        seen: set[str] = set()
+        index = 0
+        last_arrival = self._clock()
+        while True:
+            # Read the end signal before listing, so a frame written just before it is not lost.
+            finished = self.ended()
+            fresh = sorted(
+                path
+                for path in self.directory.glob("*.jpg")
+                if path.name not in seen and path.stem.isdigit()
+            )
+            for path in fresh:
+                seen.add(path.name)
+                timestamp = int(path.stem) / 1000
+                if timestamp < self.last_timestamp_s:
+                    continue  # arrived after a later frame was analysed; the window has passed
+                if timestamp > self.max_seconds:
+                    return
+                self.last_timestamp_s = timestamp
+                yield Frame(index, timestamp, path.read_bytes())
+                index += 1
+            if fresh:
+                last_arrival = self._clock()
+            elif finished or self._clock() - last_arrival > self.idle_seconds:
+                return
+            else:
+                self._sleep(self.poll_seconds)
 
 
 def make_windows(

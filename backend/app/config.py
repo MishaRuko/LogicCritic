@@ -16,6 +16,14 @@ class Settings(BaseSettings):
     vision_effort: str | None = "medium"
     vision_fallbacks: bool = True
     vision_strategy: Literal["agent", "windows"] = "agent"
+    # Live sessions: a phone streams frames; the window pipeline analyses them as they arrive.
+    vision_live_model: str = "claude-sonnet-5-5"  # cheaper and faster per window than Opus
+    live_max_seconds: int = 15 * 60
+    live_window_seconds: float = 10.0
+    live_idle_seconds: float = 60.0  # a session with no new frames for this long has ended
+    max_live_frame_bytes: int = 2 * 1024 * 1024
+    max_live_chunk_bytes: int = 16 * 1024 * 1024  # each recording piece; Cloudflare caps 100 MB
+    max_live_recording_bytes: int = 1024 * 1024 * 1024
     claude_api_key: str | None = None
     claude_model: str = "claude-sonnet-5"
     max_extraction_context_chars: int = 12_000

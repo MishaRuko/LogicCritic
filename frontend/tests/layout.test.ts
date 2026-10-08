@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { ResearchGraph, ResearchNode } from '../src/lib/research/graph';
 import {
   dagrePositions,
+  layoutMess,
   readLayout,
   researchSize,
   stableLayout,
@@ -76,10 +77,10 @@ describe('graph layout stability', () => {
     );
   });
   it('recovers from malformed storage and ignores invalid coordinates', () => {
-    localStorage.setItem('trial:graph-layout:v1:broken', '{bad');
+    localStorage.setItem('trial:graph-layout:v2:broken', '{bad');
     expect(readLayout('broken').positions).toEqual({});
     localStorage.setItem(
-      'trial:graph-layout:v1:invalid',
+      'trial:graph-layout:v2:invalid',
       JSON.stringify({
         positions: { valid: { x: 0, y: 20 }, invalid: { x: 'bad', y: 10 } },
         viewport: { x: 0, y: 0, zoom: -1 },
@@ -89,5 +90,60 @@ describe('graph layout stability', () => {
       positions: { valid: { x: 0, y: 20 } },
       viewport: undefined,
     });
+    // Layouts saved before clusters were packed are not reused.
+    localStorage.setItem(
+      'trial:graph-layout:v1:old',
+      JSON.stringify({ positions: { a: { x: 0, y: 9000 } } }),
+    );
+    expect(readLayout('old').positions).toEqual({});
+  });
+});
+
+describe('layout of larger graphs', () => {
+  const box = (positions: Record<string, XY>, g: ResearchGraph) => {
+    const rects = g.nodes.map(n => ({ ...positions[n.id], ...researchSize(n) }));
+    return {
+      width: Math.max(...rects.map(r => r.x + r.width)) - Math.min(...rects.map(r => r.x)),
+      height: Math.max(...rects.map(r => r.y + r.height)) - Math.min(...rects.map(r => r.y)),
+    };
+  };
+
+  it('packs unconnected claims into rows instead of one tall column', () => {
+    const scattered: ResearchGraph = {
+      nodes: Array.from({ length: 40 }, (_, i) => node(`claim-${String(i).padStart(2, '0')}`)),
+      edges: [],
+    };
+    const { width, height } = box(dagrePositions(scattered), scattered);
+    expect(height / width).toBeLessThan(2); // one column would be about 40 times taller
+  });
+
+  it('keeps an argument chain intact while packing the loose claims around it', () => {
+    const mixed: ResearchGraph = {
+      nodes: [...graph.nodes, node('loose-1'), node('loose-2')],
+      edges: graph.edges,
+    };
+    const positions = dagrePositions(mixed);
+    expect(positions.a.x).toBeLessThan(positions.step.x);
+    expect(positions.step.x).toBeLessThan(positions.answer.x);
+  });
+
+  it('keeps a person’s arrangement, and tidies a tangled automatic one', () => {
+    // Previous positions that cross every link: answer on the left, evidence on the right.
+    const tangled: Record<string, XY> = {
+      a: { x: 2000, y: 0 },
+      step: { x: 1000, y: 600 },
+      answer: { x: 0, y: 0 },
+    };
+    const grown: ResearchGraph = {
+      nodes: [...graph.nodes, node('b')],
+      edges: [...graph.edges, { id: '3', source: 'b', target: 'step', relation: 'premise_of' }],
+    };
+    const automatic = stableLayout(grown, tangled);
+    expect(layoutMess(grown, automatic)).toBeLessThanOrEqual(
+      layoutMess(grown, dagrePositions(grown)),
+    );
+    const arranged = stableLayout(grown, tangled, true);
+    expect(arranged.a).toEqual(tangled.a);
+    expect(arranged.answer).toEqual(tangled.answer);
   });
 });
