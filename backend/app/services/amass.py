@@ -9,10 +9,10 @@ from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
 from app.config import get_settings
+from app.services.http_retry import send
 
 BIOMEDCORE = "biomedcore"
 # A 429 that asks for a short wait is retried once; longer waits are passed back to the caller.
-MAX_AUTO_RETRY_SECONDS = 10.0
 
 
 class AmassError(Exception):
@@ -150,30 +150,26 @@ class AmassClient:
         return list(result.get("amassIds", []))
 
     async def _request(self, method: str, path: str, **kwargs: Any) -> dict:
-        for attempt in (1, 2):
-            await self._limiter.acquire()
-            try:
-                response = await self._http.request(
-                    method, f"{self._base_url}{path}", headers=self._headers, **kwargs
-                )
-            except httpx.HTTPError as error:
-                raise AmassError(
-                    502,
-                    "UNREACHABLE",
-                    f"Could not reach Amass ({type(error).__name__}): {error}".rstrip(": "),
-                ) from error
-            if response.is_success:
-                return response.json()
-            error = _error_from(response)
-            if (
-                error.status == 429
-                and attempt == 1
-                and (error.retry_after or 0) <= MAX_AUTO_RETRY_SECONDS
-            ):
-                await self._sleep(error.retry_after or 1.0)
-                continue
-            raise error
-        raise AssertionError("unreachable")  # pragma: no cover
+        try:
+            response = await send(
+                self._http,
+                method,
+                f"{self._base_url}{path}",
+                headers=self._headers,
+                sleep=self._sleep,
+                before=self._limiter.acquire,
+                asked_wait=lambda response: _error_from(response).retry_after,
+                **kwargs,
+            )
+        except httpx.HTTPError as error:
+            raise AmassError(
+                502,
+                "UNREACHABLE",
+                f"Could not reach Amass ({type(error).__name__}): {error}".rstrip(": "),
+            ) from error
+        if response.is_success:
+            return response.json()
+        raise _error_from(response)
 
 
 def _error_from(response: httpx.Response) -> AmassError:

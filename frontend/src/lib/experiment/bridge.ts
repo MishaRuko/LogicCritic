@@ -1,6 +1,7 @@
 import type { ExperimentProtocol, ExperimentRun, SourceWithExcerpts } from '../../types/api';
 import type { Evidence, MethodContract, Observation, Run, VerificationResult } from './types';
 import { sourceName } from '../research/graph';
+import { overviewFrame } from '../../components/experiment/VideoAnalysisProgress';
 
 /** Whether a run has a recording to play: an uploaded video, or a live session whose phone sent
  *  at least one recording piece (the backend then names the run after the file). */
@@ -26,9 +27,7 @@ export function experimentPresentation(
       video: `/api/experiment-runs/${job.id}/recording`,
       duration: duration ?? job.result.duration ?? 1,
       observations: job.result.agent_observations,
-      poster: job.result.overview?.[0]
-        ? `data:image/jpeg;base64,${job.result.overview[0].data}`
-        : undefined,
+      poster: job.result.overview?.length ? overviewFrame(job.id, 0) : undefined,
     };
     return { method, run, results: job.result.agent_results };
   }

@@ -350,3 +350,25 @@ describe('node details', () => {
     expect(graph.nodes.some(n => /claude|sonnet|anthropic/i.test(n.detail))).toBe(false);
   });
 });
+
+describe('withdrawn claims', () => {
+  it('are left out with their links, so a revision shows only its replacement', async () => {
+    const { withoutWithdrawn } = await import('../src/lib/research/graph');
+    const claim = (id: string, lifecycle: string) => ({
+      id,
+      kind: 'statement' as const,
+      label: id,
+      detail: '',
+      lifecycle,
+      state: 'idle' as const,
+      proposed: false,
+      sourceIds: [],
+    });
+    const kept = withoutWithdrawn({
+      nodes: [claim('old', 'rejected'), claim('new', 'proposed')],
+      edges: [{ id: 'r', source: 'new', target: 'old', relation: 'revises' }],
+    });
+    expect(kept.nodes.map(n => n.id)).toEqual(['new']);
+    expect(kept.edges).toEqual([]);
+  });
+});

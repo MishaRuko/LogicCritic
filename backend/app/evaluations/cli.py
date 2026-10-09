@@ -8,12 +8,21 @@ import argparse
 import asyncio
 import json
 import uuid
+from collections import Counter
 from pathlib import Path
 
+import httpx
 from sqlalchemy import select
 
 from app.database import session_factory
 from app.evaluations.europe_pmc import fetch_packet, fetch_packets
+from app.evaluations.open_search import (
+    DEFAULT_ARMS,
+    create_open_evaluation,
+    render_open_report,
+    run_open_evaluation,
+)
+from app.evaluations.review_cases import review_case
 from app.evaluations.scifact_cases import balanced_sample
 from app.evaluations.service import (
     create_evaluation,
@@ -22,7 +31,7 @@ from app.evaluations.service import (
     run_evaluation,
     score_evaluation,
 )
-from app.models import EvaluationCase
+from app.models import EvaluationCase, EvaluationRun
 
 
 def _read_manifest(path: Path) -> list[dict]:
@@ -106,7 +115,44 @@ async def _paper_pilot(args) -> None:
 
 
 async def _report(args) -> None:
-    print(await render_report(uuid.UUID(args.evaluation_id)))
+    evaluation_id = uuid.UUID(args.evaluation_id)
+    async with session_factory() as session:
+        evaluation = await session.get(EvaluationRun, evaluation_id)
+    if evaluation and evaluation.config.get("kind") == "open":
+        print(await render_open_report(evaluation_id))
+    else:
+        print(await render_report(evaluation_id))
+
+
+async def _review_cases(args) -> None:
+    async with httpx.AsyncClient(timeout=60, follow_redirects=True) as client:
+        cases = [await review_case(client, doi, args.key_papers) for doi in args.dois]
+    # A paper listed as a key reference by two unrelated reviews is a data error (OpenAlex
+    # mislinks some references), not key evidence for any of them.
+    seen = Counter(paper["title"] for case in cases for paper in case["expected_sources"])
+    with args.output.open("w") as out:
+        for doi, case in zip(args.dois, cases, strict=True):
+            case["expected_sources"] = [p for p in case["expected_sources"] if seen[p["title"]] < 2]
+            out.write(json.dumps(case) + "\n")
+            note = "" if case["usable"] else "  NOT USABLE: no stated conclusion in the abstract"
+            print(doi, "->", len(case["expected_sources"]), "key papers" + note, flush=True)
+
+
+async def _open_create(args) -> None:
+    cases = [case for path in args.manifests for case in _read_manifest(path)]
+    arms = {name: DEFAULT_ARMS[name] for name in args.arms} if args.arms else None
+    evaluation_id = await create_open_evaluation(args.name, cases, arms=arms, repeats=args.repeats)
+    print("evaluation", evaluation_id, f"({len(cases)} cases)", flush=True)
+
+
+async def _open_run(args) -> None:
+    print(
+        await run_open_evaluation(
+            uuid.UUID(args.evaluation_id),
+            concurrency=args.concurrency,
+            retry_failed=args.retry_failed,
+        )
+    )
 
 
 def main() -> None:
@@ -148,6 +194,31 @@ def main() -> None:
     pilot.add_argument("--extra-per-packet", type=int, default=0)
     pilot.add_argument("--concurrency", type=int, default=5)
     pilot.set_defaults(func=_paper_pilot)
+    reviews = commands.add_parser(
+        "review-cases", help="draft open-search cases from review DOIs (free; questions by hand)"
+    )
+    reviews.add_argument("dois", nargs="+")
+    reviews.add_argument("--output", type=Path, required=True)
+    reviews.add_argument("--key-papers", type=int, default=8)
+    reviews.set_defaults(func=_review_cases)
+    open_create = commands.add_parser("open-create", help="store open-search cases (no cost)")
+    open_create.add_argument("--name", required=True)
+    open_create.add_argument(
+        "--manifest", dest="manifests", type=Path, action="append", required=True
+    )
+    open_create.add_argument("--repeats", type=int, default=1)
+    open_create.add_argument(
+        "--arms", nargs="+", choices=sorted(DEFAULT_ARMS), help="default: all of them"
+    )
+    open_create.set_defaults(func=_open_create)
+    open_run = commands.add_parser(
+        "open-run", help="run and score an open-search evaluation (paid)"
+    )
+    open_run.add_argument("evaluation_id")
+    # Two at a time: more exhausts the free paper indexes, and answers then rest on weaker search.
+    open_run.add_argument("--concurrency", type=int, default=2)
+    open_run.add_argument("--retry-failed", action="store_true")
+    open_run.set_defaults(func=_open_run)
     report = commands.add_parser("report")
     report.add_argument("evaluation_id")
     report.set_defaults(func=_report)

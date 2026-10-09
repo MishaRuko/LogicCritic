@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     redis_url: str
     upload_dir: str = "/data/uploads"
     max_upload_bytes: int = 10 * 1024 * 1024
+    db_pool_size: int = 10
+    db_max_overflow: int = 20
     max_experiment_upload_bytes: int = 100 * 1024 * 1024
     vision_model: str = "claude-opus-5-5"
     vision_effort: str | None = "medium"
@@ -33,11 +35,18 @@ class Settings(BaseSettings):
     extraction_stale_after_seconds: int = 300
     amass_api_key: str | None = None
     semantic_scholar_api_key: str | None = None  # optional: a key raises the shared rate limit
+    openalex_api_key: str | None = None  # optional: about 1,000 searches a day instead of 100
     agent_model: str = "claude-sonnet-5-5"
     agent_effort: str | None = "medium"
     agent_judge_model: str = "claude-sonnet-5"
     agent_max_turns: int = 20
     agent_max_web_searches: int = 10
+    # Thorough research (the default depth): more room, and minimums the guard asks for once.
+    agent_thorough_max_turns: int = 40
+    agent_thorough_max_web_searches: int = 15
+    agent_thorough_min_sources: int = 5
+    agent_thorough_min_searches: int = 4
+    agent_thorough_min_web_searches: int = 3
     agent_turn_max_tokens: int = 16000
     agent_user_agent: str = "LogicCritic-ResearchAgent/1.0 (evidence gathering for research review)"
     eval_generator_model: str = "claude-sonnet-5-5"

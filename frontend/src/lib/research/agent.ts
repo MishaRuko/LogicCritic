@@ -1,7 +1,18 @@
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as api from './api';
-import type { AgentEvent, AgentRun } from '../../types/api';
+import type { AgentCertainty, AgentEvent, AgentRun } from '../../types/api';
+
+/** How a run's certainty reads; older runs stored 'conditional' and 'hypothesis'. */
+export const CERTAINTY_LABELS: Record<AgentCertainty, string> = {
+  established: 'Established',
+  supported: 'Supported',
+  tentative: 'Tentative',
+  speculative: 'Speculative',
+  conditional: 'Tentative',
+  hypothesis: 'Speculative',
+  abstained: 'Abstained',
+};
 
 export const isAgentActive = (run: Pick<AgentRun, 'status'>) =>
   run.status === 'queued' || run.status === 'running';
@@ -68,6 +79,7 @@ export function eventTitle(event: AgentEvent): string {
   const payload = event.payload;
   const names: Record<string, string> = {
     search_papers: 'Searching papers',
+    follow_citations: 'Following citations',
     read_paper: 'Importing a paper',
     fetch_url: 'Reading a web page',
     read_source: 'Reading evidence',
@@ -109,9 +121,16 @@ export function eventDescription(event: AgentEvent): string {
     return text(p.error) || agentStatusLabel(p.status as AgentRun['status']) || text(p.status);
   if (event.type === 'tool_call') {
     const input = p.input as Record<string, unknown> | undefined;
-    return input
-      ? text(input.query) || text(input.url) || text(input.text) || text(input.explanation)
-      : '';
+    if (!input) return '';
+    if (text(p.name) === 'follow_citations')
+      return `${input.direction === 'cited_by' ? 'Works citing' : 'Works cited by'} ${text(input.paper)}`;
+    const purpose = text(input.purpose) === 'against' ? ' (evidence against)' : '';
+    return (
+      (text(input.query) && text(input.query) + purpose) ||
+      text(input.url) ||
+      text(input.text) ||
+      text(input.explanation)
+    );
   }
   if (event.type === 'tool_result' || event.type === 'check' || event.type === 'finalization') {
     const result = p.result as Record<string, unknown> | undefined;

@@ -59,6 +59,21 @@ class DesignVerdict(BaseModel):
 class JudgeOutput(BaseModel):
     criteria: list[CriterionVerdict]
     designs: list[DesignVerdict]
+    # A single holistic rating. Asking for the parts (start level plus each downgrade) and adding
+    # them up in code was tried and was far worse against published GRADE ratings: listing
+    # concerns made the judge count minor ones (4/18 matches against 10/18 for this).
+    evidence_certainty: Literal["high", "moderate", "low", "very_low"] | None = Field(
+        default=None,
+        description=(
+            "The certainty of the body of evidence behind the conclusion as stated, rated the "
+            "GRADE way: start from the study designs, then downgrade for risk of bias, "
+            "inconsistency, indirectness, imprecision and publication bias."
+        ),
+    )
+    certainty_rationale: str = Field(
+        default="",
+        description="One or two sentences: the starting level and each downgrade or upgrade.",
+    )
 
 
 class ProposedCriteria(BaseModel):
@@ -88,10 +103,29 @@ claims honestly report what they found. A search that only looks for supporting 
 meet it.
 - A criterion about independent sources needs claims from different sources, not one source \
 repeated.
+- A criterion naming a property of the evidence itself (consistent definitions across studies, \
+low risk of bias, adequate follow-up, robustness to excluding weak studies) is met when the \
+claims examine that property and report what they found, favourable or not: for example, \
+"definitions consistent across trials" is met when the claims report whether they are. How \
+good the evidence is belongs in the GRADE rating below; a criterion must not hold the answer \
+back for the same weakness again. Claims that only cite a heading, not the result, do not \
+examine it.
 
 For each causal claim with a declared design, say whether the cited text itself shows that \
 design (for example 'randomly assigned', 'randomised'). A design that is only asserted, or that \
 the text contradicts, is not shown.
+
+Rate the certainty of the body of evidence behind the conclusion as stated \
+(`evidence_certainty`), as a GRADE panel would, from the cited text:
+- Start high when the conclusion rests on randomised trials or a synthesis of them (for a \
+question that is not about an intervention: on studies that measure it directly and \
+rigorously); start low when it rests on observational, modelling or laboratory evidence.
+- Downgrade one level for each serious concern (two for a very serious one): risk of bias in the \
+studies; inconsistency between them; indirectness (population, intervention or outcome differ \
+from the question); imprecision (few events or participants, wide intervals); publication bias.
+- Upgrade observational evidence only for a large effect or a clear dose-response.
+- If the reviews or syntheses cited state their own certainty rating, weigh it heavily.
+Say the starting level and each change in `certainty_rationale`.
 
 A criterion that is only partly met is not met: say in `gap` what is still missing, and leave \
 `gap` empty only when nothing is. Be concise. If you are unsure, say the criterion is not met."""
@@ -142,7 +176,13 @@ STEP_AUDIT_SYSTEM = (
     "them, and that is not tailored to favour the conclusion: it then does not count as an "
     "unstated premise. If the conclusion depends on weighing and none is declared, or the one "
     "declared is ad hoc or does not fit this evidence, choose needs_support and say what "
-    "weighing is needed."
+    "weighing is needed. A step that combines several premises into an overall answer may "
+    "summarise them, weigh them by its declared principle, and state uncertainty, conflict, "
+    "heterogeneity or limits of the evidence (including what its author's sources did not "
+    "cover) without further support: hedges and caveats only weaken a claim. Do not ask such a "
+    "step to resolve a conflict it reports as unresolved. Choose needs_support only for what it "
+    "adds beyond the premises: a mechanism, number, generalisation or resolution none of them "
+    "states."
 )
 
 LINK_AUDIT_SYSTEM = (
@@ -252,7 +292,12 @@ def _tidy(output: JudgeOutput, material: dict) -> JudgeOutput:
     # sometimes rules on descriptive claims too, which would raise a false obligation.
     declared = {c["statement_id"] for c in material.get("claims", []) if c.get("declared_design")}
     designs = [d for d in output.designs if d.statement_id in declared]
-    return JudgeOutput(criteria=[seen[i] for i in sorted(seen)], designs=designs)
+    return JudgeOutput(
+        criteria=[seen[i] for i in sorted(seen)],
+        designs=designs,
+        evidence_certainty=output.evidence_certainty,
+        certainty_rationale=output.certainty_rationale,
+    )
 
 
 def _search_based(verdict: CriterionVerdict) -> bool:

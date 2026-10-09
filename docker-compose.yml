@@ -29,6 +29,10 @@ services:
     environment:
       APP_ENV: ${APP_ENV:-development}
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost}
+      # 4 API processes x (5 + 10) connections stay under Postgres's default limit of 100.
+      API_WORKERS: ${API_WORKERS:-4}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-5}
+      DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-10}
       POSTGRES_URL: ${POSTGRES_URL:-postgresql://${POSTGRES_USER:-logiccritic}:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-logiccritic}}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       UPLOAD_DIR: ${UPLOAD_DIR:-/data/uploads}
@@ -40,6 +44,7 @@ services:
       VISION_STRATEGY: ${VISION_STRATEGY:-agent}
       AMASS_API_KEY: ${AMASS_API_KEY:-}
       SEMANTIC_SCHOLAR_API_KEY: ${SEMANTIC_SCHOLAR_API_KEY:-}
+      OPENALEX_API_KEY: ${OPENALEX_API_KEY:-}
       AGENT_MODEL: ${AGENT_MODEL:-claude-sonnet-5-5}
       AGENT_JUDGE_MODEL: ${AGENT_JUDGE_MODEL:-claude-sonnet-5}
       AGENT_EFFORT: ${AGENT_EFFORT:-medium}
@@ -87,6 +92,7 @@ services:
       VISION_STRATEGY: ${VISION_STRATEGY:-agent}
       AMASS_API_KEY: ${AMASS_API_KEY:-}
       SEMANTIC_SCHOLAR_API_KEY: ${SEMANTIC_SCHOLAR_API_KEY:-}
+      OPENALEX_API_KEY: ${OPENALEX_API_KEY:-}
       UPLOAD_DIR: ${UPLOAD_DIR:-/data/uploads}
       AGENT_MODEL: ${AGENT_MODEL:-claude-sonnet-5-5}
       AGENT_JUDGE_MODEL: ${AGENT_JUDGE_MODEL:-claude-sonnet-5}

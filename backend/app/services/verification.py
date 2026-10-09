@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
     Annotation,
+    GraphEdge,
     GraphEvent,
     Issue,
     ProofObligation,
@@ -88,6 +89,15 @@ async def run_verification(
     for step_id, statement_id in premises:
         premise_map.setdefault(step_id, []).append(statement_id)
     inferred_ids = {step.conclusion_id for step in steps if step.lifecycle != "rejected"}
+    revised_steps = set(
+        await session.scalars(
+            select(GraphEdge.target_node_id).where(
+                GraphEdge.workspace_id == workspace_id,
+                GraphEdge.relation == "revises",
+                GraphEdge.target_node_kind == "reasoning_step",
+            )
+        )
+    )
 
     statement_ids = [str(item.id) for item in statements]
     step_ids = [str(item.id) for item in steps]
@@ -110,7 +120,7 @@ async def run_verification(
         (
             "missing_premise",
             step_ids,
-            lambda: _missing_premise_findings(steps, premise_map, annotation_map),
+            lambda: _missing_premise_findings(steps, premise_map, annotation_map, revised_steps),
         ),
         (
             "causality_overclaim",
@@ -167,7 +177,8 @@ def _ungrounded_findings(
             "Link at least one excerpt or create a reasoning step concluding this statement.",
         )
         for statement in statements
-        if statement.lifecycle == "proposed"
+        # Accepting a claim is a judgement about it; it does not give it a source.
+        if statement.lifecycle != "rejected"
         and statement.assertion_mode in {"asserted", "reported"}
         and statement.id not in evidence_ids | inferred_ids
     ]
@@ -177,16 +188,23 @@ def _missing_premise_findings(
     steps: list[ReasoningStep],
     premise_map: dict[uuid.UUID, list[uuid.UUID]],
     annotations: dict[tuple[str, uuid.UUID], list[Annotation]],
+    revised: set[uuid.UUID],
 ) -> list[Finding]:
     findings = []
     for step in steps:
-        if step.lifecycle == "rejected":
-            continue
-        required = [
-            item.value
-            for item in annotations.get(("reasoning_step", step.id), [])
-            if item.type == "required_premise" and item.value.get("satisfied") is False
-        ]
+        if step.lifecycle == "rejected" or step.id in revised:
+            continue  # rejected, or replaced by a revision that is checked in its place
+        # The critic's flag is a proposal. A person who reviewed the step and accepted it has
+        # decided it; otherwise it stands until the premise is supplied in a revision.
+        required = (
+            [
+                item.value
+                for item in annotations.get(("reasoning_step", step.id), [])
+                if item.type == "required_premise" and item.value.get("satisfied") is False
+            ]
+            if step.lifecycle != "accepted"
+            else []
+        )
         if not premise_map.get(step.id) or required:
             findings.append(
                 Finding(
@@ -199,7 +217,7 @@ def _missing_premise_findings(
                     },
                     "missing_premise",
                     "Supply the premise needed for this reasoning step.",
-                    "Add and link the required premise, then mark the requirement satisfied.",
+                    "Re-record the step with the required premise, or accept the step on review.",
                 )
             )
     return findings

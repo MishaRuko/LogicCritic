@@ -147,3 +147,38 @@ describe('layout of larger graphs', () => {
     expect(arranged.answer).toEqual(tangled.answer);
   });
 });
+
+describe('readable layout of researched arguments', () => {
+  const premises = Array.from({ length: 9 }, (_, i) => node(`p${i}`));
+  const wide: ResearchGraph = {
+    nodes: [...premises, node('step', 'step'), node('answer', 'conclusion')],
+    edges: [
+      ...premises.map(p => ({
+        id: `e-${p.id}`,
+        source: p.id,
+        target: 'step',
+        relation: 'premise_of',
+      })),
+      { id: 'c', source: 'step', target: 'answer', relation: 'concludes' },
+    ],
+  };
+  it('wraps a column of many premises instead of stacking it out of sight', () => {
+    const positions = dagrePositions(wide);
+    const columns = new Set(premises.map(p => positions[p.id].x));
+    expect(columns.size).toBe(3); // nine premises in three columns of three
+    const premiseRight = Math.max(...premises.map(p => positions[p.id].x));
+    expect(premiseRight).toBeLessThan(positions.step.x); // still evidence, then reasoning
+    expect(positions.step.x).toBeLessThan(positions.answer.x);
+  });
+  it('does not let links across sources move the argument', () => {
+    const linked = {
+      ...wide,
+      edges: [
+        ...wide.edges,
+        { id: 'x1', source: 'p0', target: 'p8', relation: 'rebuts' },
+        { id: 'x2', source: 'p3', target: 'answer', relation: 'supports' },
+      ],
+    };
+    expect(dagrePositions(linked)).toEqual(dagrePositions(wide));
+  });
+});

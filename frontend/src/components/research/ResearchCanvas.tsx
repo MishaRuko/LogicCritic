@@ -17,7 +17,7 @@ import {
 } from '@xyflow/react';
 import { Button, cn } from '@cloudflare/kumo';
 import { ArrowsClockwiseIcon, CornersOutIcon } from '@phosphor-icons/react';
-import type { ResearchGraph, ResearchNode } from '../../lib/research/graph';
+import { CROSS_LINKS, type ResearchGraph, type ResearchNode } from '../../lib/research/graph';
 import {
   dagrePositions,
   readLayout,
@@ -148,10 +148,43 @@ function AboveEdge(props: EdgeProps) {
   const direction = sourceX < targetX ? 1 : -1;
   const radius = Math.min(12, Math.abs(targetX - sourceX) / 2);
   const path = `M ${sourceX} ${sourceY} L ${sourceX} ${top + radius} Q ${sourceX} ${top} ${sourceX + direction * radius} ${top} L ${targetX - direction * radius} ${top} Q ${targetX} ${top} ${targetX} ${top + radius} L ${targetX} ${targetY}`;
-  return <BaseEdge {...props} path={path} labelX={(sourceX + targetX) / 2} labelY={top} />;
+  // Only what BaseEdge draws: spreading every edge prop puts flags like `selectable` on the DOM.
+  return (
+    <BaseEdge
+      id={props.id}
+      path={path}
+      markerEnd={props.markerEnd}
+      markerStart={props.markerStart}
+      style={props.style}
+      interactionWidth={props.interactionWidth}
+      label={props.label}
+      labelStyle={props.labelStyle}
+      labelShowBg={props.labelShowBg}
+      labelBgStyle={props.labelBgStyle}
+      labelBgPadding={props.labelBgPadding}
+      labelBgBorderRadius={props.labelBgBorderRadius}
+      labelX={(sourceX + targetX) / 2}
+      labelY={top}
+    />
+  );
 }
 const edgeTypes = { above: AboveEdge };
 const STRUCTURAL = new Set(['premise_of', 'concludes', 'grounds']);
+// What a link between claims means, by colour, for links in focus and in the legend.
+const LINK_COLOURS: Record<string, string> = {
+  supports: '#16a34a',
+  rebuts: '#dc2626',
+  undercuts: '#dc2626',
+  qualifies: '#d97706',
+  specializes: '#d97706',
+  revises: '#71717a',
+};
+const LEGEND: [string, string][] = [
+  ['supports', LINK_COLOURS.supports],
+  ['rebuts', LINK_COLOURS.rebuts],
+  ['qualifies', LINK_COLOURS.qualifies],
+];
+const FOCUS_INK = '#3f3f46';
 // Below this zoom node text cannot be read, so the first view never zooms out further.
 const READABLE_ZOOM = 0.6;
 /** Where a workspace first opens: the top-most conclusion and its neighbours, else the top of the
@@ -196,11 +229,16 @@ export function ResearchCanvas({
   const [layoutVersion, setLayoutVersion] = useState(0);
   const savedViewport = useRef<SavedLayout['viewport']>(undefined);
   const manual = useRef(false); // the person has dragged nodes into place
+  // The sizes React Flow measured. The nodes are rebuilt on every change, and a rebuilt node
+  // without its measurements counts as uninitialised: React Flow then stops drawing its edges
+  // (they vanished while a node was dragged).
+  const measured = useRef<Record<string, { width: number; height: number }>>({});
   const [ready, setReady] = useState(false);
   const initialFit = useRef(false);
   const lastHighlightFocus = useRef('');
   const lastCheckFocus = useRef('');
   const [tidying, setTidying] = useState(false);
+  const [allLinks, setAllLinks] = useState(false); // cross-links are otherwise drawn on focus only
   useEffect(() => {
     const saved = storageKey ? readLayout(storageKey) : { positions: {} };
     positions.current = saved.positions;
@@ -260,6 +298,7 @@ export function ResearchCanvas({
       type: 'argument' as const,
       position: positions.current[n.id],
       ...researchSize(n),
+      measured: measured.current[n.id] ?? researchSize(n),
       selected: selected === n.id,
       data: {
         argument: n,
@@ -290,7 +329,15 @@ export function ResearchCanvas({
   const edges = useMemo(() => {
     let lane = 0;
     const top = Math.min(0, ...nodes.map(n => n.position.y)) - 64;
-    return graph.edges.map(e => {
+    const focus = hovered ?? selected;
+    // Links of the claim in focus are drawn last, over the other links. Not over the nodes: raised
+    // above them, a link's hit area covered the node and broke the hover that showed it.
+    const ordered = [...graph.edges].sort(
+      (a, b) =>
+        Number(a.source === focus || a.target === focus) -
+        Number(b.source === focus || b.target === focus),
+    );
+    return ordered.map(e => {
       const source = positions.current[e.source],
         target = positions.current[e.target];
       const above =
@@ -299,42 +346,58 @@ export function ResearchCanvas({
       const backwards = source && target && source.x > target.x;
       const checking = checkingIds.has(e.source) || checkingIds.has(e.target);
       const chained = !!highlight?.has(e.source) && !!highlight?.has(e.target);
-      const focus = hovered ?? selected;
       // Structural links read from the arrows and shapes; their labels only crowd the canvas, so
       // they appear when either end is in focus or an audit has something to say.
       const labelled =
         !STRUCTURAL.has(e.relation) || !!e.auditVerdict || e.source === focus || e.target === focus;
+      // Links across sources are drawn when one of their claims is in focus (or all are asked
+      // for): drawn at once, a researched argument's dozens of them hid its structure.
+      const focused = !!focus && (e.source === focus || e.target === focus);
+      const hidden = CROSS_LINKS.has(e.relation) && !allLinks && !checking && !chained && !focused;
+      // A claim in focus: its links bold, solid and coloured by meaning; the rest fade back.
+      const colour = focused ? (LINK_COLOURS[e.relation] ?? FOCUS_INK) : undefined;
+      const faded = !!focus && !focused && !checking;
       return {
         ...e,
-        markerEnd: { type: MarkerType.ArrowClosed, color: '#a1a1aa', width: 14, height: 14 },
+        hidden,
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: colour ?? '#a1a1aa',
+          width: focused ? 16 : 14,
+          height: focused ? 16 : 14,
+        },
         type: above ? 'above' : 'default',
         data: { routeY: above ? top - lane++ * 24 : undefined },
         sourceHandle: above ? 'above-out' : backwards ? 'back-out' : 'out',
         targetHandle: above ? 'above-in' : backwards ? 'back-in' : 'in',
         label: labelled
-          ? `${e.relation.replace(/_/g, ' ')}${e.auditVerdict === 'needs_review' ? ' · needs review' : e.auditVerdict === 'supported' ? ' · audited' : ''}`
+          ? `${e.relation.replace(/_/g, ' ')}${e.auditVerdict === 'needs_review' ? ' · needs review' : ''}`
           : undefined,
         animated: checking && !reducedMotion,
         style: {
-          opacity: highlight?.size && !chained && !checking ? 0.25 : 1,
-          stroke: checking
-            ? '#60a5fa'
-            : chained
-              ? '#2563eb'
-              : e.auditVerdict === 'needs_review'
-                ? researchColor('warn')
-                : e.relation === 'blocks' || e.relation === 'rebuts' || e.relation === 'undercuts'
-                  ? researchColor('fail')
-                  : '#a1a1aa',
-          strokeWidth: checking ? 1.8 : chained ? 2 : 1,
-          strokeDasharray: checking ? '5 5' : e.proposed ? '3 3' : undefined,
+          opacity: faded ? 0.15 : highlight?.size && !chained && !checking ? 0.25 : 1,
+          stroke: colour
+            ? colour
+            : checking
+              ? '#60a5fa'
+              : chained
+                ? '#2563eb'
+                : e.auditVerdict === 'needs_review'
+                  ? researchColor('warn')
+                  : e.relation === 'blocks' || e.relation === 'rebuts' || e.relation === 'undercuts'
+                    ? researchColor('fail')
+                    : '#a1a1aa',
+          strokeWidth: colour ? 2.4 : checking ? 1.8 : chained ? 2 : 1,
+          strokeDasharray: colour ? undefined : checking ? '5 5' : e.proposed ? '3 3' : undefined,
         },
-        labelStyle: { fill: '#85858e', fontSize: 9 },
+        labelStyle: colour
+          ? { fill: colour, fontSize: 10, fontWeight: 600 }
+          : { fill: '#85858e', fontSize: 9 },
         labelBgStyle: { fill: '#fafaf9', fillOpacity: 0.96 },
         labelBgPadding: [6, 3] as [number, number],
       };
     });
-  }, [graph, nodes, checkingIds, reducedMotion, highlight, hovered, selected]);
+  }, [graph, nodes, checkingIds, reducedMotion, highlight, hovered, selected, allLinks]);
   useEffect(() => {
     if (!flow || !ready) return;
     if (!highlight?.size) {
@@ -426,16 +489,23 @@ export function ResearchCanvas({
         onNodeMouseEnter={(_, n) => setHovered(n.id)}
         onNodeMouseLeave={() => setHovered(undefined)}
         onNodesChange={changes => {
-          let moved = false;
+          let changed = false;
           for (const change of changes)
             if (change.type === 'position' && change.position) {
               const prior = positions.current[change.id];
               if (!prior || prior.x !== change.position.x || prior.y !== change.position.y) {
                 positions.current[change.id] = change.position;
-                moved = true;
+                changed = true;
+              }
+            } else if (change.type === 'dimensions' && change.dimensions) {
+              const prior = measured.current[change.id];
+              const { width, height } = change.dimensions;
+              if (!prior || prior.width !== width || prior.height !== height) {
+                measured.current[change.id] = { width, height };
+                changed = true;
               }
             }
-          if (moved) setLayoutVersion(v => v + 1);
+          if (changed) setLayoutVersion(v => v + 1);
         }}
         onNodeDragStop={(_, n) => {
           positions.current[n.id] = n.position;
@@ -471,6 +541,32 @@ export function ResearchCanvas({
       >
         Fit argument
       </Button>
+      {edges.some(e => CROSS_LINKS.has(e.relation) && !e.hidden) && (
+        <div
+          aria-label="Link colours"
+          className="absolute right-5 bottom-16 flex items-center gap-3 rounded-md border border-line bg-white/95 px-2.5 py-1.5 text-[10px] text-zinc-600"
+        >
+          {LEGEND.map(([relation, colour]) => (
+            <span key={relation} className="flex items-center gap-1.5">
+              <span className="inline-block h-[3px] w-4 rounded" style={{ background: colour }} />
+              {relation}
+            </span>
+          ))}
+        </div>
+      )}
+      {graph.edges.some(e => CROSS_LINKS.has(e.relation)) && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="absolute right-36 bottom-5 text-[10px]"
+          aria-pressed={allLinks}
+          onClick={() => setAllLinks(v => !v)}
+        >
+          {allLinks
+            ? 'Hide cross-links'
+            : `Show cross-links (${graph.edges.filter(e => CROSS_LINKS.has(e.relation)).length})`}
+        </Button>
+      )}
       <Button
         variant="outline"
         size="sm"

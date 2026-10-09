@@ -1,5 +1,5 @@
 import dagre from '@dagrejs/dagre';
-import type { ResearchGraph, ResearchKind, ResearchNode } from './graph';
+import { CROSS_LINKS, type ResearchGraph, type ResearchKind, type ResearchNode } from './graph';
 export type XY = { x: number; y: number };
 // Glyph plus a label beneath; conclusions carry the larger glyph and title.
 export function researchSize(node: Pick<ResearchNode, 'kind'>) {
@@ -16,6 +16,8 @@ const glyphSizes: Record<ResearchKind, number> = {
 export const researchGlyphSize = (node: Pick<ResearchNode, 'kind'>) => glyphSizes[node.kind];
 export const researchCentre = (node: Pick<ResearchNode, 'kind'>) => 4 + researchGlyphSize(node) / 2;
 const CLUSTER_GAP = 96;
+const MAX_ROWS = 4; // nodes in one column before it wraps into another
+const RANK_GAP = 100;
 const STEP = 32;
 
 /** Groups of nodes connected to each other, largest first (ties broken by id, so stable). */
@@ -44,7 +46,14 @@ function dagreCluster(graph: ResearchGraph, ids: string[]): Record<string, XY> {
   const nodes = graph.nodes.filter(n => inside.has(n.id)).sort((a, b) => a.id.localeCompare(b.id));
   for (const node of nodes) layout.setNode(node.id, researchSize(node));
   for (const edge of [...graph.edges].sort((a, b) => a.id.localeCompare(b.id))) {
-    if (!inside.has(edge.source) || !inside.has(edge.target) || edge.relation === 'concerns')
+    // Cross-links keep a claim in its group but do not position it: laid out by them, a well
+    // researched argument (dozens of supports and rebuttals) scattered into a tangle.
+    if (
+      !inside.has(edge.source) ||
+      !inside.has(edge.target) ||
+      edge.relation === 'concerns' ||
+      CROSS_LINKS.has(edge.relation)
+    )
       continue;
     // An obligation is laid out after the object it blocks so it reads as attached to it, not as evidence.
     if (edge.relation === 'blocks')
@@ -55,18 +64,51 @@ function dagreCluster(graph: ResearchGraph, ids: string[]): Record<string, XY> {
       });
   }
   dagre.layout(layout);
-  const placed = Object.fromEntries(
-    nodes.map(n => {
-      const p = layout.node(n.id);
-      const s = researchSize(n);
-      return [n.id, { x: Math.round(p.x - s.width / 2), y: Math.round(p.y - s.height / 2) }];
-    }),
+  const placed = wrapTallColumns(
+    nodes,
+    Object.fromEntries(nodes.map(n => [n.id, layout.node(n.id)])),
   );
   const left = Math.min(...Object.values(placed).map(p => p.x));
   const top = Math.min(...Object.values(placed).map(p => p.y));
   return Object.fromEntries(
     Object.entries(placed).map(([id, p]) => [id, { x: p.x - left, y: p.y - top }]),
   );
+}
+
+/** Dagre puts every premise of a step in one column, so a conclusion resting on nine claims was a
+ *  column nine nodes tall, and fitting it on the wide canvas shrank everything past reading. A
+ *  column taller than MAX_ROWS is split into side-by-side sub-columns (the later ones staggered by
+ *  half a row, so links pass between nodes rather than through them). Left to right still reads
+ *  evidence, then reasoning, then conclusion. Takes dagre's centres, returns top-left corners. */
+function wrapTallColumns(nodes: ResearchNode[], centres: Record<string, XY>): Record<string, XY> {
+  const ranks = new Map<number, ResearchNode[]>();
+  for (const n of nodes) {
+    const x = Math.round(centres[n.id].x);
+    ranks.set(x, [...(ranks.get(x) ?? []), n]);
+  }
+  const placed: Record<string, XY> = {};
+  const columns = [...ranks.entries()].sort((a, b) => a[0] - b[0]).map(([, ns]) => ns);
+  const rowHeight = Math.max(...nodes.map(n => researchSize(n).height)) + 32;
+  const tallest = Math.max(...columns.map(ns => Math.min(ns.length, MAX_ROWS)));
+  let left = 0;
+  for (const column of columns) {
+    column.sort((a, b) => centres[a.id].y - centres[b.id].y);
+    const width = Math.max(...column.map(n => researchSize(n).width));
+    const subColumns = Math.ceil(column.length / MAX_ROWS);
+    const rows = Math.ceil(column.length / subColumns);
+    // Centre each column on the tallest one, as dagre would.
+    const top = ((tallest - rows) * rowHeight) / 2;
+    column.forEach((n, i) => {
+      const sub = Math.floor(i / rows);
+      const stagger = sub % 2 ? rowHeight / 2 : 0;
+      placed[n.id] = {
+        x: left + sub * (width + 40),
+        y: Math.round(top + (i % rows) * rowHeight + stagger),
+      };
+    });
+    left += subColumns * (width + 40) - 40 + RANK_GAP;
+  }
+  return placed;
 }
 
 /** Lay out each connected group with dagre, then pack the groups into rows.

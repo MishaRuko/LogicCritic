@@ -154,3 +154,58 @@ def test_dropped_background_takes_dependent_steps_with_it() -> None:
     kept = drop_unresolvable_steps(drop_orphan_supporting(output))
     assert refs(kept) == ["x", "bg"]  # a premise of a kept conclusion is not background
     assert [s.client_ref for s in kept.reasoning_steps] == ["r1"]
+
+
+def test_extraction_records_what_a_claim_asserts_so_the_causality_rule_applies_to_papers() -> None:
+    from app.services.extraction import _strength_annotations
+    from app.services.verification import _causality_findings
+
+    def claim(ref: str, strength: str | None, design: str | None) -> ExtractedStatement:
+        return statement(ref).model_copy(
+            update={"claim_strength": strength, "study_design": design}
+        )
+
+    output = ExtractionOutput(
+        statements=[
+            claim("rct", "causal", "randomised_trial"),
+            claim("cohort", "causal", "observational"),  # a paper overclaiming
+            claim("unsaid", "causal", None),  # causal, design not stated
+            claim("link", "associative", None),
+            claim("plain", None, None),
+        ],
+        reasoning_steps=[],
+    )
+    from app.schemas import ProvenanceInput
+
+    provenance = ProvenanceInput(actor_type="extractor", actor_id="anthropic")
+    operations = _strength_annotations(output, provenance)
+    assert [(o.subject_id, o.type) for o in operations] == [
+        ("rct", "claim_strength"),
+        ("rct", "causal_support"),
+        ("cohort", "claim_strength"),
+        ("cohort", "causal_support"),
+        ("unsaid", "claim_strength"),
+        ("link", "claim_strength"),
+    ]
+    assert [o.value["supported"] for o in operations if o.type == "causal_support"] == [True, False]
+
+    # Applied to the graph, the verifier flags the two causal claims without a causal design.
+    from app.models import Annotation, Statement
+
+    ids = {ref: uuid.uuid4() for ref in ("rct", "cohort", "unsaid", "link")}
+    statements = [
+        Statement(id=i, text=ref, assertion_mode="asserted", lifecycle="proposed")
+        for ref, i in ids.items()
+    ]
+    annotations: dict = {}
+    for o in operations:
+        annotations.setdefault(("statement", ids[o.subject_id]), []).append(
+            Annotation(type=o.type, value=o.value)
+        )
+    flagged = {item.node_id for item in _causality_findings(statements, annotations)}
+    assert flagged == {ids["cohort"], ids["unsaid"]}
+
+
+def test_the_extraction_schema_asks_for_strength_and_design() -> None:
+    fields = extraction_schema()["$defs"]["ExtractedStatement"]["properties"]
+    assert {"claim_strength", "study_design"} <= set(fields)

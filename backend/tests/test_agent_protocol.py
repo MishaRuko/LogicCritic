@@ -15,6 +15,9 @@ from app.main import app
 from app.models import AgentEvent, Excerpt, ExperimentProtocol, Source
 from tests.agent_helpers import FakeClaude, FakeJudge, make_world, reply, tool
 
+# These test the verifier's rules; the evidence ceiling is tested in test_agent_evidence.py.
+pytestmark = pytest.mark.usefixtures("ample_evidence")
+
 METHODS = {
     "paper": [
         "Thaw the competent cells on ice.",
@@ -422,7 +425,7 @@ def concluding_run(world, *, with_protocol=True, steps=3):
             tool(
                 "finalize_conclusion",
                 statement_id=statement_from(request),
-                certainty="hypothesis",
+                certainty="speculative",
                 protocol="recorded" if with_protocol else "none",
             ),
             stop="tool_use",
@@ -694,8 +697,9 @@ async def test_an_agent_that_never_searched_the_web_is_pushed_once() -> None:
     world = await make_world(sources=METHODS, budgets=WEB_ALLOWED)
     toolbox = Toolbox(session_factory, world.run_id, None)
     first = await conclude(toolbox, world)
-    assert first["accepted"] is False and "have not searched the web" in first["reason"]
-    assert "3 searches" in first["reason"]
+    assert first["accepted"] is False
+    assert "searched the web 0 time(s) of the 1 expected" in first["reason"]
+    assert "official guidelines" in first["reason"]
     assert (await conclude(toolbox, world))["accepted"] is True  # never a loop
 
 
@@ -713,3 +717,86 @@ async def test_no_push_when_the_agent_already_searched_the_web() -> None:
 async def test_no_push_when_web_search_is_not_allowed() -> None:
     world = await make_world(sources=METHODS)  # no web searches in the budget
     assert (await conclude(Toolbox(session_factory, world.run_id, None), world))["accepted"]
+
+
+THOROUGH = {
+    "depth": "thorough",
+    "max_turns": 40,
+    "max_web_searches": 0,
+    "max_total_output_tokens": 300_000,
+    "min_sources": 5,
+    "min_searches": 4,
+}
+
+
+async def test_a_thorough_answer_from_too_few_sources_is_pushed_once() -> None:
+    world = await make_world(sources=METHODS, budgets=THOROUGH)
+    toolbox = Toolbox(session_factory, world.run_id, None)
+    first = await conclude(toolbox, world)
+    assert first["accepted"] is False
+    assert "read 0 of the 5 independent sources" in first["reason"]
+    assert "run 0 of the 4 searches" in first["reason"]
+    # Once only: in a narrow field the sources may not exist, and the answer then says so.
+    assert (await conclude(toolbox, world))["accepted"] is True
+
+
+async def test_no_coverage_push_for_quick_research_or_when_the_minimums_are_met() -> None:
+    from app.models import AgentRun
+
+    quick = await make_world(sources=METHODS)  # no minimums in the budget
+    assert (await conclude(Toolbox(session_factory, quick.run_id, None), quick))["accepted"]
+
+    world = await make_world(sources=METHODS, budgets={**THOROUGH, "min_sources": 1})
+    async with session_factory() as session:
+        run = await session.get(AgentRun, world.run_id)
+        run.usage = {**run.usage, "web_searches": 4}  # searches done on the web
+        await session.commit()
+    toolbox = Toolbox(session_factory, world.run_id, None)
+    await toolbox.call(
+        "read_source", {"source_id": str(world.sources["other"]), "offset": 0}, "t-read"
+    )
+    assert (await conclude(toolbox, world))["accepted"]
+
+
+def test_the_opening_message_carries_the_research_strategy_for_thorough_runs() -> None:
+    from types import SimpleNamespace
+
+    from app.agent.prompts import opening_message
+
+    goal = SimpleNamespace(
+        question="Does X work?", kind="question", completion_criteria=[], falsifiers=[]
+    )
+    thorough = opening_message(goal, "guarded", 40, 15, THOROUGH)
+    assert "reviews, meta-analyses" in thorough and "at least 5 independent sources" in thorough
+    quick = opening_message(goal, "guarded", 20, 10, {"depth": "quick"})
+    assert "reviews, meta-analyses" not in quick and "different terms" in quick
+
+
+async def test_a_thorough_run_that_never_followed_citations_is_pushed_once() -> None:
+    from tests.test_agent_toolbox import FakeLiterature
+
+    budgets = {**THOROUGH, "min_sources": 0, "min_searches": 0}
+    world = await make_world(sources=METHODS, budgets=budgets)
+    toolbox = Toolbox(session_factory, world.run_id, None, None, FakeLiterature())
+    toolbox._citation_hint({"title": "A trial of X", "ids": {"pmid": "5"}})
+    toolbox._citation_hint({"title": "X: a systematic review", "ids": {"doi": "10.1/r"}})
+    first = await conclude(toolbox, world)
+    assert first["accepted"] is False
+    # It names the review to start from, and the direction that finds its studies.
+    assert "follow_citations(paper='DOI:10.1/r', direction='references'" in first["reason"]
+    assert (await conclude(toolbox, world))["accepted"] is True  # once only
+
+    # Following citations, or quick research, or nothing read: no push.
+    followed = await make_world(sources=METHODS, budgets=budgets)
+    toolbox = Toolbox(session_factory, followed.run_id, None, None, FakeLiterature())
+    toolbox._citation_hint({"title": "A trial of X", "ids": {"pmid": "5"}})
+    await toolbox.call(
+        "follow_citations",
+        {"paper": "PMID:5", "direction": "cited_by", "limit": 5},
+        "t-follow",
+    )
+    assert (await conclude(toolbox, followed))["accepted"] is True
+    quick = await make_world(sources=METHODS)
+    toolbox = Toolbox(session_factory, quick.run_id, None, None, FakeLiterature())
+    toolbox._citation_hint({"title": "A trial of X", "ids": {"pmid": "5"}})
+    assert (await conclude(toolbox, quick))["accepted"] is True

@@ -51,14 +51,26 @@ class Assurance:
         }
 
 
-def from_check(obligations: list, established: bool = False) -> Assurance:
-    """The level after the verifier looked at a conclusion. `obligations` are guardrail ones."""
+def from_check(obligations: list, established: bool = False, ceiling=None) -> Assurance:
+    """The level after the verifier looked at a conclusion. `obligations` are guardrail ones;
+    `ceiling` is the evidence ceiling (app.agent.evidence), when it was measured."""
     critical = [o for o in obligations if o.severity == "critical"]
     reasons = [
         {"kind": o.kind, "description": o.description[:REASON_CHARS]}
         for o in critical[:MAX_REASONS]
     ]
     if not critical:
+        evidence = ceiling.by.get("evidence") if ceiling is not None else None
+        thin = evidence is not None and evidence not in ("supported", "established")
+        if thin:
+            # Nothing against it, but too little for it: one source is not "well supported".
+            return Assurance(
+                "provisional",
+                [
+                    {"kind": "thin_evidence", "description": text[:REASON_CHARS]}
+                    for text in ceiling.to_raise[:MAX_REASONS]
+                ],
+            )
         return Assurance("settled" if established else "well_supported", [])
     if any(o.kind in UNSOUND for o in critical):
         return Assurance("contested", reasons)

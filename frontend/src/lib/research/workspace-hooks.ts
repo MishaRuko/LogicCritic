@@ -11,6 +11,7 @@ export function useGraphFilters() {
   const [lifecycle, setLifecycle] = useState('');
   const [source, setSource] = useState('');
   const [detailedGraph, setDetailedGraph] = useState(false);
+  const [showWithdrawn, setShowWithdrawn] = useState(false);
   const reset = useCallback(() => {
     setQuery('');
     setLifecycle('');
@@ -25,6 +26,8 @@ export function useGraphFilters() {
     setSource,
     detailedGraph,
     setDetailedGraph,
+    showWithdrawn,
+    setShowWithdrawn,
     reset,
   };
 }

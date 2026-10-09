@@ -4,6 +4,8 @@ The loop is written by hand (not a prebuilt runner) because every step has to be
 happens, the guardrail sits between the model and its final answer, and each run has a budget.
 """
 
+import asyncio
+import contextlib
 import logging
 import re
 import time
@@ -13,10 +15,10 @@ from typing import Any
 
 import anthropic
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.agent import assurance, prompts
+from app.agent import assurance, evidence, prompts
 from app.agent.conversation import conversation_messages, workspace_context
 from app.agent.runs import EventLog
 from app.agent.tool_models import GRAPH_TOOLS, GUARD_TOOLS, RECORDING_TOOLS, RESEARCH_TOOLS
@@ -44,6 +46,11 @@ PRICES = {
 }
 CACHE_WRITE_FACTOR, CACHE_READ_FACTOR = 1.25, 0.1
 MAX_NUDGES = 2
+MAX_TRUNCATIONS = 2  # turns cut off at the output limit that are retried before the run fails
+TRUNCATED = (
+    "Your last turn was cut off at the output limit and discarded. Continue more concisely: "
+    "keep each claim to one short sentence, and split long work into several tool calls."
+)
 TERMINAL_TOOLS = {"finalize_conclusion", "abstain"}
 
 
@@ -129,6 +136,7 @@ async def execute_run(
     # False switches the open indexes off (evaluations answer from their packet only).
     toolbox = Toolbox(sessions, run_id, amass, judge, literature or None)
     state = _State(run_id, sessions, log_, toolbox, mode, model, budgets, judge)
+    pulse = asyncio.create_task(_keep_alive(sessions, run_id))
     try:
         if state.assurance is not None:
             await log_.add("assurance", state.assurance)
@@ -142,6 +150,30 @@ async def execute_run(
     except Exception as error:  # noqa: BLE001 - a run must always end in a recorded state
         log.exception("agent run %s crashed", run_id)
         await state.finish("failed", error=f"The run crashed: {type(error).__name__}: {error}")
+    finally:
+        pulse.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await pulse
+
+
+HEARTBEAT_SECONDS = 30
+
+
+async def _keep_alive(sessions: async_sessionmaker[AsyncSession], run_id: uuid.UUID) -> None:
+    """Mark the run alive while this worker holds it, however long one model call or check
+    takes. Stale-run recovery is then only for a worker that really disappeared."""
+    while True:
+        try:
+            async with sessions() as session:
+                await session.execute(
+                    update(AgentRun)
+                    .where(AgentRun.id == run_id, AgentRun.status == "running")
+                    .values(heartbeat_at=datetime.now(UTC))
+                )
+                await session.commit()
+        except Exception:  # noqa: BLE001 - a missed beat must not end the run
+            log.warning("agent run %s heartbeat failed", run_id, exc_info=True)
+        await asyncio.sleep(HEARTBEAT_SECONDS)
 
 
 class _State:
@@ -229,9 +261,13 @@ class _State:
         if self.finished:
             return
         self.finished = True
-        fields: dict[str, Any] = {"status": status, "completed_at": datetime.now(UTC)}
-        if error:
-            fields["error"] = error
+        # The error is always written, so a run that finishes clears one set while it was alive
+        # (for example by stale-run recovery that misjudged it).
+        fields: dict[str, Any] = {
+            "status": status,
+            "completed_at": datetime.now(UTC),
+            "error": error,
+        }
         if report is not None:
             fields["final_report"] = report
         run = await self._save(**fields)
@@ -279,14 +315,14 @@ async def _drive(state: _State, client: Any, goal: ResearchGoal) -> None:
         {
             "role": "user",
             "content": prompts.opening_message(
-                goal, state.mode, budgets["max_turns"], budgets["max_web_searches"]
+                goal, state.mode, budgets["max_turns"], budgets["max_web_searches"], budgets
             )
             + context,
         }
     )
     tools = build_tools(state.mode, budgets["max_web_searches"])
     system = prompts.system_prompt(state.mode)
-    nudges = 0
+    nudges = truncations = 0
     concluded = False  # a finalize or abstain was accepted; the next end_turn is the answer
 
     for _ in range(budgets["max_turns"]):
@@ -333,8 +369,16 @@ async def _drive(state: _State, client: Any, goal: ResearchGoal) -> None:
             )
             return
         if reason == "max_tokens":
-            await state.finish("failed", error="Claude's answer was cut off mid-turn.")
-            return
+            if truncations >= MAX_TRUNCATIONS:
+                await state.finish("failed", error="Claude's answer was cut off mid-turn.")
+                return
+            # A cut-off turn may end in a half-written tool call that cannot be run. Drop the
+            # turn and ask again, more briefly, rather than lose the research done so far.
+            truncations += 1
+            messages.pop()
+            await state.events.add("nudge", {"reason": "turn cut off", "count": truncations})
+            _append_to_last_user(messages, TRUNCATED)
+            continue
         if reason == "pause_turn":
             continue  # a server-side tool (web search) is mid-flight: send it back unchanged
         if reason == "tool_use":
@@ -372,6 +416,15 @@ async def _drive(state: _State, client: Any, goal: ResearchGoal) -> None:
     await state.finish(
         "budget_exhausted", error="The turn or token budget ran out before an answer."
     )
+
+
+def _append_to_last_user(messages: list[dict], note: str) -> None:
+    last = messages[-1]
+    content = last["content"]
+    if isinstance(content, str):
+        last["content"] = f"{content}\n\n{note}"
+    else:
+        last["content"] = [*content, {"type": "text", "text": note}]
 
 
 async def _run_tools(state: _State, response: Any) -> tuple[list[dict], bool]:
@@ -544,6 +597,18 @@ async def _complete(state: _State, text: str) -> None:
         verdict = re.sub(r"^\W*verdict\W*", "", accepted.get("verdict") or "", flags=re.I).strip()
         if verdict:
             report = f"Verdict: {verdict}\n\n{report}"
+        grounds = f" ({accepted['evidence']})" if accepted.get("evidence") else ""
+        report += f"\n\nCertainty: {evidence.readable(run.certainty)}{grounds}."
+        allowed = accepted.get("allowed")
+        if allowed in evidence.LEVELS and evidence.LEVELS.index(allowed) > evidence.LEVELS.index(
+            run.certainty
+        ):
+            why = (accepted.get("lowered_because") or "").strip().rstrip(".")
+            report += f" The evidence allowed {evidence.readable(allowed)}" + (
+                f"; lowered because {why[0].lower()}{why[1:]}."
+                if why
+                else "; the answer claims less."
+            )
         limitations = public_caveats(accepted.get("caveats", []))
         if limitations:
             report += "\n\nLimitations:\n" + "\n".join(f"- {item}" for item in limitations)

@@ -7,6 +7,7 @@ from app.services.verification import (
     _missing_premise_findings,
     _reported_limitation_findings,
     _scope_leap_findings,
+    _ungrounded_findings,
 )
 
 
@@ -80,10 +81,26 @@ def test_scope_and_missing_premise_annotations_create_reasoning_findings() -> No
     }
 
     assert [item.rule_code for item in _scope_leap_findings([step], annotations)] == ["scope_leap"]
+    premises = {step.id: [uuid.uuid4()]}
     assert [
-        item.rule_code
-        for item in _missing_premise_findings([step], {step.id: [uuid.uuid4()]}, annotations)
+        item.rule_code for item in _missing_premise_findings([step], premises, annotations, set())
     ] == ["missing_premise"]
+
+    # The critic's flag clears when the step is replaced by a revision, or a person accepts it.
+    assert _missing_premise_findings([step], premises, annotations, {step.id}) == []
+    step.lifecycle = "accepted"
+    assert _missing_premise_findings([step], premises, annotations, set()) == []
+    # Accepting a step with no premises at all does not make it reasoning.
+    assert len(_missing_premise_findings([step], {step.id: []}, annotations, set())) == 1
+
+
+def test_accepting_a_claim_does_not_hide_that_it_has_no_source() -> None:
+    claim = statement()
+    claim.lifecycle = "accepted"
+    findings = _ungrounded_findings([claim], evidence_ids=set(), inferred_ids=set())
+    assert [item.rule_code for item in findings] == ["ungrounded_statement"]
+    claim.lifecycle = "rejected"
+    assert _ungrounded_findings([claim], evidence_ids=set(), inferred_ids=set()) == []
 
 
 def test_reported_limitation_requires_explicit_limitation_language() -> None:

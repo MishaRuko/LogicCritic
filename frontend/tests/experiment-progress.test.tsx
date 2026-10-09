@@ -24,7 +24,7 @@ describe('experiment pipeline progress', () => {
           result: {
             analysis_stage: 'inspection',
             duration: 30,
-            overview: [{ t: 1.5, data: 'jpeg' }],
+            overview: [{ t: 1.5 }],
             agent_events: [{ kind: 'inspect', start: 0, end: 6, count: 6 }],
           },
         }}
@@ -32,7 +32,7 @@ describe('experiment pipeline progress', () => {
     );
     expect(screen.getByRole('img', { name: 'Recording at 00:01' })).toHaveAttribute(
       'src',
-      'data:image/jpeg;base64,jpeg',
+      `/api/experiment-runs/${job.id}/overview/0.jpg`,
     );
     expect(screen.getByText('Inspect 00:00–00:06 · 6 frames')).toBeInTheDocument();
     expect(screen.getByText('Inspect with the video agent').closest('li')).toHaveAttribute(

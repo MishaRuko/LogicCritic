@@ -92,6 +92,7 @@ async def events(world, kind) -> list[AgentEvent]:
         )
 
 
+@pytest.mark.usefixtures("ample_evidence")
 async def test_the_level_rises_as_the_agent_earns_it() -> None:
     world = await make_world(criteria=["A randomised trial"], sources=SOURCES)
     claim = claim_args(

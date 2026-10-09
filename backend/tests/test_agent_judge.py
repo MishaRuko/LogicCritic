@@ -31,6 +31,9 @@ from tests.agent_helpers import (
     tool,
 )
 
+# These test the verifier's rules; the evidence ceiling is tested in test_agent_evidence.py.
+pytestmark = pytest.mark.usefixtures("ample_evidence")
+
 SOURCES = {
     "trial": ["Patients were randomly assigned to drug X or placebo; mortality fell."],
     "cohort": ["In a cohort study, users of drug X had lower mortality."],
@@ -94,7 +97,7 @@ async def test_the_judge_overrules_the_agents_own_tags() -> None:
     packet = await call(toolbox, "check_conclusion", statement_id=claim)
     assert kinds(packet) == ["unmet_criteria"]
     assert "Judged." in packet["obligations"][0]["description"]
-    assert packet["can_finalize_as"] == ["conditional", "hypothesis"]
+    assert packet["can_finalize_as"] == ["tentative", "speculative"]
 
 
 async def test_a_criterion_the_judge_accepts_needs_no_tag() -> None:
@@ -176,7 +179,7 @@ async def test_when_the_judge_is_down_the_gate_closes_but_a_caveated_answer_is_a
     )
     packet = await call(toolbox, "check_conclusion", statement_id=claim)
     assert kinds(packet) == ["judge_unavailable"]
-    assert packet["can_finalize_as"] == ["conditional", "hypothesis"]
+    assert packet["can_finalize_as"] == ["tentative", "speculative"]
 
 
 async def test_a_verdict_is_reused_until_the_evidence_changes() -> None:

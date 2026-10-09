@@ -148,16 +148,16 @@ async def test_a_long_rate_limit_is_handed_back_to_the_caller() -> None:
     assert error.value.status == 429 and error.value.retry_after == 45
 
 
-async def test_repeated_rate_limiting_gives_up_after_one_retry() -> None:
-    calls = []
+async def test_repeated_rate_limiting_gives_up_after_three_retries() -> None:
+    clock, calls = Clock(), []
 
     def handler(request: httpx.Request) -> httpx.Response:
         calls.append(1)
         return error_body(429, "TOO_MANY_REQUESTS", retryAfter=1)
 
     with pytest.raises(AmassError):
-        await make_client(handler).get_biomedcore("AMBC_1")
-    assert len(calls) == 2
+        await make_client(handler, clock).get_biomedcore("AMBC_1")
+    assert len(calls) == 4 and clock.slept == [2.0, 5.0, 10.0]  # never less than asked
 
 
 async def test_network_failures_are_reported_as_unreachable() -> None:

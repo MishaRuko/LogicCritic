@@ -10,6 +10,7 @@ from app.routes.experiments import router as experiments_router
 from app.routes.extraction import router as extraction_router
 from app.routes.graph import router as graph_router
 from app.routes.health import router as health_router
+from app.routes.snapshot import router as snapshot_router
 from app.routes.sources import router as sources_router
 from app.routes.workspaces import router as workspaces_router
 
@@ -29,6 +30,7 @@ app.include_router(health_router, prefix="/api")
 app.include_router(workspaces_router, prefix="/api")
 app.include_router(sources_router, prefix="/api")
 app.include_router(graph_router, prefix="/api")
+app.include_router(snapshot_router, prefix="/api")
 app.include_router(extraction_router, prefix="/api")
 app.include_router(amass_router, prefix="/api")
 app.include_router(agent_router, prefix="/api")

@@ -17,12 +17,14 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
+import httpx
 from fastapi import HTTPException
 from pydantic import ValidationError
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.agent import guardrail
+from app.agent.evidence import REVIEW, SYSTEMATIC
 from app.agent.tool_models import (
     CAUSAL_DESIGNS,
     GRAPH_TOOLS,
@@ -30,6 +32,7 @@ from app.agent.tool_models import (
     CheckConclusionInput,
     FetchUrlInput,
     FinalizeConclusionInput,
+    FollowCitationsInput,
     LinkClaimsInput,
     ReadPaperInput,
     ReadSourceInput,
@@ -116,11 +119,19 @@ class Toolbox:
         self._protocol_recorded = False
         self._protocol_nudged = False
         self._web_nudged = False
+        self._coverage_nudged = False
+        self._searches = 0  # paper searches; web searches are counted in the run's usage
+        self._citations_suggested = False
+        self._hidden_ids: dict | None = None  # an evaluation's reference review, kept unreadable
+        self._citations_followed = False
+        self._citations_nudged = False
+        self._read_papers: list[tuple[bool, str]] = []  # (is a review, follow_citations id)
         self._position_id: str | None = None  # the agent's current conclusion-role claim
 
     async def call(self, name: str, arguments: dict[str, Any], tool_use_id: str) -> dict:
         handlers = {
             "search_papers": (SearchPapersInput, self.search_papers),
+            "follow_citations": (FollowCitationsInput, self.follow_citations),
             "read_paper": (ReadPaperInput, self.read_paper),
             "fetch_url": (FetchUrlInput, self.fetch_url),
             "read_source": (ReadSourceInput, self.read_source),
@@ -259,6 +270,7 @@ class Toolbox:
         return self._amass
 
     async def search_papers(self, args: SearchPapersInput, _: str) -> dict:
+        self._searches += 1
         limit = max(1, min(args.limit, 20))
         wanted = args.sources or ["amass", "semantic_scholar", "arxiv"]
         searches = {}
@@ -286,14 +298,44 @@ class Toolbox:
             else:
                 found.append(outcome)
         if not found:
-            raise ToolError(f"Paper search failed: {failed}")
+            raise ToolError(f"Paper search failed: {failed}. {USE_THE_WEB}")
         papers = merge(*found, limit=limit)
+        papers = [p for p in papers if not await self._is_hidden(p.ids, p.title)]
         if args.exclude_retracted:
             papers = [p for p in papers if not p.retracted]
         result: dict[str, Any] = {"results": [_paper_row(p) for p in papers]}
         if failed:
             result["unavailable"] = failed
+            result["note"] = USE_THE_WEB
         return result
+
+    async def follow_citations(self, args: FollowCitationsInput, _: str) -> dict:
+        if self._literature is None:
+            raise ToolError("Citation search is not available here.")
+        paper = args.paper.strip()
+        kind, sep, value = paper.partition(":")
+        if sep and kind.upper() in ("DOI", "PMID", "ARXIV"):
+            paper = f"{kind.upper()}:{value.strip()}"
+        self._searches += 1
+        self._citations_followed = True
+        try:
+            papers = await self._literature.citations(
+                paper, args.direction, max(1, min(args.limit, 20)), args.about
+            )
+        except (LiteratureError, httpx.HTTPError) as error:
+            raise ToolError(f"Could not follow citations: {error} {USE_THE_WEB}") from error
+        papers = [p for p in papers if not await self._is_hidden(p.ids, p.title)]
+        if not papers:
+            other = "cited_by" if args.direction == "references" else "references"
+            return {
+                "results": [],
+                "note": (
+                    f"The index has no {args.direction.replace('_', ' ')} for that paper: check "
+                    "its id, but some publishers withhold reference lists. Try "
+                    f"direction='{other}', or search for the work it would cite."
+                ),
+            }
+        return {"direction": args.direction, "results": [_paper_row(p) for p in papers]}
 
     async def _search_amass(self, args: SearchPapersInput, limit: int) -> list[Paper]:
         records = await self._need_amass().search_biomedcore(
@@ -320,7 +362,74 @@ class Toolbox:
             for r in records
         ]
 
-    async def read_paper(self, args: ReadPaperInput, _: str) -> dict:
+    async def read_paper(self, args: ReadPaperInput, tool_id: str) -> dict:
+        given = {"doi": args.doi, "pmid": args.pmid}
+        if await self._is_hidden({k: v for k, v in given.items() if v}, None):
+            raise ToolError(HIDDEN)
+        result = await self._read_paper(args, tool_id)
+        if await self._is_hidden(result.get("ids") or {}, result.get("title")):
+            # Asked for by another id (an Amass id, a PMID the evaluation did not know): only now
+            # is it recognisable. It never reaches the agent, and the imported copy is removed.
+            async with self._sessions() as session:
+                await session.execute(
+                    delete(Source).where(Source.id == uuid.UUID(result["source_id"]))
+                )
+                await session.commit()
+            raise ToolError(HIDDEN)
+        if hint := self._citation_hint(result):
+            result["follow_citations"] = hint
+        return result
+
+    async def _is_hidden(self, ids: dict, title: str | None) -> bool:
+        """Whether this is the review an evaluation judges the answer against. Reading it would
+        turn the evaluation into copying the answer key, so it is kept out of reach."""
+        if self._hidden_ids is None:
+            async with self._sessions() as session:
+                run = await session.get(AgentRun, self._run_id)
+                self._hidden_ids = dict(run.budgets.get("hidden_source") or {})
+        hidden = self._hidden_ids
+        if not hidden:
+            return False
+        for name in ("doi", "pmid"):
+            if hidden.get(name) and str(ids.get(name) or "").lower().rstrip(".") == hidden[name]:
+                return True
+        return bool(title and hidden.get("title") and _title_key(title) == hidden["title"])
+
+    def _citation_hint(self, result: dict) -> str | None:
+        """Point the agent at the citation network of what it just read: always for a review,
+        once for anything else. Keyword searches alone rarely find the studies behind a review
+        or the later work disputing a paper."""
+        if self._literature is None:
+            return None
+        ids = result.get("ids") or {}
+        paper = next(
+            (
+                f"{prefix}:{ids[name]}"
+                for name, prefix in (("doi", "DOI"), ("pmid", "PMID"), ("arxiv_id", "ARXIV"))
+                if ids.get(name)
+            ),
+            ids.get("semantic_scholar_id"),
+        )
+        if not paper:
+            return None
+        title = result.get("title") or ""
+        review = bool(SYSTEMATIC.search(title) or REVIEW.search(title))
+        self._read_papers.append((review, paper))
+        if review:
+            return (
+                f"This is a review: follow_citations(paper='{paper}', direction='references') "
+                "finds the studies it rests on, and direction='cited_by' newer work and "
+                "challenges to it."
+            )
+        if self._citations_suggested:
+            return None
+        self._citations_suggested = True
+        return (
+            f"If this is a key paper, follow_citations(paper='{paper}', direction='cited_by') "
+            "finds later work that replicates or disputes it."
+        )
+
+    async def _read_paper(self, args: ReadPaperInput, _: str) -> dict:
         given = {
             name: value
             for name in ("amass_id", "pmid", "doi", "arxiv_id", "semantic_scholar_id")
@@ -437,6 +546,11 @@ class Toolbox:
         return await self._store_fetched(_page_to_source(page), page.final_url)
 
     async def _store_fetched(self, new: NewSource, url: str | None) -> dict:
+        ids = dict(new.external_ids or {})
+        if url and (doi := re.search(r"10\.\d{4,9}/[^\s?#]+", url)):
+            ids.setdefault("doi", doi.group(0))
+        if await self._is_hidden(ids, new.title):
+            raise ToolError(HIDDEN)
         async with self._sessions() as session:
             run = await session.get(AgentRun, self._run_id)
             try:
@@ -842,21 +956,72 @@ class Toolbox:
             result = await guardrail.check(session, run, goal, statement_id, self._judge)
         return result.packet
 
+    async def _coverage_problem(self) -> str | None:
+        """One push to research more widely before a thorough answer is final. Once only: in a
+        narrow field the minimum may not exist, and the answer should then say so."""
+        if self._coverage_nudged:
+            return None
+        async with self._sessions() as session:
+            run = await session.get(AgentRun, self._run_id)
+        min_sources = run.budgets.get("min_sources", 0)
+        min_searches = run.budgets.get("min_searches", 0)
+        read = len(self._read_sources)
+        searched = self._searches + run.usage.get("web_searches", 0)
+        if read >= min_sources and searched >= min_searches:
+            return None
+        self._coverage_nudged = True
+        missing = []
+        if read < min_sources:
+            missing.append(f"read {read} of the {min_sources} independent sources expected")
+        if searched < min_searches:
+            missing.append(f"run {searched} of the {min_searches} searches expected")
+        return (
+            f"This is a thorough answer, and you have only {' and '.join(missing)}. Look for "
+            "reviews, evidence against your conclusion and recent work, and read what you find. "
+            "If no more relevant sources exist, call finalize_conclusion again and say in the "
+            "answer how few there are."
+        )
+
+    async def _citation_problem(self) -> str | None:
+        """One push, in thorough research, to follow the citations of a paper it read: keyword
+        searches miss the studies behind a review and the later work disputing a paper. Once
+        only, and never when there is nothing to follow from."""
+        if self._citations_followed or self._citations_nudged or not self._read_papers:
+            return None
+        async with self._sessions() as session:
+            run = await session.get(AgentRun, self._run_id)
+        if run.budgets.get("depth") != "thorough" or self._literature is None:
+            return None
+        self._citations_nudged = True
+        review, paper = max(self._read_papers, key=lambda item: item[0])  # a review if any
+        direction = "references" if review else "cited_by"
+        return (
+            "This is a thorough answer, and you have not followed any citations. Call "
+            f"follow_citations(paper='{paper}', direction='{direction}', "
+            "about='<a few topic words>') and read what bears on your conclusion, especially "
+            "work that disputes it. If nothing relevant comes back, call finalize_conclusion again."
+        )
+
     async def _web_problem(self) -> str | None:
-        """One push to check the web before concluding, if searching was allowed and unused."""
+        """One push to search the web before concluding, if searching was allowed and the run
+        searched it less than expected (once for quick research, a few times for thorough)."""
         if self._web_nudged:
             return None
         async with self._sessions() as session:
             run = await session.get(AgentRun, self._run_id)
         allowed = run.budgets.get("max_web_searches", 0)
-        if allowed <= 0 or run.usage.get("web_searches", 0) > 0:
+        expected = min(allowed, run.budgets.get("min_web_searches", 1))
+        done = run.usage.get("web_searches", 0)
+        if allowed <= 0 or done >= expected:
             return None
         self._web_nudged = True  # one push, never a loop
         return (
-            f"You have not searched the web, and you may ({allowed} searches). Guidelines, "
-            "regulators, news, preprints and manufacturer documents are often only there. If any "
-            "could bear on this question, call web_search now. If none could, call "
-            "finalize_conclusion again."
+            f"You have searched the web {done} time(s) of the {expected} expected. Papers leave "
+            "out much of what bears on a question: official guidelines and positions (WHO, "
+            "national agencies, regulators, professional bodies), government statistics and "
+            "evaluations, and the newest results and critiques. Official sources count as strong "
+            "evidence. Search for those that could bear on this question with web_search, and "
+            "read what you rely on with fetch_url. If none could, call finalize_conclusion again."
         )
 
     async def _protocol_problem(self, decision: str) -> str | None:
@@ -905,27 +1070,48 @@ class Toolbox:
                 f"The verdict is the bottom line only: at most {MAX_VERDICT_CHARS} characters. "
                 "Put the evidence and deductions in the conclusion."
             )
-        problem = await self._protocol_problem(args.protocol) or await self._web_problem()
+        problem = (
+            await self._protocol_problem(args.protocol)
+            or await self._coverage_problem()
+            or await self._citation_problem()
+            or await self._web_problem()
+        )
         if problem:
             return {"accepted": False, "reason": problem}
         async with self._sessions() as session:
             run = await session.get(AgentRun, self._run_id)
             goal = await session.get(ResearchGoal, run.goal_id)
             accepted, result = await guardrail.finalize(
-                session, run, goal, statement_id, args.certainty, self._judge
+                session,
+                run,
+                goal,
+                statement_id,
+                args.certainty,
+                self._judge,
+                lowered_because=args.lowered_because,
             )
         if not accepted:
             return {
                 "accepted": False,
                 "reason": (
                     f"The evidence does not support a conclusion at certainty {args.certainty!r}. "
-                    f"You may finalize as: {result.allowed_certainties()}."
+                    f"You may finalize as: {result.allowed_certainties() or 'nothing (abstain)'}."
                 ),
+                "to_raise": result.ceiling.to_raise if result.ceiling else [],
                 "obligations": [o.as_dict() for o in result.obligations],
             }
+        lowered = args.lowered_because.strip() if result.certainty == args.certainty else ""
         return {
             "accepted": True,
-            "certainty": args.certainty,
+            "certainty": result.certainty,
+            **(
+                {"certainty_set": f"{result.certainty}: what the evidence allows"}
+                if result.certainty != args.certainty
+                else {}
+            ),
+            "lowered_because": lowered,
+            "evidence": result.ceiling.summary() if result.ceiling else None,
+            "allowed": result.ceiling.level if result.ceiling else None,
             "conclusion": result.statement_text,
             "verdict": args.verdict.strip(),
             "caveats": [o.as_dict() for o in result.obligations],
@@ -953,6 +1139,23 @@ def _index(excerpts: list[Excerpt]) -> list[dict]:
     ]
 
 
+# A site answering with a bot check or challenge instead of the page asked for.
+BOT_CHECK = re.compile(
+    r"checking your browser|captcha|are you a robot|verify you are (a )?human|just a moment|"
+    r"attention required|enable javascript and cookies|unusual traffic|request unsuccessful",
+    re.IGNORECASE,
+)
+MIN_PAGE_CHARS = 60  # below this a page is a shell or a redirect, not something to cite
+
+
+def _opening_title(excerpts: list[ParsedExcerpt]) -> str | None:
+    """A title from a document's opening text, for PDFs whose metadata has none."""
+    if not excerpts:
+        return None
+    opening = " ".join(excerpts[0].text.split())[:140]
+    return opening.rsplit(" ", 1)[0] + "…" if len(opening) == 140 else opening or None
+
+
 def _page_to_source(page) -> NewSource:
     """A fetched page as a source. HTML becomes stored text, so excerpt offsets index it."""
     host = re.sub(r"^https?://", "", page.final_url).split("/")[0]
@@ -971,7 +1174,7 @@ def _page_to_source(page) -> NewSource:
         return NewSource(
             kind="web_page",
             origin="agent",
-            title=parsed.title or host,
+            title=parsed.title or _opening_title(parsed.excerpts) or host,
             mime_type="application/pdf",
             filename=_pdf_name(page.final_url),
             content=page.content,
@@ -983,8 +1186,16 @@ def _page_to_source(page) -> NewSource:
     title, text = (raw, raw) if page.content_type == "text/plain" else html_to_text(raw)
     if page.content_type == "text/plain":
         title = host
-    if not text.strip():
-        raise ToolError("The page has no readable text (it may need JavaScript to load).")
+    if BOT_CHECK.search(title or "") or (len(text) < 2000 and BOT_CHECK.search(text)):
+        raise ToolError(
+            f"{host} answered with a bot check instead of the page, so nothing was saved. Try "
+            "read_paper with the paper's DOI, or another copy of it."
+        )
+    if len(text.strip()) < MIN_PAGE_CHARS:
+        raise ToolError(
+            "The page has almost no readable text (it may need JavaScript, or be a landing "
+            "page), so nothing was saved."
+        )
     return NewSource(
         kind="web_page",
         origin="agent",
@@ -1014,6 +1225,32 @@ def _text_excerpts(text: str) -> list[ParsedExcerpt]:
                 locator["section"] = label
             excerpts.append(ParsedExcerpt(text=body, sequence=len(excerpts), locator=locator))
     return excerpts
+
+
+USE_THE_WEB = (
+    "Some paper indexes are refusing requests right now, and retrying will not help soon. Use "
+    "web_search to find papers instead (search for the title, or the topic plus 'pdf', "
+    "'doi' or 'meta-analysis'), then read them with fetch_url; a page with a DOI or a PDF "
+    "counts as a scholarly source."
+)
+HIDDEN = (
+    "This source is withheld in this evaluation: the answer is judged against it. Find the "
+    "evidence it draws on instead."
+)
+
+
+def _title_key(title: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", title.lower())
+
+
+def hidden_source(reference: dict) -> dict:
+    """What identifies an evaluation's reference review, in the form _is_hidden compares."""
+    hidden = {
+        "doi": str(reference.get("doi") or "").lower().rstrip(".") or None,
+        "pmid": str(reference.get("pmid") or "") or None,
+        "title": _title_key(reference.get("title") or "") or None,
+    }
+    return {k: v for k, v in hidden.items() if v}
 
 
 def _paper_row(paper: Paper) -> dict:

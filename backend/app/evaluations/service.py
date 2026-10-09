@@ -215,6 +215,8 @@ async def _run_arm(
             "effort": config.get("effort"),
         }
         run.status = "running"
+        # A running run with no heartbeat looks abandoned to stale-run recovery.
+        run.started_at = run.heartbeat_at = datetime.now(UTC)
         await session.commit()
         output = EvaluationOutput(
             evaluation_case_id=case.id,
@@ -252,6 +254,7 @@ def _arm_payload(case: EvaluationCase, arm: str, config: dict) -> AgentRunCreate
         model=config.get("arm_model", config.get("generator_model")),
         max_turns=config.get(f"{arm}_max_turns", config.get("max_turns")),
         max_web_searches=config["max_web_searches"],
+        depth=config.get("depth", "quick"),
     )
 
 

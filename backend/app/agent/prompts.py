@@ -10,7 +10,10 @@ of a justified answer; you decide what to do about it.
 How you work
 1. Find evidence. Use both kinds of search; most questions need both. search_papers searches the \
 scholarly literature (Amass, Semantic Scholar, arXiv). web_search finds what papers leave out: \
-guidelines, regulators, manufacturer and lab documentation, protocols and recent work. Search \
+guidelines, regulators, manufacturer and lab documentation, protocols and recent work. Give \
+each search_papers call its purpose. When you find a key paper or review, follow_citations \
+finds the studies it rests on (references) and the newer work that cites it, including \
+rebuttals (cited_by), which keyword searches often miss. Search \
 results and snippets are NOT evidence. To \
 rely on a source, read it: read_paper or fetch_url, then read_source. Read the most promising \
 results from your first search straight away, and form a working position early: after that \
@@ -57,7 +60,16 @@ check_conclusion on it BEFORE \
 answering. It returns open obligations: what must be established before the conclusion is \
 justified. It does not tell you what to do. You may fetch more evidence, record and weigh \
 opposing evidence, narrow the conclusion, or finalize with honest caveats. An obligation you \
-cannot meet is a reason to state a weaker conclusion, not to hide it.
+cannot meet is a reason to state a weaker conclusion, not to hide it. Certainty is earned: \
+established, supported, tentative or speculative, and the highest you may claim (can_finalize_as) \
+depends on the obligations, on how many independent sources your conclusion rests on through \
+recorded claims and reasoning, and on how widely you searched. A source you read but did not \
+connect to the conclusion counts for nothing. certainty_ceiling.to_raise says what would raise \
+it; when you have turns left, going after that evidence is better than settling for less. \
+The certainty is computed from your evidence: finalize_conclusion gives the conclusion the \
+highest level can_finalize_as allows. Understating misleads as much as overstating. Only if you \
+choose a lower level than that, give lowered_because: the specific weakness the verifier could \
+not see. Otherwise leave it empty, and put the limitations in the conclusion itself.
 6. If the evidence you relied on describes a laboratory or experimental procedure that someone \
 could carry out to reproduce or test the finding, record it with record_protocol before you \
 finalize, whether or not the question asked for one. Give the physical bench steps the sources \
@@ -123,7 +135,26 @@ OPENING = {
 }
 
 
-def opening_message(goal: ResearchGoal, mode: str, max_turns: int, max_searches: int) -> str:
+THOROUGH = """\
+Research this thoroughly; a person will rely on the answer.
+- Start broad: look for reviews, meta-analyses, surveys or standards in the field first, then the \
+primary studies they rest on (follow_citations with references).
+- Search for evidence against your emerging answer (purpose 'against'): failures, null results, \
+criticism and competing explanations, not only support. Follow a key paper's cited_by too: \
+rebuttals and failed replications cite what they dispute.
+- Look for the most recent work too; a field may have moved on.
+- Search the web for what papers leave out: official guidelines and positions (WHO, national \
+agencies, regulators, professional bodies), government statistics and evaluations, and news of \
+new results. Official sources count as strong evidence; read them with fetch_url.
+- When a search finds little, search again with different terms: synonyms, names of methods, \
+datasets or trials, abbreviations, broader and narrower wording.
+- Read at least {min_sources} independent sources before concluding, when that many exist. If \
+fewer exist, say so in the answer."""
+
+
+def opening_message(
+    goal: ResearchGoal, mode: str, max_turns: int, max_searches: int, budgets: dict | None = None
+) -> str:
     lines = [OPENING.get(goal.kind, OPENING["question"]).format(text=goal.question)]
     if goal.completion_criteria:
         lines.append("\nWhat would count as answering it (completion criteria, numbered from 0):")
@@ -135,6 +166,12 @@ def opening_message(goal: ResearchGoal, mode: str, max_turns: int, max_searches:
     if max_searches:
         budget += f" You may use up to {max_searches} web searches."
     lines.append(budget)
+    if (budgets or {}).get("depth") == "thorough":
+        lines.append("\n" + THOROUGH.format(min_sources=budgets.get("min_sources", 5)))
+    else:
+        lines.append(
+            "When a search finds little, search again with different terms before giving up."
+        )
     if mode == "guarded":
         lines.append(
             "Tag claims with criteria_satisfied where they seem to meet a criterion. The tag is "

@@ -234,6 +234,26 @@ export function projectWorkspace(
   const ids = new Set(nodes.map(n => n.id));
   return { nodes, edges: edges.filter(e => ids.has(e.source) && ids.has(e.target)) };
 }
+/** Links between claims that are not the argument's own structure: evidence the agent or synthesis
+ *  connected across sources. They are many in a researched workspace, so they are laid out around
+ *  the argument rather than shaping it, and drawn when one of their claims is in focus. */
+export const CROSS_LINKS = new Set([
+  'supports',
+  'rebuts',
+  'qualifies',
+  'undercuts',
+  'specializes',
+  'revises',
+]);
+
+/** The graph without withdrawn (rejected) claims and steps: a revised claim's replacement stands
+ *  in for it. */
+export function withoutWithdrawn(graph: ResearchGraph): ResearchGraph {
+  const kept = graph.nodes.filter(n => n.lifecycle !== 'rejected');
+  const ids = new Set(kept.map(n => n.id));
+  return { nodes: kept, edges: graph.edges.filter(e => ids.has(e.source) && ids.has(e.target)) };
+}
+
 export function filterGraph(
   graph: ResearchGraph,
   query: string,

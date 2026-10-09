@@ -9,6 +9,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.schemas import CAUSAL_DESIGNS  # noqa: F401 - re-exported for the toolbox
+
 
 class SearchPapersInput(BaseModel):
     query: str = Field(description="What to search for in the scholarly literature.")
@@ -17,6 +19,15 @@ class SearchPapersInput(BaseModel):
         description="Earliest publication date as YYYY-MM-DD, or null."
     )
     exclude_retracted: bool = Field(description="True to leave out retracted papers.")
+    purpose: Literal["overview", "for", "against", "recent", "specific"] | None = Field(
+        default=None,
+        description=(
+            "Why you are searching: overview (reviews and meta-analyses), for (evidence for your "
+            "emerging conclusion), against (evidence that would contradict it: null results, "
+            "failures, harms, criticism), recent (newer work), specific (a known paper). A "
+            "conclusion is Established only after at least one 'against' search."
+        ),
+    )
     sources: list[Literal["amass", "semantic_scholar", "arxiv"]] | None = Field(
         default=None,
         description=(
@@ -25,6 +36,31 @@ class SearchPapersInput(BaseModel):
             "physics, CS, maths, quantitative biology)."
         ),
     )
+
+
+class FollowCitationsInput(BaseModel):
+    paper: str = Field(
+        description=(
+            "The paper to start from: DOI:<doi>, PMID:<pmid>, ARXIV:<id>, or a "
+            "semantic_scholar_id from search_papers."
+        )
+    )
+    direction: Literal["references", "cited_by"] = Field(
+        description=(
+            "references = the works it cites, most cited first, without methods references "
+            "(from a review: the primary studies behind it); cited_by = works citing it, the "
+            "most cited of its recent citers (newer studies, replications, rebuttals)."
+        )
+    )
+    about: str | None = Field(
+        default=None,
+        description=(
+            "A few words for what you are looking for (for example 'aerobic exercise blood "
+            "pressure trial'): works sharing them come first. Without it, the most cited come "
+            "first, which favours a field's background over its studies."
+        ),
+    )
+    limit: int = Field(description="How many results, 1 to 20.")
 
 
 class ReadPaperInput(BaseModel):
@@ -96,11 +132,6 @@ class ScopeInput(BaseModel):
     endpoint: str | None = Field(description="The outcome measured, or null.")
 
 
-CAUSAL_DESIGNS = (
-    "randomised_trial",
-    "meta_analysis_of_randomised_trials",
-    "natural_experiment_or_mendelian",
-)
 NON_CAUSAL_DESIGNS = ("observational", "animal_or_in_vitro", "other")
 
 
@@ -237,12 +268,24 @@ class CheckConclusionInput(BaseModel):
 
 class FinalizeConclusionInput(BaseModel):
     statement_id: str = Field(description="The statement_id of your conclusion.")
-    certainty: Literal["established", "conditional", "hypothesis"] = Field(
+    certainty: Literal["established", "supported", "tentative", "speculative"] = Field(
         description=(
-            "established = the evidence settles it; conditional = holds with stated caveats; "
-            "hypothesis = a possibility worth testing. 'established' is refused while critical "
-            "obligations are open."
+            "established = strong, independent, consistent evidence found by a broad search; "
+            "supported = consistent evidence from more than one independent source; tentative = "
+            "sound but thin evidence, or gaps still open; speculative = reasoning beyond the "
+            "direct evidence. Refused above the certainty check_conclusion allows "
+            "(can_finalize_as). Below it, it is raised to the highest allowed unless you give "
+            "lowered_because."
         )
+    )
+    lowered_because: str = Field(
+        default="",
+        description=(
+            "Empty unless your certainty is below the first entry of can_finalize_as. Then: the "
+            "specific weakness in the evidence that the verifier could not see; it is shown to the "
+            "reader. Weaknesses that apply at the level you were allowed belong in the "
+            "conclusion, not here."
+        ),
     )
     verdict: str = Field(
         default="",
@@ -273,6 +316,13 @@ RESEARCH_TOOLS: dict[str, tuple[str, type[BaseModel]]] = {
         "arXiv (preprints), merged. Returns titles, abstracts, dates, citation counts, the ids to "
         "read each paper with, and retraction flags where known. Does not save anything.",
         SearchPapersInput,
+    ),
+    "follow_citations": (
+        "Follow the citation network from one paper: the works it cites, or the works citing it, "
+        "most cited first, with the ids to read each. Use it on a key paper or review to find the "
+        "studies behind it and the newer work, including rebuttals, that keyword searches miss. "
+        "Does not save anything.",
+        FollowCitationsInput,
     ),
     "read_paper": (
         "Import one paper into the workspace so you can read and cite it: give exactly one of its "
@@ -363,8 +413,8 @@ GUARD_TOOLS: dict[str, tuple[str, type[BaseModel]]] = {
         CheckConclusionInput,
     ),
     "finalize_conclusion": (
-        "Give your answer. Refused with 'established' while critical obligations are open: then "
-        "resolve them, narrow the claim, or finalize as conditional or hypothesis.",
+        "Give your answer. Refused at a certainty above what check_conclusion allows: then "
+        "gather and connect the evidence it lists, narrow the claim, or finalize lower.",
         FinalizeConclusionInput,
     ),
     "abstain": (

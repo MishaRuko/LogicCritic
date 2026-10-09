@@ -20,14 +20,25 @@ STALE_AFTER = timedelta(minutes=5)
 
 def default_budgets(payload: AgentRunCreate) -> dict:
     settings = get_settings()
+    thorough = payload.depth == "thorough"
     return {
-        "max_turns": payload.max_turns or settings.agent_max_turns,
+        "depth": payload.depth,
+        "max_turns": payload.max_turns
+        or (settings.agent_thorough_max_turns if thorough else settings.agent_max_turns),
         "max_web_searches": (
-            settings.agent_max_web_searches
+            (
+                settings.agent_thorough_max_web_searches
+                if thorough
+                else settings.agent_max_web_searches
+            )
             if payload.max_web_searches is None
             else payload.max_web_searches
         ),
-        "max_total_output_tokens": MAX_TOTAL_OUTPUT_TOKENS,
+        "max_total_output_tokens": MAX_TOTAL_OUTPUT_TOKENS * (2 if thorough else 1),
+        # What the guard asks for once before a thorough answer is final.
+        "min_sources": settings.agent_thorough_min_sources if thorough else 0,
+        "min_searches": settings.agent_thorough_min_searches if thorough else 0,
+        "min_web_searches": settings.agent_thorough_min_web_searches if thorough else 1,
     }
 
 

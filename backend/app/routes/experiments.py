@@ -1,12 +1,13 @@
 import asyncio
+import base64
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
-from fastapi.responses import FileResponse
-from pydantic import BaseModel, ConfigDict
+from fastapi.responses import FileResponse, Response
+from pydantic import BaseModel, ConfigDict, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,6 +23,7 @@ from app.models import (
     Source,
     SourceValidity,
 )
+from app.routes.etag import etag_response
 from app.routes.workspaces import require_workspace
 from app.services.experiments import extract_source_protocol, live_directory
 from app.services.research_state import research_fingerprint, verification_state
@@ -53,6 +55,15 @@ class RunResponse(BaseModel):
     error: str | None
     created_at: datetime
     completed_at: datetime | None
+
+    @field_validator("result")
+    @classmethod
+    def frames_by_reference(cls, result: dict) -> dict:
+        """Overview frames are served as images (`/overview/{n}.jpg`), not inlined: inlined, they
+        made every poll of a finished video run about 2 MB."""
+        if not result.get("overview"):
+            return result
+        return {**result, "overview": [{"t": frame.get("t")} for frame in result["overview"]]}
 
 
 class ExtractRequest(BaseModel):
@@ -122,7 +133,9 @@ async def require_research_ready(session: AsyncSession, workspace_id: uuid.UUID)
 
 
 @router.get("/workspaces/{workspace_id}/experiments")
-async def list_experiments(workspace_id: uuid.UUID, session: AsyncSession = Depends(get_session)):
+async def list_experiments(
+    workspace_id: uuid.UUID, request: Request, session: AsyncSession = Depends(get_session)
+):
     await require_workspace(workspace_id, session)
     verified, fingerprint = await verification_state(session, workspace_id)
     check = await session.scalar(
@@ -145,33 +158,36 @@ async def list_experiments(workspace_id: uuid.UUID, session: AsyncSession = Depe
             .order_by(ExperimentRun.created_at.desc())
         )
     )
-    return {
-        "verified": verified,
-        "verification": {
-            "verification_event_id": str(check.id),
-            "rules_run": check.payload.get("rules", []),
-            **{
-                key: check.payload.get(key, 0)
-                for key in (
-                    "issues_opened",
-                    "issues_resolved",
-                    "obligations_opened",
-                    "obligations_resolved",
-                )
-            },
-        }
-        if check and verified
-        else None,
-        "protocols": [
-            {
-                **ProtocolResponse.model_validate(p).model_dump(mode="json"),
-                "current": p.research_fingerprint == fingerprint,
+    return etag_response(
+        request,
+        {
+            "verified": verified,
+            "verification": {
+                "verification_event_id": str(check.id),
+                "rules_run": check.payload.get("rules", []),
+                **{
+                    key: check.payload.get(key, 0)
+                    for key in (
+                        "issues_opened",
+                        "issues_resolved",
+                        "obligations_opened",
+                        "obligations_resolved",
+                    )
+                },
             }
-            for p in protocols
-        ],
-        "runs": [RunResponse.model_validate(r) for r in runs],
-        "suggested": await agent_suggestion(session, workspace_id, fingerprint),
-    }
+            if check and verified
+            else None,
+            "protocols": [
+                {
+                    **ProtocolResponse.model_validate(p).model_dump(mode="json"),
+                    "current": p.research_fingerprint == fingerprint,
+                }
+                for p in protocols
+            ],
+            "runs": [RunResponse.model_validate(r) for r in runs],
+            "suggested": await agent_suggestion(session, workspace_id, fingerprint),
+        },
+    )
 
 
 @router.post(
@@ -436,6 +452,22 @@ async def stop_live_session(run_id: uuid.UUID, session: AsyncSession = Depends(g
     directory.mkdir(parents=True, exist_ok=True)
     (directory / "ended").touch()
     return run
+
+
+@router.get("/experiment-runs/{run_id}/overview/{index}.jpg")
+async def overview_frame(
+    run_id: uuid.UUID, index: int, session: AsyncSession = Depends(get_session)
+) -> Response:
+    """One overview frame of a video run. Frames never change once taken, so browsers keep them."""
+    run = await session.get(ExperimentRun, run_id)
+    frames = (run.result or {}).get("overview") or [] if run else []
+    if not 0 <= index < len(frames):
+        raise HTTPException(404, "Frame not found")
+    return Response(
+        base64.b64decode(frames[index]["data"]),
+        media_type="image/jpeg",
+        headers={"Cache-Control": "public, max-age=31536000, immutable"},
+    )
 
 
 @router.get("/experiment-runs/{run_id}/recording")

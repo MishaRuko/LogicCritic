@@ -23,6 +23,9 @@ from app.services.amass import BiomedRecord
 from app.services.literature import LiteratureError, Paper
 from tests.agent_helpers import claim_args, make_world
 
+# These test the verifier's rules; the evidence ceiling is tested in test_agent_evidence.py.
+pytestmark = pytest.mark.usefixtures("ample_evidence")
+
 
 @pytest.fixture(autouse=True)
 async def fresh_engine(tmp_path, monkeypatch):
@@ -312,13 +315,21 @@ async def test_fetch_url_saves_a_web_page_as_a_source_once(monkeypatch) -> None:
 
 async def test_a_page_with_nul_characters_is_saved_without_them(monkeypatch) -> None:
     async def fetch(url, **kwargs):
-        return FetchedPage(url, url, 200, "text/plain", b"Mortality\x00 fell by 30%.")
+        return FetchedPage(
+            url,
+            url,
+            200,
+            "text/plain",
+            b"Mortality\x00 fell by 30% in the treated group over the 28 days of follow-up.",
+        )
 
     monkeypatch.setattr("app.agent.toolbox.fetch_public", fetch)
     toolbox = box(await make_world())
     result = await call(toolbox, "fetch_url", url="https://nul.example/a.txt")
     page = await call(toolbox, "read_source", source_id=result["source_id"], offset=0)
-    assert [e["text"] for e in page["excerpts"]] == ["Mortality fell by 30%."]
+    assert [e["text"] for e in page["excerpts"]] == [
+        "Mortality fell by 30% in the treated group over the 28 days of follow-up."
+    ]
 
 
 async def test_an_unexpected_failure_is_a_tool_error_not_a_crashed_run(monkeypatch) -> None:
@@ -326,7 +337,13 @@ async def test_an_unexpected_failure_is_a_tool_error_not_a_crashed_run(monkeypat
         raise RuntimeError("database refused the row")
 
     async def fetch(url, **kwargs):
-        return FetchedPage(url, url, 200, "text/plain", b"Some text.")
+        return FetchedPage(
+            url,
+            url,
+            200,
+            "text/plain",
+            b"Some text that is long enough to be a real page, so it gets as far as saving.",
+        )
 
     monkeypatch.setattr("app.agent.toolbox.fetch_public", fetch)
     monkeypatch.setattr("app.agent.toolbox.store_source", broken_store)
@@ -455,6 +472,28 @@ class FakeLiterature:
         self.lookups.append(paper_id)
         return self.papers.get(paper_id)
 
+    async def citations(self, paper_id, direction, limit, about=None):
+        self.lookups.append((paper_id, direction, limit, about))
+        return [Paper(["semantic_scholar"], f"{direction} of {paper_id}", ids={"pmid": "7"})]
+
+
+async def test_following_citations_normalises_the_id_and_returns_readable_rows() -> None:
+    world = await make_world()
+    literature = FakeLiterature()
+    toolbox = Toolbox(session_factory, world.run_id, None, None, literature)
+    result = await call(
+        toolbox,
+        "follow_citations",
+        paper="doi: 10.1/review",
+        direction="references",
+        about="drug X trial",
+        limit=50,
+    )
+    assert literature.lookups == [("DOI:10.1/review", "references", 20, "drug X trial")]
+    assert result["direction"] == "references"
+    assert result["results"][0]["title"] == "references of DOI:10.1/review"
+    assert result["results"][0]["pmid"] == "7"  # an id read_paper accepts
+
 
 async def test_paper_search_merges_the_indexes_and_reports_one_that_failed() -> None:
     world = await make_world()
@@ -567,8 +606,9 @@ async def test_a_well_supported_conclusion_can_be_established() -> None:
     packet = await check(toolbox, claim)
     assert packet["obligations"] == [] and packet["can_finalize_as"] == [
         "established",
-        "conditional",
-        "hypothesis",
+        "supported",
+        "tentative",
+        "speculative",
     ]
     assert packet["evidence_chain"][0]["from_sources"][0]["title"] == "trial"
 
@@ -584,7 +624,7 @@ async def test_a_well_supported_conclusion_can_be_established() -> None:
     )
 
 
-async def test_a_conclusion_on_a_retracted_source_cannot_be_established_or_conditional() -> None:
+async def test_no_conclusion_may_rest_on_a_retracted_source_not_even_a_speculative_one() -> None:
     world = await make_world(sources=SOURCES, retracted=("trial",))
     toolbox = box(world)
     claim = await record(toolbox, world, "Drug X reduced mortality.", "trial")
@@ -593,9 +633,9 @@ async def test_a_conclusion_on_a_retracted_source_cannot_be_established_or_condi
     assert kinds(packet) == ["invalidated_source"]
     assert packet["obligations"][0]["severity"] == "critical"
     assert packet["evidence_chain"][0]["from_sources"][0]["retracted"] is True
-    assert packet["can_finalize_as"] == ["hypothesis"]
+    assert packet["can_finalize_as"] == []
 
-    for certainty in ("established", "conditional"):
+    for certainty in ("established", "supported", "tentative", "speculative"):
         refused = await call(
             toolbox, "finalize_conclusion", statement_id=claim, certainty=certainty
         )
@@ -603,9 +643,7 @@ async def test_a_conclusion_on_a_retracted_source_cannot_be_established_or_condi
             refused["accepted"] is False
             and refused["obligations"][0]["kind"] == "invalidated_source"
         )
-        assert "hypothesis" in refused["reason"]
-    allowed = await call(toolbox, "finalize_conclusion", statement_id=claim, certainty="hypothesis")
-    assert allowed["accepted"] is True and allowed["caveats"][0]["kind"] == "invalidated_source"
+        assert "abstain" in refused["reason"]
 
 
 async def add_rebuttal(world, opposing: str, supported: bool, concluded: str) -> None:
@@ -783,3 +821,193 @@ def test_tool_results_are_plain_json() -> None:
     text = tool_result_text({"a": [1, {"b": uuid.UUID(int=5)}]})
     assert json.loads(text)["a"][1]["b"] == str(uuid.UUID(int=5))
     assert tool_result_text({"x": "y" * 100}, limit=20).endswith('"truncated"')
+
+
+async def test_bot_checks_and_empty_pages_are_refused_not_saved(monkeypatch) -> None:
+    pages = {
+        "https://journal.example/captcha": (
+            b"<html><head><title>Checking your browser - reCAPTCHA</title></head>"
+            b"<body><p>Checking your browser before accessing journal.example ...</p></body></html>"
+        ),
+        "https://journal.example/shell": (
+            b"<html><head><title>App</title></head><body></body></html>"
+        ),
+    }
+
+    async def fetch(url, **kwargs):
+        return FetchedPage(url, url, 200, "text/html", pages[url])
+
+    monkeypatch.setattr("app.agent.toolbox.fetch_public", fetch)
+    toolbox = box(await make_world())
+    blocked = await call(toolbox, "fetch_url", url="https://journal.example/captcha")
+    assert "bot check" in blocked["error"] and "read_paper" in blocked["error"]
+    empty = await call(toolbox, "fetch_url", url="https://journal.example/shell")
+    assert "almost no readable text" in empty["error"]
+
+
+def test_a_pdf_without_a_real_title_is_named_from_its_opening_text() -> None:
+    from app.agent.toolbox import _opening_title
+    from app.services.pdf_ingestion import JUNK_TITLE
+    from app.services.text_ingestion import ParsedExcerpt
+
+    assert JUNK_TITLE.search("Template for Electronic Submission to ACS Journals")
+    assert JUNK_TITLE.search("Microsoft Word - draft3.docx")
+    assert not JUNK_TITLE.search("Long-Term Employment Effects of the Minimum Wage in Germany")
+    opening = ParsedExcerpt(
+        text="Long-Term Employment Effects of the Minimum Wage in Germany: New Data and "
+        "Estimators Marco Caliendo University of Potsdam, CEPA, IZA, BSE, DIW, IAB",
+        sequence=0,
+        locator={},
+    )
+    title = _opening_title([opening])
+    assert title.startswith("Long-Term Employment Effects of the Minimum Wage in Germany")
+    assert title.endswith("…") and len(title) <= 141
+
+
+async def reasoned_causal_conclusion(world, toolbox, premise_design: str | None) -> dict:
+    extra = (
+        {
+            "claim_strength": "causal",
+            "causal_support": {"design": premise_design, "justification": "as the text says"},
+        }
+        if premise_design
+        else {"claim_strength": "associative"}
+    )
+    premise = await record(
+        toolbox, world, "Drug X was followed by lower mortality.", "trial", **extra
+    )
+    conclusion = await call(
+        toolbox,
+        "record_claim",
+        **claim_args(
+            world,
+            "Drug X lowers mortality in adults.",
+            "trial",
+            assertion_mode="asserted",
+            role="conclusion",
+            claim_strength="causal",
+            causal_support={
+                "design": "meta_analysis_of_randomised_trials",
+                "justification": "from the premises",
+            },
+        )
+        | {"excerpt_ids": []},
+    )
+    await reason(toolbox, [premise], conclusion["statement_id"])
+    return await check(toolbox, conclusion["statement_id"])
+
+
+async def test_a_reasoned_causal_conclusion_takes_its_design_from_what_it_rests_on() -> None:
+    world = await make_world(sources=SOURCES)
+    toolbox = box(world)
+    # Rests on a randomised trial: nothing to show in cited text, nothing missing.
+    packet = await reasoned_causal_conclusion(world, toolbox, "randomised_trial")
+    assert "causal_design_not_shown" not in kinds(packet)
+
+    world = await make_world(sources=SOURCES)
+    toolbox = box(world)
+    # Rests only on an association: the causal wording has no design behind it.
+    packet = await reasoned_causal_conclusion(world, toolbox, None)
+    blocked = [o for o in packet["obligations"] if o["kind"] == "causal_design_not_shown"]
+    assert len(blocked) == 1 and "association" in blocked[0]["required_condition"]
+
+
+def test_the_critic_lets_a_synthesis_state_conflict_and_caveats_without_more_support() -> None:
+    from app.services.judge import STEP_AUDIT_SYSTEM
+
+    assert "hedges and caveats only weaken a claim" in STEP_AUDIT_SYSTEM
+    assert "resolve a conflict it reports as unresolved" in STEP_AUDIT_SYSTEM
+
+
+async def test_reading_a_review_points_to_its_citation_network() -> None:
+    world = await make_world()
+    toolbox = Toolbox(session_factory, world.run_id, None, None, FakeLiterature())
+
+    review = {"title": "Drug X: a systematic review and meta-analysis", "ids": {"doi": "10.1/r"}}
+    trial = {"title": "A trial of drug X", "ids": {"pmid": "5"}}
+    other = {"title": "Another trial of drug X", "ids": {"pmid": "6"}}
+    assert "direction='references'" in toolbox._citation_hint(review)
+    assert "DOI:10.1/r" in toolbox._citation_hint(review)
+    assert "PMID:5" in toolbox._citation_hint(trial)
+    assert toolbox._citation_hint(other) is None  # once for ordinary papers
+    assert "review" in toolbox._citation_hint(review)  # always for reviews
+
+
+async def test_an_evaluations_reference_review_is_kept_out_of_reach() -> None:
+    from app.agent.toolbox import hidden_source
+
+    world = await make_world()
+    async with session_factory() as session:
+        run = await session.get(AgentRun, world.run_id)
+        run.budgets = {
+            **run.budgets,
+            "hidden_source": hidden_source({"title": "Cohort of X", "doi": "10.1000/REVIEW"}),
+        }
+        await session.commit()
+    literature = FakeLiterature()
+    toolbox = Toolbox(session_factory, world.run_id, None, None, literature)
+
+    found = await call(
+        toolbox, "search_papers", query="x", limit=5, published_after=None, exclude_retracted=False
+    )
+    titles = [row["title"] for row in found["results"]]
+    assert "Cohort of X" not in titles and "Trial of X" in titles  # hidden by its title
+    refused = await call(
+        toolbox,
+        "read_paper",
+        amass_id=None,
+        pmid=None,
+        doi="10.1000/review",
+        arxiv_id=None,
+        semantic_scholar_id=None,
+    )
+    assert "withheld in this evaluation" in refused["error"]
+    # Fetched by URL, it is refused before anything is stored.
+    from app.services.source_store import NewSource
+
+    page = NewSource("web_page", "agent", "Some page", "text/plain", "p.txt", b"x", [])
+    with pytest.raises(Exception, match="withheld"):
+        await toolbox._store_fetched(page, "https://doi.org/10.1000/review")
+    async with session_factory() as session:
+        stored = await session.scalars(
+            select(Source).where(Source.workspace_id == world.workspace_id)
+        )
+        assert list(stored) == []
+
+
+async def test_when_paper_indexes_refuse_the_agent_is_pointed_at_the_web() -> None:
+    world = await make_world()
+    toolbox = Toolbox(session_factory, world.run_id, None, None, FakeLiterature(arxiv_down=True))
+    found = await call(
+        toolbox, "search_papers", query="x", limit=5, published_after=None, exclude_retracted=False
+    )
+    assert found["unavailable"] and "web_search" in found["note"]
+
+
+async def test_a_hidden_reference_read_by_another_id_is_removed_and_refused(monkeypatch) -> None:
+    from app.agent.toolbox import hidden_source
+
+    world = await make_world(sources=SOURCES)
+    async with session_factory() as session:
+        run = await session.get(AgentRun, world.run_id)
+        run.budgets = {**run.budgets, "hidden_source": hidden_source({"doi": "10.1000/review"})}
+        await session.commit()
+    toolbox = box(world)
+    imported = str(world.sources["trial"])
+
+    async def via_amass(args, tool_id):  # Amass returns it, by PMID, with its DOI
+        return {"source_id": imported, "title": "Some review", "ids": {"doi": "10.1000/REVIEW"}}
+
+    monkeypatch.setattr(toolbox, "_read_paper", via_amass)
+    refused = await call(
+        toolbox,
+        "read_paper",
+        amass_id=None,
+        pmid="123",
+        doi=None,
+        arxiv_id=None,
+        semantic_scholar_id=None,
+    )
+    assert "withheld in this evaluation" in refused["error"]
+    async with session_factory() as session:
+        assert await session.get(Source, uuid.UUID(imported)) is None

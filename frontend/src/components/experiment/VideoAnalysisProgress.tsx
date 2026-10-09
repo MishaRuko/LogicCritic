@@ -5,6 +5,10 @@ import { motion, useReducedMotion } from 'framer-motion';
 import type { ExperimentProtocol, ExperimentRun } from '../../types/api';
 import { time } from '../../lib/experiment/demo';
 
+/** An overview frame, served as a cacheable image rather than inlined in every poll. */
+export const overviewFrame = (run: string, index: number) =>
+  `/api/experiment-runs/${run}/overview/${index}.jpg`;
+
 export function VideoAnalysisProgress({
   job,
   protocol,
@@ -190,7 +194,7 @@ export function VideoAnalysisProgress({
                 frames.length ? (
                   <div aria-label="Recording overview" className="h-full overflow-y-auto pr-1">
                     <div className="grid grid-cols-[repeat(2,minmax(0,96px))] gap-x-2 gap-y-3">
-                      {frames.map(frame => (
+                      {frames.map((frame, index) => (
                         <motion.figure
                           key={frame.t}
                           initial={{ opacity: 0 }}
@@ -199,7 +203,7 @@ export function VideoAnalysisProgress({
                           className="min-w-0"
                         >
                           <img
-                            src={`data:image/jpeg;base64,${frame.data}`}
+                            src={overviewFrame(job.id, index)}
                             alt={`Recording at ${time(frame.t)}`}
                             className="aspect-[4/3] w-full rounded-sm bg-zinc-100 object-cover"
                           />

@@ -9,6 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.models import Excerpt, GraphEvent, Source, Statement, StatementExcerpt
 from app.schemas import (
+    CAUSAL_DESIGNS,
+    AnnotationCreateOperation,
     ExtractionOutput,
     GraphPatchRequest,
     ProvenanceInput,
@@ -20,7 +22,7 @@ from app.services.claude_errors import describe_claude_failure, ensure_complete
 from app.services.claude_tools import strict_input_schema, strict_tool
 from app.services.graph_patches import GraphPatchExecutor, graph_patch_response_from_event
 
-PROMPT_VERSION = "source_extraction_v8"
+PROMPT_VERSION = "source_extraction_v9"
 NON_CLAIM_SECTIONS = {"retraction notice"}
 
 EXTRACTION_SYSTEM_PROMPT = (
@@ -51,7 +53,10 @@ EXTRACTION_SYSTEM_PROMPT = (
     "statements. Do not impose a numeric claim limit: include every consequential claim, but not "
     "sentence-level coverage. Use the supplied document overview to judge paper-level importance. "
     "Do not return an "
-    "empty result when consequential claims are present. Use unique client_ref values. Call the "
+    "empty result when consequential claims are present. Give each statement's claim_strength as "
+    "the source words it, and for a causal statement the study_design the source reports; these "
+    "are checked, so a causal claim from an observational study is recorded as worded and flagged "
+    "by the verifier, not softened. Use unique client_ref values. Call the "
     "submit_extraction tool with the result."
 )
 
@@ -280,10 +285,48 @@ async def extract_source_to_patch(
                 )
                 for item in output.reasoning_steps
             ],
+            *_strength_annotations(output, provenance),
         ],
     )
     patch = await GraphPatchExecutor(session, source.workspace_id).apply(patch_request)
     return model, patch
+
+
+def _strength_annotations(
+    output: ExtractionOutput, provenance: ProvenanceInput
+) -> list[AnnotationCreateOperation]:
+    """What each statement claims (causal or not) and the design behind a causal one, so the
+    verifier's causality rule applies to uploaded papers as it does to the agent's claims."""
+    operations = []
+    for item in output.statements:
+        if item.claim_strength is None:
+            continue
+        operations.append(
+            AnnotationCreateOperation(
+                op="create_annotation",
+                subject_type="statement",
+                subject_id=item.client_ref,
+                type="claim_strength",
+                value={"value": item.claim_strength},
+                provenance=provenance,
+            )
+        )
+        if item.claim_strength == "causal" and item.study_design is not None:
+            operations.append(
+                AnnotationCreateOperation(
+                    op="create_annotation",
+                    subject_type="statement",
+                    subject_id=item.client_ref,
+                    type="causal_support",
+                    value={
+                        "supported": item.study_design in CAUSAL_DESIGNS,
+                        "design": item.study_design,
+                        "justification": "The study design the source reports.",
+                    },
+                    provenance=provenance,
+                )
+            )
+    return operations
 
 
 def _excerpt_context(excerpts: list[Excerpt], limit: int) -> str:

@@ -266,7 +266,8 @@ export interface ExperimentRun {
     deviations?: ExperimentDeviation[];
     analysis_stage?: 'method' | 'frames' | 'inspection' | 'verification' | 'done';
     duration?: number;
-    overview?: { t: number; data: string }[];
+    /** Frame times only; each frame is an image at /experiment-runs/{id}/overview/{n}.jpg. */
+    overview?: { t: number }[];
     agent_events?: VideoAgentEvent[];
     agent_method?: import('../lib/experiment/types').MethodContract;
     agent_observations?: import('../lib/experiment/types').Observation[];
@@ -303,7 +304,9 @@ export interface Experiments {
 export type AgentKind = 'question' | 'claim' | 'hypothesis';
 export type AgentStatus =
   'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'budget_exhausted';
-export type AgentCertainty = 'established' | 'conditional' | 'hypothesis' | 'abstained';
+export type FinalCertainty = 'established' | 'supported' | 'tentative' | 'speculative';
+/** 'conditional' and 'hypothesis' are what runs before the four levels stored. */
+export type AgentCertainty = FinalCertainty | 'conditional' | 'hypothesis' | 'abstained';
 export interface AgentRunCreate {
   idempotency_key: string;
   question: string;
@@ -399,7 +402,15 @@ export interface CheckPacket {
   reasoning_steps: { step_id: string; premises: string[]; explanation: string }[];
   obligations: GuardObligation[];
   completion_criteria: [number, string][];
-  can_finalize_as: ('established' | 'conditional' | 'hypothesis')[];
+  can_finalize_as: FinalCertainty[];
+  certainty_ceiling: {
+    level: FinalCertainty | 'none';
+    label: string | null;
+    meaning: string | null;
+    by: Record<'soundness' | 'evidence' | 'breadth' | 'quality', FinalCertainty | 'none'>;
+    to_raise: string[];
+    evidence: string;
+  } | null;
   assurance: Assurance;
   notes: string[];
   you_may: string[];
@@ -542,6 +553,8 @@ export interface AgentRunInput {
   falsifiers: string[];
   max_turns?: number;
   max_web_searches?: number;
+  /** thorough (the default) reads widely before concluding; quick answers from the first good sources. */
+  depth?: 'thorough' | 'quick';
 }
 
 // Preserve unknown future trace events for display and replay.

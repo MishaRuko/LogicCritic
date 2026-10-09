@@ -9,14 +9,18 @@ Google Scholar (through SerpAPI) can be added the same way: a search method here
 """
 
 import asyncio
+import copy
 import re
 import time
 import xml.etree.ElementTree as ET
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
+from typing import Any
 
 import httpx
 
 from app.config import get_settings
+from app.services.http_retry import send
 
 S2_URL = "https://api.semanticscholar.org/graph/v1"
 S2_FIELDS = "title,abstract,venue,publicationDate,year,citationCount,externalIds,openAccessPdf"
@@ -25,10 +29,25 @@ OPENALEX_FIELDS = (
     "doi,ids,display_name,publication_date,cited_by_count,is_retracted,primary_location,"
     "best_oa_location,abstract_inverted_index"
 )
+CACHE_SECONDS = 24 * 3600
+S2_REST_SECONDS = 300  # Semantic Scholar is skipped this long after it keeps refusing
+CACHE_SIZE = 2000  # requests remembered per process
+CITATION_PAGE = 200  # citing or cited works fetched before ranking them by citations
 ARXIV_URL = "https://export.arxiv.org/api/query"
 ARXIV_SPACING_SECONDS = 3.0  # arXiv asks for no more than one request every three seconds
 ATOM = {"a": "http://www.w3.org/2005/Atom", "arxiv": "http://arxiv.org/schemas/atom"}
 ARXIV_ID = re.compile(r"arxiv\.org/(?:abs|pdf)/([^\s?#]+?)(?:v\d+)?(?:\.pdf)?$")
+# Works cited for method, not findings: reporting standards, statistics, software, handbooks.
+METHOD_REFERENCE = re.compile(
+    r"preferred reporting items|prisma|risk of bias|cochrane (handbook|collaboration)|handbook|"
+    r"heterogeneity|publication bias|funnel plot|meta-analys[ie]s? (detected|in)|"
+    r"introduction to meta-analysis|language and environment for statistical|"
+    r"mostly harmless econometrics|grade guidelines|statistical power analysis|"
+    r"r package|inconsistency in meta|effect sizes|file drawer|"
+    r"observational studies in epidemiology|guidelines? (for|on)|"
+    r"^bleu$|^bert:|^bart:|ieee conference on computer vision",
+    re.IGNORECASE,
+)
 STOPWORDS = set(
     "a an and the of in on for to with by is are does do what how or vs versus from at as".split()
 )
@@ -96,26 +115,56 @@ class LiteratureClient:
         self._http = http or httpx.AsyncClient(timeout=30.0, follow_redirects=True)
         self._arxiv_lock = asyncio.Lock()
         self._arxiv_last = 0.0
+        self._cache: dict[tuple, tuple[float, Any]] = {}
+        self._s2_resting_until = 0.0
+
+    async def _cached(self, key: tuple, compute: Callable[[], Awaitable[Any]]) -> Any:
+        """The same request within a day is answered from memory: repeated questions and
+        follow-up runs ask the indexes the same things, and the keyless pools are scarce. Errors
+        and empty answers are not remembered. Copies are handed out because merging changes
+        papers in place."""
+        now = time.monotonic()
+        hit = self._cache.get(key)
+        if hit is not None and hit[0] > now:
+            return copy.deepcopy(hit[1])
+        value = await compute()
+        if not value:
+            return value  # an empty answer is often a sign of trouble: ask again next time
+        if len(self._cache) >= CACHE_SIZE:
+            self._cache.pop(next(iter(self._cache)))  # the oldest entry
+        self._cache[key] = (now + CACHE_SECONDS, value)
+        return copy.deepcopy(value)
 
     # -- Semantic Scholar ---------------------------------------------------------------------
 
     async def _s2_get(self, path: str, params: dict) -> dict | None:
         key = get_settings().semantic_scholar_api_key
         headers = {"x-api-key": key} if key else {}
-        for attempt in range(2):
-            response = await self._http.get(f"{S2_URL}{path}", params=params, headers=headers)
-            if response.status_code == 429 and attempt == 0:
-                await asyncio.sleep(2)  # the keyless pool is shared and briefly throttles
-                continue
-            if response.status_code == 404:
-                return None
-            if response.status_code != 200:
-                raise LiteratureError(f"Semantic Scholar returned {response.status_code}.")
-            return response.json()
-        raise LiteratureError("Semantic Scholar is rate limiting requests; try again shortly.")
+        if time.monotonic() < self._s2_resting_until:
+            raise LiteratureError("Semantic Scholar is rate limiting requests; try again shortly.")
+        # The keyless pool is shared with every keyless user and often refuses for a while.
+        response = await send(self._http, "GET", f"{S2_URL}{path}", params=params, headers=headers)
+        if response.status_code == 404:
+            return None
+        if response.status_code == 429:
+            # Still refusing after the retries: go straight to the fallback for a while rather
+            # than spend every search waiting on it.
+            self._s2_resting_until = time.monotonic() + S2_REST_SECONDS
+            raise LiteratureError("Semantic Scholar is rate limiting requests; try again shortly.")
+        if response.status_code != 200:
+            raise LiteratureError(f"Semantic Scholar returned {response.status_code}.")
+        return response.json()
 
     async def search_semantic_scholar(
         self, query: str, limit: int, published_after: str | None = None
+    ) -> list[Paper]:
+        return await self._cached(
+            ("s2", query, limit, published_after),
+            lambda: self._search_semantic_scholar(query, limit, published_after),
+        )
+
+    async def _search_semantic_scholar(
+        self, query: str, limit: int, published_after: str | None
     ) -> list[Paper]:
         params = {"query": query, "limit": limit, "fields": S2_FIELDS}
         if published_after:
@@ -128,6 +177,9 @@ class LiteratureClient:
 
     async def lookup_semantic_scholar(self, paper_id: str) -> Paper | None:
         """A paper by Semantic Scholar ID, or prefixed DOI:, PMID: or ARXIV: identifier."""
+        return await self._cached(("lookup", paper_id), lambda: self._lookup(paper_id))
+
+    async def _lookup(self, paper_id: str) -> Paper | None:
         try:
             body = await self._s2_get(f"/paper/{paper_id}", {"fields": S2_FIELDS})
         except (LiteratureError, httpx.HTTPError):
@@ -137,10 +189,71 @@ class LiteratureClient:
             return await self._lookup_openalex(f"{kind.lower()}:{value}")
         return _s2_paper(body) if body else None
 
+    async def citations(
+        self, paper_id: str, direction: str, limit: int, about: str | None = None
+    ) -> list[Paper]:
+        """The works a paper cites (`references`) or the works citing it (`cited_by`): those
+        sharing words with `about` first, then the most cited. `paper_id` is as for
+        `lookup_semantic_scholar`."""
+        return await self._cached(
+            ("citations", paper_id, direction, limit, about),
+            lambda: self._citations(paper_id, direction, limit, about),
+        )
+
+    async def _citations(
+        self, paper_id: str, direction: str, limit: int, about: str | None
+    ) -> list[Paper]:
+        edge, key = (
+            ("references", "citedPaper")
+            if direction == "references"
+            else ("citations", "citingPaper")
+        )
+        try:
+            # The order Semantic Scholar returns is not by importance, so take a wide page.
+            body = await self._s2_get(
+                f"/paper/{paper_id}/{edge}", {"fields": S2_FIELDS, "limit": CITATION_PAGE}
+            )
+        except (LiteratureError, httpx.HTTPError):
+            return _rank(await self._citations_openalex(paper_id, direction, limit), about)
+        if body is None:
+            return []
+        papers = [_s2_paper(row[key]) for row in body.get("data") or [] if row.get(key)]
+        papers = [p for p in papers if p.title]
+        if direction == "references":
+            papers = [p for p in papers if not METHOD_REFERENCE.search(p.title)]
+        return _rank(papers, about)[:limit]
+
+    async def _citations_openalex(self, paper_id: str, direction: str, limit: int) -> list[Paper]:
+        kind, _, value = paper_id.partition(":")
+        if kind not in ("DOI", "PMID"):
+            raise LiteratureError(
+                "Following citations needs a DOI or PMID while Semantic Scholar is unavailable."
+            )
+        response = await send(
+            self._http,
+            "GET",
+            f"{OPENALEX_URL}/{kind.lower()}:{value}",
+            params=openalex_params({"select": "id"}),
+        )
+        if response.status_code != 200:
+            return []
+        work = response.json()["id"].rsplit("/", 1)[-1]
+        relation = "cited_by" if direction == "references" else "cites"
+        body = await self._openalex_get(
+            OPENALEX_URL,
+            {"filter": f"{relation}:{work}", "sort": "cited_by_count:desc", "per_page": limit},
+        )
+        papers = [_openalex_paper(item) for item in (body or {}).get("results") or []]
+        if direction == "references":
+            papers = [p for p in papers if not METHOD_REFERENCE.search(p.title or "")]
+        return papers
+
     # -- OpenAlex (the fallback) --------------------------------------------------------------
 
     async def _openalex_get(self, url: str, params: dict) -> dict | None:
-        response = await self._http.get(url, params={**params, "select": OPENALEX_FIELDS})
+        response = await send(
+            self._http, "GET", url, params=openalex_params({**params, "select": OPENALEX_FIELDS})
+        )
         if response.status_code == 404:
             return None
         if response.status_code != 200:
@@ -150,7 +263,8 @@ class LiteratureClient:
     async def _search_openalex(
         self, query: str, limit: int, published_after: str | None
     ) -> list[Paper]:
-        params = {"search": query, "per_page": limit}
+        # OpenAlex reads ? and * as wildcards and refuses a query using them that way (400).
+        params = {"search": re.sub(r"[?*]", " ", query), "per_page": limit}
         if published_after:
             params["filter"] = f"from_publication_date:{published_after}"
         body = await self._openalex_get(OPENALEX_URL, params) or {}
@@ -164,6 +278,14 @@ class LiteratureClient:
 
     async def search_arxiv(
         self, query: str, limit: int, published_after: str | None = None
+    ) -> list[Paper]:
+        return await self._cached(
+            ("arxiv", query, limit, published_after),
+            lambda: self._search_arxiv(query, limit, published_after),
+        )
+
+    async def _search_arxiv(
+        self, query: str, limit: int, published_after: str | None
     ) -> list[Paper]:
         terms = [w for w in re.findall(r"[A-Za-z0-9-]+", query) if w.lower() not in STOPWORDS]
         if not terms:
@@ -187,7 +309,9 @@ class LiteratureClient:
             if wait > 0:
                 await asyncio.sleep(wait)
             try:
-                response = await self._http.get(
+                response = await send(
+                    self._http,
+                    "GET",
                     ARXIV_URL,
                     params={
                         "search_query": search_query,
@@ -203,6 +327,28 @@ class LiteratureClient:
             _arxiv_paper(entry)
             for entry in ET.fromstring(response.text).iter(f"{{{ATOM['a']}}}entry")
         ]
+
+
+def openalex_params(params: dict) -> dict:
+    """OpenAlex query parameters, with the API key when one is configured."""
+    key = get_settings().openalex_api_key
+    return {**params, "api_key": key} if key else params
+
+
+def _words(text: str | None) -> set[str]:
+    words = re.findall(r"[a-z0-9]{4,}", (text or "").lower())
+    return {w.removesuffix("s") for w in words if w not in STOPWORDS}  # trials matches trial
+
+
+def _rank(papers: list[Paper], about: str | None) -> list[Paper]:
+    """On-topic first (shared words with `about`), then by citations. Citation count alone
+    puts a field's background (guidelines, statistics, burden studies) ahead of the studies."""
+    topic = _words(about)
+    return sorted(
+        papers,
+        key=lambda p: (len(_words(p.title) & topic), p.citations or 0),
+        reverse=True,
+    )
 
 
 def _s2_paper(item: dict) -> Paper:

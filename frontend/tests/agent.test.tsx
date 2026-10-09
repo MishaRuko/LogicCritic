@@ -165,10 +165,31 @@ describe('research conversation', () => {
           mode: 'guarded',
           completion_criteria: ['Human trials', 'Replication'],
           falsifiers: [],
-          max_turns: 20,
+          max_turns: 40,
           max_web_searches: 0,
+          depth: 'thorough',
         },
       }),
+    );
+  });
+
+  it('researches thoroughly by default, and quick depth restores the shorter budget', async () => {
+    const { onSubmit } = mount();
+    fireEvent.change(screen.getByLabelText('Research message'), {
+      target: { value: 'Is X true?' },
+    });
+    expect(screen.getByLabelText('Research depth')).toHaveValue('thorough');
+    expect(screen.getByLabelText('Maximum research steps')).toHaveValue(40);
+    fireEvent.change(screen.getByLabelText('Research depth'), { target: { value: 'quick' } });
+    expect(screen.getByLabelText('Maximum research steps')).toHaveValue(20);
+    expect(screen.getByLabelText('Maximum web searches')).toHaveValue(10);
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          options: expect.objectContaining({ depth: 'quick', max_turns: 20, max_web_searches: 10 }),
+        }),
+      ),
     );
   });
 
@@ -229,12 +250,12 @@ describe('research conversation', () => {
         ...run,
         status: 'succeeded',
         final_report: 'A narrower conclusion is supported.',
-        certainty: 'conditional',
+        certainty: 'conditional', // stored by runs before the four levels
         final_statement_id: 'conclusion-1',
       },
     ]);
     expect(screen.getByText('A narrower conclusion is supported.')).toBeVisible();
-    expect(screen.getByText('conditional')).toBeVisible();
+    expect(screen.getByText('Tentative')).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Inspect conclusion' }));
     expect(onSelect).toHaveBeenCalledWith('conclusion-1');
   });

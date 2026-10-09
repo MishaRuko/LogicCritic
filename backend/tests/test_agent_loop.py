@@ -1,3 +1,6 @@
+import asyncio
+from datetime import UTC, datetime, timedelta
+
 import anthropic
 import httpx
 import pytest
@@ -19,6 +22,9 @@ from tests.agent_helpers import (
     tool,
     web_search,
 )
+
+# These test the verifier's rules; the evidence ceiling is tested in test_agent_evidence.py.
+pytestmark = pytest.mark.usefixtures("ample_evidence")
 
 SOURCES = {"trial": ["Drug X reduced 28-day mortality by 30% in a randomised trial of adults."]}
 
@@ -125,6 +131,7 @@ async def test_a_guarded_run_records_checks_and_finalizes() -> None:
     run = await run_of(world)
     assert run.status == "succeeded" and run.certainty == "established"
     assert run.final_report.startswith("Drug X reduced mortality in a randomised trial.")
+    assert "Certainty: Established (3 independent sources" in run.final_report
     assert "[Verifier record]" not in run.final_report
     assert run.usage["turns"] == 4 and run.usage["input_tokens"] == 2000 + 1000 * 3
     assert run.usage["cache_read_tokens"] == 0 and run.usage["cost_usd"] > 0
@@ -162,7 +169,7 @@ async def test_a_guarded_run_records_checks_and_finalizes() -> None:
     )
     names = [t["name"] for t in first["tools"]]
     assert (
-        names[:4] == ["search_papers", "read_paper", "fetch_url", "read_source"]
+        names[:5] == ["search_papers", "follow_citations", "read_paper", "fetch_url", "read_source"]
         and names[-1] == "web_search"
     )
     assert {
@@ -188,24 +195,25 @@ async def test_the_guardrail_stops_a_conclusion_that_rests_on_a_retracted_paper(
             tool("finalize_conclusion", statement_id=statement(), certainty="established"),
             stop="tool_use",
         ),
+        # Not even a speculation may rest on a retracted paper.
         lambda r: reply(
-            tool("finalize_conclusion", statement_id=statement(), certainty="hypothesis"),
+            tool("finalize_conclusion", statement_id=statement(), certainty="speculative"),
             stop="tool_use",
         ),
-        reply(text("A hypothesis only: the supporting paper was retracted.")),
+        reply(tool("abstain", reason="The only supporting paper was retracted."), stop="tool_use"),
+        reply(text("No answer: the supporting paper was retracted.")),
     )
     await execute_run(world.run_id, client=client)
 
     run = await run_of(world)
-    assert run.status == "succeeded" and run.certainty == "hypothesis"
+    assert run.status == "succeeded" and run.certainty == "abstained"
     finals = [e.payload["result"] for e in await events_of(world) if e.type == "finalization"]
-    assert [f["accepted"] for f in finals] == [False, True]
+    assert [f["accepted"] for f in finals][:2] == [False, False]
     assert finals[0]["obligations"][0]["kind"] == "invalidated_source"
-    assert finals[1]["caveats"][0]["kind"] == "invalidated_source"
+    assert "abstain" in finals[1]["reason"]
     checked = next(e.payload["result"] for e in await events_of(world) if e.type == "check")
-    assert checked["can_finalize_as"] == ["hypothesis"]
-    assert "invalidated source" in run.final_report
-    assert "supporting paper was retracted" not in run.final_report
+    assert checked["can_finalize_as"] == []
+    assert "retracted" in run.final_report
 
 
 async def test_an_abstention_ends_the_run_with_its_reason() -> None:
@@ -231,7 +239,7 @@ async def test_finalization_on_the_last_allowed_turn_succeeds() -> None:
             tool(
                 "finalize_conclusion",
                 statement_id=statement_id_from(client, 1),
-                certainty="hypothesis",
+                certainty="speculative",
             ),
             stop="tool_use",
         ),
@@ -243,6 +251,34 @@ async def test_finalization_on_the_last_allowed_turn_succeeds() -> None:
     assert run.status == "succeeded" and run.usage["turns"] == 2
     assert run.final_report.startswith("Drug X reduced mortality.")
     assert "Reviewer:" not in run.final_report
+    # It asked for less than the evidence allows, with no reason: certainty is computed.
+    assert run.certainty == "tentative" and "Certainty: Tentative" in run.final_report
+    assert "claims less" not in run.final_report
+
+
+async def test_claiming_less_than_the_evidence_allows_needs_a_reason_the_reader_sees() -> None:
+    world = await make_world(sources=SOURCES)
+    claim = claim_args(world, "Drug X reduced mortality.", "trial", role="conclusion")
+    client = FakeClaude(
+        reply(tool("record_claim", **claim), stop="tool_use"),
+        lambda request: reply(
+            tool(
+                "finalize_conclusion",
+                statement_id=statement_id_from(client, 1),
+                certainty="speculative",
+                lowered_because="The only trial was stopped early.",
+            ),
+            stop="tool_use",
+        ),
+        reply(text("Done.")),
+    )
+    await execute_run(world.run_id, client=client)
+    run = await run_of(world)
+    assert run.certainty == "speculative"
+    assert (
+        "The evidence allowed Tentative; lowered because the only trial was stopped early."
+        in run.final_report
+    )
 
 
 async def test_a_baseline_run_has_no_guard_tools_and_just_reports() -> None:
@@ -256,6 +292,7 @@ async def test_a_baseline_run_has_no_guard_tools_and_just_reports() -> None:
     names = [t["name"] for t in client.requests[0]["tools"]]
     assert names == [
         "search_papers",
+        "follow_citations",
         "read_paper",
         "fetch_url",
         "read_source",
@@ -348,15 +385,30 @@ async def test_the_output_token_budget_stops_a_run() -> None:
     assert run.status == "budget_exhausted" and run.usage["turns"] == 2
 
 
-@pytest.mark.parametrize(
-    ("stop", "expected"),
-    [("refusal", "declined to continue"), ("max_tokens", "cut off")],
-)
-async def test_refusals_and_truncation_fail_the_run_with_a_reason(stop, expected) -> None:
+async def test_a_refusal_fails_the_run_with_a_reason() -> None:
     world = await make_world(sources=SOURCES)
-    await execute_run(world.run_id, client=FakeClaude(reply(text("..."), stop=stop)))
+    await execute_run(world.run_id, client=FakeClaude(reply(text("..."), stop="refusal")))
     run = await run_of(world)
-    assert run.status == "failed" and expected in run.error
+    assert run.status == "failed" and "declined to continue" in run.error
+
+
+async def test_a_cut_off_turn_is_dropped_and_retried_concisely_then_fails_if_it_persists() -> None:
+    world = await make_world(mode="baseline", sources=SOURCES)
+    half_written = reply(tool("record_claim", text="An endless claim"), stop="max_tokens")
+    client = FakeClaude(half_written, reply(text("A short answer.")))
+    await execute_run(world.run_id, client=client)
+    run = await run_of(world)
+    assert run.status == "succeeded" and run.final_report == "A short answer."
+    retried = client.requests[1]["messages"]
+    # The half-written call is gone, and the agent is told why.
+    assert all(m["content"] != half_written.content for m in retried)
+    assert "cut off at the output limit" in str(retried[-1]["content"])
+
+    world = await make_world(sources=SOURCES)
+    cut = reply(text("..."), stop="max_tokens")
+    await execute_run(world.run_id, client=FakeClaude(cut, cut, cut))
+    run = await run_of(world)
+    assert run.status == "failed" and "cut off" in run.error
 
 
 async def test_a_paused_server_tool_turn_is_sent_back_and_continued() -> None:
@@ -444,7 +496,7 @@ def test_the_search_tool_follows_the_budget() -> None:
     guarded = build_tools("guarded", 5)
     assert guarded[-1] == {"type": "web_search_20250305", "name": "web_search", "max_uses": 5}
     assert not any(t["name"] == "web_search" for t in build_tools("guarded", 0))
-    assert len(build_tools("baseline", 1)) == 9 and len(build_tools("guarded", 1)) == 17
+    assert len(build_tools("baseline", 1)) == 10 and len(build_tools("guarded", 1)) == 18
 
 
 async def test_the_report_leads_with_the_verdict_given_at_finalization() -> None:
@@ -456,7 +508,7 @@ async def test_the_report_leads_with_the_verdict_given_at_finalization() -> None
             tool(
                 "finalize_conclusion",
                 statement_id=statement_id_from(client, 1),
-                certainty="hypothesis",
+                certainty="speculative",
                 verdict=verdict,
             ),
             stop="tool_use",
@@ -572,3 +624,24 @@ async def test_every_turn_is_recorded_with_its_own_usage_and_no_block_is_dropped
     assert other.payload["block"]["name"] == "code_execution"
     assert other.payload["block"]["input"] == {"code": "print(1)"}
     assert "web_search" not in types(events)  # a code-execution call is not a web search
+
+
+async def test_a_long_silent_step_keeps_the_run_alive(monkeypatch) -> None:
+    """A slow model call writes no events; the heartbeat must still advance so stale-run recovery
+    does not fail a run that is alive."""
+    from app.agent import loop as agent_loop
+
+    monkeypatch.setattr(agent_loop, "HEARTBEAT_SECONDS", 0.05)
+    world = await make_world(sources=SOURCES)
+    async with session_factory() as session:
+        run = await session.get(AgentRun, world.run_id)
+        run.status = "running"
+        run.heartbeat_at = datetime.now(UTC) - timedelta(minutes=10)
+        await session.commit()
+    pulse = asyncio.create_task(agent_loop._keep_alive(session_factory, world.run_id))
+    await asyncio.sleep(0.2)
+    pulse.cancel()
+    async with session_factory() as session:
+        run = await session.get(AgentRun, world.run_id)
+        assert datetime.now(UTC) - run.heartbeat_at < timedelta(seconds=5)
+    await engine.dispose()

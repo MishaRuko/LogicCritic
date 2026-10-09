@@ -33,56 +33,32 @@ describe('backend contract', () => {
     expect(JSON.parse(fetch.mock.calls[1][1].body).idempotency_key).toBe(first.idempotency_key);
   });
 
-  it('loads agent-imported sources and exact excerpts even with an empty browser registry', async () => {
-    const workspace = { id: 'agent-source-workspace', title: 'Research' };
-    const source = {
-      id: 'agent-source',
-      workspace_id: workspace.id,
-      original_filename: 'web-page.txt',
+  it('loads the whole workspace in one request and reuses it while nothing changes', async () => {
+    const snapshot = {
+      workspace: { id: 'w', title: 'Research' },
+      graph: { statements: [], reasoning_steps: [], relations: [] },
+      contexts: [],
+      sources: [{ id: 's', workspace_id: 'w', excerpts: [{ id: 'e', text: 'Exact evidence.' }] }],
+      validity: { s: { id: 'v', source_id: 's', status: 'invalidated' } },
+      jobs: [],
     };
-    const excerpts = [
-      { id: 'agent-excerpt', source_id: source.id, text: 'Exact evidence imported by the agent.' },
-    ];
-    const validity = {
-      id: 'validity',
-      source_id: source.id,
-      status: 'invalidated',
-      reason: 'Retracted paper',
-      provenance: { actor_type: 'integration' },
-    };
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockImplementation(async (path: string) => {
-        const responses: Record<string, unknown> = {
-          [`/api/workspaces/${workspace.id}`]: workspace,
-          [`/api/workspaces/${workspace.id}/graph`]: {
-            statements: [],
-            reasoning_steps: [],
-            relations: [],
-          },
-          [`/api/workspaces/${workspace.id}/sources`]: [source],
-          [`/api/sources/${source.id}`]: source,
-          [`/api/sources/${source.id}/excerpts`]: excerpts,
-          [`/api/sources/${source.id}/validity`]: validity,
-        };
-        return response(responses[path]);
-      }),
-    );
-    expect(api.readRegistry(workspace.id).sourceIds).toEqual([]);
-    const snapshot = await api.fetchSnapshot(workspace.id);
-    expect(snapshot.sources).toEqual([{ ...source, excerpts }]);
-    expect(snapshot.validity[source.id]).toEqual(validity);
-  });
-  it('treats a missing source-validity decision as unknown and surfaces other backend failures', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi
-        .fn()
-        .mockResolvedValueOnce(response({ detail: 'No validity decision recorded' }, 404))
-        .mockResolvedValueOnce(response({ detail: 'Database unavailable' }, 503)),
-    );
-    expect(await api.fetchValidity('new-source')).toBeUndefined();
-    await expect(api.fetchValidity('new-source')).rejects.toThrow('Database unavailable');
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(snapshot), { status: 200, headers: { ETag: '"v1"' } }),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 304, headers: { ETag: '"v1"' } }))
+      .mockResolvedValueOnce(response({ detail: 'Database unavailable' }, 503));
+    vi.stubGlobal('fetch', fetch);
+
+    const first = await api.fetchSnapshot('w');
+    expect(first.sources[0].excerpts[0].text).toBe('Exact evidence.');
+    expect(fetch.mock.calls[0][0]).toBe('/api/workspaces/w/snapshot');
+    expect(fetch.mock.calls[0][1].headers).toBeUndefined();
+    // Unchanged: the same object comes back, so the screen does not re-render.
+    expect(await api.fetchSnapshot('w')).toBe(first);
+    expect(fetch.mock.calls[1][1].headers).toEqual({ 'If-None-Match': '"v1"' });
+    await expect(api.fetchSnapshot('w')).rejects.toThrow('Database unavailable');
   });
   it('posts user-only review provenance and preserves an idempotency key across failed retries', async () => {
     const fetch = vi

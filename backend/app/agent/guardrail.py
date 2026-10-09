@@ -19,7 +19,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agent import assurance
+from app.agent import assurance, evidence
 from app.config import get_settings
 from app.models import (
     AgentEvent,
@@ -61,7 +61,7 @@ CRITICAL_RULES = {
     "withdrawn_premise",
     "unreasoned_conclusion",
 }
-# Even a conditional conclusion cannot rest on these.
+# A conclusion resting on these can be at most speculative (a retracted source: not even that).
 HARD_BLOCKERS = {"invalidated_source", "ungrounded_statement", "withdrawn_premise"}
 AGENT_RULES = [
     "unresolved_conflict",
@@ -98,18 +98,29 @@ class CheckResult:
     statement_text: str
     obligations: list[Obligation] = field(default_factory=list)
     packet: dict = field(default_factory=dict)
+    ceiling: evidence.Ceiling | None = None
+    certainty: str | None = None  # what finalize accepted
 
     @property
     def critical(self) -> list[Obligation]:
         return [item for item in self.obligations if item.severity == "critical"]
 
+    def soundness(self) -> str:
+        """The certainty the verifier's findings alone allow."""
+        kinds = {item.kind for item in self.obligations}
+        if "invalidated_source" in kinds:
+            return "none"  # not even a speculation may rest on a retracted source
+        if kinds & HARD_BLOCKERS:
+            return "speculative"
+        if self.critical:
+            return "tentative"
+        return "established"
+
     def allowed_certainties(self) -> list[str]:
-        allowed = ["hypothesis"]
-        if not any(item.kind in HARD_BLOCKERS for item in self.obligations):
-            allowed.insert(0, "conditional")
-        if not self.critical:
-            allowed.insert(0, "established")
-        return allowed
+        """Highest first. The evidence and breadth of the search cap it too, once measured."""
+        if self.ceiling is not None:
+            return self.ceiling.allowed()
+        return evidence.Ceiling(self.soundness(), {}).allowed()
 
 
 class GuardrailError(Exception):
@@ -223,13 +234,26 @@ async def check(
         )
     obligations += await _rule_obligations(session, workspace_id, cone, {s.id for s in cone_steps})
     obligations += await _conflict_obligations(session, workspace_id, cone)
+    obligations += await _inferred_design_obligations(session, cone, cone_steps, premises)
+    quality = None  # the judge's GRADE rating of the evidence, and why
     if judge is None:
         obligations += await _criteria_obligations(session, goal, cone, obligations)
     else:
-        obligations += await _judged_obligations(session, run, goal, cone, obligations, judge)
+        judged, quality = await _judged_obligations(
+            session, run, goal, statement_id, cone, obligations, judge
+        )
+        obligations += judged
     await _persist_agent_obligations(session, workspace_id, statement_id, obligations)
 
     result = CheckResult(statement_id, target.text, obligations)
+    effort = await evidence.search_effort(session, workspace_id)
+    result.ceiling = evidence.ceiling(
+        result.soundness(),
+        await evidence.cone_sources(session, cone),
+        effort.searches,
+        effort.against,
+        quality,
+    )
     result.packet = await _packet(session, result, cone, cone_steps, premises, goal, notes)
     return result
 
@@ -361,6 +385,57 @@ async def _rule_obligations(
                 )
             )
     return obligations
+
+
+async def _inferred_design_obligations(
+    session: AsyncSession,
+    cone: set[uuid.UUID],
+    cone_steps: list[ReasoningStep],
+    premises: dict[uuid.UUID, list[uuid.UUID]],
+) -> list[Obligation]:
+    """A causal conclusion reached by reasoning cites no text of its own, so the design behind
+    it is the design of what it rests on: at least one premise must have a causal design."""
+    rows = await session.scalars(
+        select(Annotation).where(
+            Annotation.subject_type == "statement",
+            Annotation.subject_id.in_(cone),
+            Annotation.type.in_(["claim_strength", "causal_support"]),
+        )
+    )
+    causal, designed = set(), set()
+    for row in rows:
+        if row.type == "claim_strength" and row.value.get("value") == "causal":
+            causal.add(row.subject_id)
+        if row.type == "causal_support" and row.value.get("supported") is True:
+            designed.add(row.subject_id)
+    cited = set(
+        await session.scalars(
+            select(StatementExcerpt.statement_id).where(StatementExcerpt.statement_id.in_(cone))
+        )
+    )
+    found = []
+    for statement_id in causal - cited:
+        resting_on = {
+            p for s in cone_steps if s.conclusion_id == statement_id for p in premises[s.id]
+        }
+        if resting_on and not resting_on & designed:
+            found.append(
+                Obligation(
+                    kind="causal_design_not_shown",
+                    severity="critical",
+                    description=(
+                        "This causal conclusion is reasoned from claims none of which has a "
+                        "design that supports causation (a randomised trial, a meta-analysis of "
+                        "them, or a natural experiment)."
+                    ),
+                    required_condition=(
+                        "Rest it on a claim from such a study, recorded with its design, or word "
+                        "the conclusion as an association."
+                    ),
+                    statement_id=statement_id,
+                )
+            )
+    return found
 
 
 async def _critic_gap(session: AsyncSession, step_id: uuid.UUID) -> str:
@@ -560,18 +635,20 @@ async def _judged_obligations(
     session: AsyncSession,
     run: AgentRun,
     goal: ResearchGoal,
+    statement_id: uuid.UUID,
     cone: set[uuid.UUID],
     existing: list[Obligation],
     judge: Judge,
-) -> list[Obligation]:
-    """Criteria and causal designs, decided by a model that reads the cited text.
+) -> tuple[list[Obligation], tuple[str, str] | None]:
+    """Criteria and causal designs, decided by a model that reads the cited text, and whether
+    the judge's GRADE rating of the evidence with its reasons (or None).
 
     The agent's own tags are passed along as hints only. If the judge cannot answer, the
     criteria are treated as unmet: a gate that opens when its checker is down is no gate.
     """
-    material = await _judge_material(session, run, goal, cone, existing)
+    material = await _judge_material(session, run, goal, statement_id, cone, existing)
     if not material["criteria"] and not any(c["declared_design"] for c in material["claims"]):
-        return []
+        return [], None
     key = hashlib.sha256(json.dumps(material, sort_keys=True).encode()).hexdigest()
     try:
         saved = await session.scalar(
@@ -601,7 +678,7 @@ async def _judged_obligations(
                 required_condition="Call check_conclusion again. If it keeps failing, conclude "
                 "only as a hypothesis.",
             )
-        ]
+        ], None
     found = []
     for item in verdict.criteria:
         if not item.met:
@@ -632,13 +709,17 @@ async def _judged_obligations(
                     statement_id=uuid.UUID(item.statement_id),
                 )
             )
-    return found
+    quality = None
+    if verdict.evidence_certainty:
+        quality = (verdict.evidence_certainty, verdict.certainty_rationale.strip())
+    return found, quality
 
 
 async def _judge_material(
     session: AsyncSession,
     run: AgentRun,
     goal: ResearchGoal,
+    statement_id: uuid.UUID,
     cone: set[uuid.UUID],
     existing: list[Obligation],
 ) -> dict:
@@ -659,12 +740,14 @@ async def _judge_material(
     for statement in statements:
         if statement.id in blocked:
             continue  # a retracted or ungrounded claim cannot meet a criterion
-        rows = await session.execute(
-            select(Source.title, Excerpt.text)
-            .join(Excerpt, Excerpt.source_id == Source.id)
-            .join(StatementExcerpt, StatementExcerpt.excerpt_id == Excerpt.id)
-            .where(StatementExcerpt.statement_id == statement.id)
-            .order_by(Excerpt.id)
+        rows = list(
+            await session.execute(
+                select(Source.title, Excerpt.text)
+                .join(Excerpt, Excerpt.source_id == Source.id)
+                .join(StatementExcerpt, StatementExcerpt.excerpt_id == Excerpt.id)
+                .where(StatementExcerpt.statement_id == statement.id)
+                .order_by(Excerpt.id)
+            )
         )
         have = annotations.get(statement.id, {})
         design = have.get("causal_support")
@@ -674,8 +757,10 @@ async def _judge_material(
                 "role": statement.role,
                 "text": statement.text,
                 "claim_strength": (have.get("claim_strength") or {}).get("value"),
-                "declared_design": design.get("design") if design else None,
-                "declared_design_reason": design.get("justification") if design else None,
+                # A conclusion reached by reasoning cites no text; its design is checked
+                # against its premises instead (_inferred_design_obligations).
+                "declared_design": design.get("design") if design and rows else None,
+                "declared_design_reason": design.get("justification") if design and rows else None,
                 "criteria_hint": (have.get("custom:satisfies_criteria") or {}).get("indexes", []),
                 "cited": [{"source": title, "text": body[:EXCERPT_CHARS]} for title, body in rows],
             }
@@ -685,12 +770,19 @@ async def _judge_material(
         select(AgentEvent).where(AgentEvent.run_id == run.id).order_by(AgentEvent.seq)
     ):
         if event.type == "tool_call" and event.payload.get("name") == "search_papers":
-            queries.append(str(event.payload.get("input", {}).get("query", ""))[:300])
+            given = event.payload.get("input", {})
+            purpose = f"[{given['purpose']}] " if given.get("purpose") else ""
+            queries.append(f"{purpose}{given.get('query', '')}"[:300])
+        elif event.type == "tool_call" and event.payload.get("name") == "follow_citations":
+            given = event.payload.get("input", {})
+            queries.append(f"[{given.get('direction')} of] {given.get('paper', '')}"[:300])
         elif event.type == "web_search" and event.payload.get("query"):
             queries.append(str(event.payload["query"])[:300])
+    conclusion = await session.get(Statement, statement_id)
     return {
         "question": goal.question,
         "kind": goal.kind,
+        "conclusion": conclusion.text if conclusion else "",
         "criteria": list(goal.completion_criteria),
         "claims": claims,
         "searches": queries[:40],
@@ -750,13 +842,15 @@ async def _packet(
         "obligations": [o.as_dict() for o in result.obligations],
         "completion_criteria": list(enumerate(goal.completion_criteria)),
         "can_finalize_as": result.allowed_certainties(),
-        "assurance": assurance.from_check(result.obligations).as_dict(),
+        "certainty_ceiling": result.ceiling.as_dict() if result.ceiling else None,
+        "assurance": assurance.from_check(result.obligations, ceiling=result.ceiling).as_dict(),
         "notes": notes,
         "you_may": [
-            "read or fetch more evidence and record it",
+            "find and read more evidence, record it and connect it to the conclusion by "
+            "reasoning: that is how a higher certainty is earned (see certainty_ceiling.to_raise)",
             "record opposing evidence and reason about it",
             "narrow the conclusion (record a more modest claim and check that)",
-            "finalize as conditional or hypothesis, with the caveats stated",
+            "finalize at a certainty in can_finalize_as, with the caveats stated",
             "abstain",
         ],
     }
@@ -779,15 +873,27 @@ async def finalize(
     statement_id: uuid.UUID,
     certainty: str,
     judge: Judge | None = None,
+    lowered_because: str = "",
 ) -> tuple[bool, CheckResult]:
-    """Accept the conclusion if the evidence graph supports it at this certainty."""
+    """Accept the conclusion if the evidence graph supports it at this certainty.
+
+    Certainty is computed, not chosen: without a stated reason to go lower, the conclusion gets
+    the highest certainty its evidence allows. The agent's own caution otherwise kept answers a
+    level below what the evidence earned, so a label meant different things in different answers.
+    """
     result = await check(session, run, goal, statement_id, judge)
-    if certainty not in result.allowed_certainties():
+    allowed = result.allowed_certainties()
+    if certainty not in allowed:
         return False, result
+    if certainty != allowed[0] and not lowered_because.strip():
+        certainty = allowed[0]
+    result.certainty = certainty
     run.final_statement_id = statement_id
     run.certainty = certainty
-    goal.status = {"established": "answered", "conditional": "conditionally_answered"}.get(
-        certainty, "open"
-    )
+    goal.status = {
+        "established": "answered",
+        "supported": "answered",
+        "tentative": "conditionally_answered",
+    }.get(certainty, "open")
     await session.commit()
     return True, result

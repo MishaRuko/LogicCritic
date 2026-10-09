@@ -8,6 +8,7 @@ import { labSample, loadLabSample } from '../../lib/research/demo';
 import {
   allObligations,
   filterGraph,
+  withoutWithdrawn,
   projectWorkspace,
   sourceName,
 } from '../../lib/research/graph';
@@ -60,6 +61,8 @@ export function ResearchWorkspace() {
     setSource,
     detailedGraph,
     setDetailedGraph,
+    showWithdrawn,
+    setShowWithdrawn,
     reset: resetFilters,
   } = useGraphFilters();
   const verificationRun = useVerificationRun(id);
@@ -95,9 +98,15 @@ export function ResearchWorkspace() {
     retry: false,
   });
   const state = current.data;
-  const layoutGraph = useMemo(
+  const fullGraph = useMemo(
     () => (state ? projectWorkspace(state, detailedGraph, highlighted) : { nodes: [], edges: [] }),
     [state, detailedGraph, highlighted],
+  );
+  const withdrawn = fullGraph.nodes.filter(n => n.lifecycle === 'rejected').length;
+  // Withdrawn claims are left out of the layout too, so hiding them leaves no gaps.
+  const layoutGraph = useMemo(
+    () => (showWithdrawn || lifecycle === 'rejected' ? fullGraph : withoutWithdrawn(fullGraph)),
+    [fullGraph, showWithdrawn, lifecycle],
   );
   const graph = useMemo(
     () => filterGraph(layoutGraph, query, lifecycle, source),
@@ -526,6 +535,16 @@ export function ResearchWorkspace() {
                           </option>
                         ))}
                       </select>
+                      {!!withdrawn && (
+                        <label className="flex items-center gap-1 text-[10px] text-zinc-600">
+                          <input
+                            type="checkbox"
+                            checked={showWithdrawn}
+                            onChange={e => setShowWithdrawn(e.target.checked)}
+                          />
+                          Show withdrawn ({withdrawn})
+                        </label>
+                      )}
                       {(query || lifecycle || source) && (
                         <Button
                           size="xs"

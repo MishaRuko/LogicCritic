@@ -51,6 +51,20 @@ Lifecycle = Literal["proposed"]
 AssertionMode = Literal["asserted", "hypothesis", "conditional", "question", "reported"]
 StatementRole = Literal["premise", "conclusion", "assumption", "objection", "definition"]
 StatementSalience = Literal["core", "secondary", "supporting"]
+StudyDesign = Literal[
+    "randomised_trial",
+    "meta_analysis_of_randomised_trials",
+    "natural_experiment_or_mendelian",
+    "observational",
+    "animal_or_in_vitro",
+    "other",
+]
+# Designs that can support a causal reading; the others support association at most.
+CAUSAL_DESIGNS = (
+    "randomised_trial",
+    "meta_analysis_of_randomised_trials",
+    "natural_experiment_or_mendelian",
+)
 
 
 class ProvenanceInput(BaseModel):
@@ -270,6 +284,21 @@ class ExtractedStatement(BaseModel):
         min_length=1,
         description="IDs of the supplied source excerpts that contain this statement.",
     )
+    claim_strength: Literal["causal", "associative", "descriptive"] | None = Field(
+        default=None,
+        description=(
+            "What the statement asserts, as the source words it: causal (X causes, reduces or "
+            "prevents Y), associative (X is linked to Y) or descriptive. Null if not applicable."
+        ),
+    )
+    study_design: StudyDesign | None = Field(
+        default=None,
+        description=(
+            "For a causal statement: the design of the study the source reports it from, as the "
+            "cited excerpts or the document overview state it. Null if the source does not say, "
+            "and for statements that are not causal."
+        ),
+    )
 
 
 class ExtractedReasoningStep(BaseModel):
@@ -417,6 +446,12 @@ class AgentRunCreate(BaseModel):
     model: str | None = Field(default=None, max_length=255)
     max_turns: int | None = Field(default=None, ge=1, le=60)
     max_web_searches: int | None = Field(default=None, ge=0, le=25)
+    depth: Literal["thorough", "quick"] = Field(
+        default="thorough",
+        description=(
+            "thorough reads widely before concluding; quick answers from the first good sources."
+        ),
+    )
 
 
 class AgentGoalResponse(APIModel):

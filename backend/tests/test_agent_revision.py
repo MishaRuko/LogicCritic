@@ -14,6 +14,9 @@ from app.database import engine, session_factory
 from app.models import AgentEvent, GraphEdge, GraphEvent, Statement
 from tests.agent_helpers import FakeClaude, FakeJudge, claim_args, make_world, reply, text, tool
 
+# These test the verifier's rules; the evidence ceiling is tested in test_agent_evidence.py.
+pytestmark = pytest.mark.usefixtures("ample_evidence")
+
 SOURCES = {
     "trial": ["Drug X reduced 28-day mortality by 30% in a randomised trial of adults."],
     "review": ["A review found the benefit was smaller than first reported."],
@@ -183,7 +186,7 @@ async def test_a_step_resting_on_a_withdrawn_claim_blocks_until_it_is_re_recorde
     assert kinds(stale) == ["withdrawn_premise"]
     assert stale["obligations"][0]["applies_to"] == step
     assert new in stale["obligations"][0]["required_condition"]
-    assert stale["can_finalize_as"] == ["hypothesis"]  # even a caveated answer is refused
+    assert stale["can_finalize_as"] == ["speculative"]  # even a caveated answer is refused
     assert old not in str(stale["reasoning_steps"]) and old not in str(stale["evidence_chain"])
 
     fixed = await call(

@@ -138,13 +138,23 @@ def _page_text(page) -> str:
     return HYPHEN_BREAK.sub("", text.replace("\r\n", "\n").replace("\r", "\n"))
 
 
+# Metadata titles that name the tool or template a PDF was made with, not the paper.
+JUNK_TITLE = re.compile(
+    r"template|untitled|microsoft word|^document\d*$|\.(docx?|tex|pdf)$|^manuscript$|^title$|"
+    r"^paper$|^article$|^[\W\d_]+$",
+    re.IGNORECASE,
+)
+
+
 def _title(reader: PdfReader) -> str | None:
     try:
         title = (reader.metadata.title if reader.metadata else None) or ""
     except (PyPdfError, ValueError, KeyError):
         return None
     title = " ".join(str(title).replace("\x00", "").split())
-    return title[:512] if len(title) >= 4 else None
+    if len(title) < 4 or JUNK_TITLE.search(title):
+        return None
+    return title[:512]
 
 
 def _running_lines(pages: list[str]) -> set[str]:

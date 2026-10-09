@@ -21,6 +21,12 @@ export interface ResearchMessage {
   files: File[];
   options: Omit<AgentRunInput, 'question'>;
 }
+// Matches the backend's defaults for each depth (agent_thorough_* and agent_max_* settings).
+const DEPTHS = {
+  thorough: { turns: 40, searches: 15 },
+  quick: { turns: 20, searches: 10 },
+} as const;
+
 export function ResearchComposer({
   mode,
   onModeChange,
@@ -49,8 +55,9 @@ export function ResearchComposer({
   const [error, setError] = useState('');
   const [fileKey, setFileKey] = useState(0);
   const [kind, setKind] = useState<AgentRunInput['kind']>('question');
-  const [maxTurns, setMaxTurns] = useState(20);
-  const [maxSearches, setMaxSearches] = useState(10);
+  const [depth, setDepth] = useState<'thorough' | 'quick'>('thorough');
+  const [maxTurns, setMaxTurns] = useState<number>(DEPTHS.thorough.turns);
+  const [maxSearches, setMaxSearches] = useState<number>(DEPTHS.thorough.searches);
   const [criteria, setCriteria] = useState('');
   const [falsifiers, setFalsifiers] = useState('');
   const sending = useRef(false);
@@ -148,6 +155,7 @@ export function ResearchComposer({
           falsifiers: lines(falsifiers),
           max_turns: maxTurns,
           max_web_searches: maxSearches,
+          depth,
         },
       });
       setFiles([]);
@@ -324,6 +332,24 @@ export function ResearchComposer({
                     <option value="question">Answer a question</option>
                     <option value="claim">Check a claim</option>
                     <option value="hypothesis">Test a hypothesis</option>
+                  </select>
+                </label>
+                <label className="grid gap-1">
+                  Depth
+                  <select
+                    aria-label="Research depth"
+                    className="rounded border border-line p-2"
+                    value={depth}
+                    disabled={busy}
+                    onChange={e => {
+                      const next = e.target.value as 'thorough' | 'quick';
+                      setDepth(next);
+                      setMaxTurns(DEPTHS[next].turns);
+                      setMaxSearches(DEPTHS[next].searches);
+                    }}
+                  >
+                    <option value="thorough">Thorough · reads widely, takes longer</option>
+                    <option value="quick">Quick · first good sources</option>
                   </select>
                 </label>
                 <label className="grid gap-1">

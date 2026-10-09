@@ -52,10 +52,15 @@ async def test_starting_a_run_queues_it_with_its_goal_and_default_budgets(api) -
         "guarded",
         get_settings().agent_model,
     )
+    # Thorough is the default depth: more room, and the minimums the guard asks for.
     assert run["budgets"] == {
-        "max_turns": get_settings().agent_max_turns,
-        "max_web_searches": get_settings().agent_max_web_searches,
-        "max_total_output_tokens": 150_000,
+        "depth": "thorough",
+        "max_turns": get_settings().agent_thorough_max_turns,
+        "max_web_searches": get_settings().agent_thorough_max_web_searches,
+        "min_sources": get_settings().agent_thorough_min_sources,
+        "min_searches": get_settings().agent_thorough_min_searches,
+        "min_web_searches": get_settings().agent_thorough_min_web_searches,
+        "max_total_output_tokens": 300_000,
     }
     assert run["usage"]["turns"] == 0 and run["final_report"] is None and run["certainty"] is None
 

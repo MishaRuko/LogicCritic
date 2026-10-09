@@ -21,6 +21,7 @@ import {
   XIcon,
 } from '@phosphor-icons/react';
 import {
+  CERTAINTY_LABELS,
   agentStatusLabel,
   eventDescription,
   eventTitle,
@@ -679,10 +680,12 @@ function ResearchTurn({
               <span
                 className={cn(
                   'rounded border border-line bg-white px-2 py-1 text-[10px]',
-                  run.certainty === 'established' ? 'text-pass' : 'text-warn',
+                  run.certainty === 'established' || run.certainty === 'supported'
+                    ? 'text-pass'
+                    : 'text-warn',
                 )}
               >
-                {run.certainty}
+                {CERTAINTY_LABELS[run.certainty] ?? run.certainty}
                 {run.mode === 'baseline' ? ' · unverified' : ''}
               </span>
             )}

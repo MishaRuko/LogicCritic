@@ -2,13 +2,10 @@ import type {
   AgentEvent,
   AgentRun,
   AgentRunInput,
-  Context,
-  Graph,
   GraphAnswer,
   Job,
   PatchOperation,
   Snapshot,
-  Source,
   SourceWithExcerpts,
   Validity,
   Verification,
@@ -34,14 +31,34 @@ function describe(detail: unknown): string {
   if (detail && typeof detail === 'object' && 'message' in detail) return String(detail.message);
   return JSON.stringify(detail) ?? 'Request failed';
 }
+// The last copy of each polled resource, so an unchanged one costs a 304 with no body and keeps
+// the same object (the screen does not re-render).
+const lastCopies = new Map<string, { etag: string; data: unknown }>();
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const read = !init?.method || init.method === 'GET';
+  const cached = read ? lastCopies.get(path) : undefined;
   let response: Response;
   try {
-    response = await fetch(`/api${path}`, { ...init, cache: 'no-store' });
+    response = await fetch(`/api${path}`, {
+      ...init,
+      cache: 'no-store',
+      ...(cached
+        ? {
+            headers: { ...(init?.headers as Record<string, string>), 'If-None-Match': cached.etag },
+          }
+        : {}),
+    });
   } catch (error) {
     if (init?.signal?.aborted) throw error;
     throw new Error('Cannot reach the API. Check that the backend is running, then retry.');
   }
+  if (response.status === 304 && cached) return cached.data as T;
+  const data = await parseResponse<T>(response);
+  const etag = response.headers.get('ETag');
+  if (read && etag) lastCopies.set(path, { etag, data });
+  return data;
+}
+async function parseResponse<T>(response: Response): Promise<T> {
   if (response.status === 204) return undefined as T;
   const body = await response.text();
   let data: unknown;
@@ -85,9 +102,6 @@ export const listWorkspaces = () => request<Workspace[]>('/workspaces');
 export const createWorkspace = (title: string) => post<Workspace>('/workspaces', { title });
 export const deleteWorkspace = (id: string) =>
   request<void>(`/workspaces/${id}`, { method: 'DELETE' });
-export const fetchGraph = (id: string) => request<Graph>(`/workspaces/${id}/graph`);
-export const fetchContext = (workspace: string, statement: string) =>
-  request<Context>(`/workspaces/${workspace}/statements/${statement}/context`);
 export const health = () =>
   request<{ status: string; database: string; redis: string }>('/health/ready');
 export const listAgentRuns = (workspace: string) =>
@@ -103,16 +117,6 @@ export const cancelAgentRun = (id: string) =>
   request<AgentRun>(`/agent-runs/${id}`, { method: 'DELETE' });
 export const listAgentEvents = (id: string, after = 0, signal?: AbortSignal) =>
   request<AgentEvent[]>(`/agent-runs/${id}/events?after=${after}&limit=500`, { signal });
-export const listSources = (workspace: string) =>
-  request<Source[]>(`/workspaces/${workspace}/sources`);
-export async function fetchValidity(source: string): Promise<Validity | undefined> {
-  try {
-    return await request<Validity>(`/sources/${source}/validity`);
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 404) return undefined;
-    throw error;
-  }
-}
 export interface UploadProgress {
   stage: 'uploading' | 'processing' | 'queued' | 'saved' | 'failed';
   percent: number;
@@ -437,26 +441,8 @@ function remember(workspace: string, kind: 'sourceIds' | 'jobIds', id: string) {
   registry[kind] = [...new Set([...registry[kind], id])];
   writeRegistry(workspace, registry);
 }
-export async function fetchSnapshot(id: string): Promise<Snapshot> {
-  const [workspace, graph, sourceList] = await Promise.all([
-    request<Workspace>(`/workspaces/${id}`),
-    fetchGraph(id),
-    listSources(id),
-  ]);
-  const registry = readRegistry(id);
-  const [contexts, sources, jobs, decisions] = await Promise.all([
-    Promise.all(graph.statements.map(s => fetchContext(id, s.id))),
-    Promise.all(sourceList.map(source => attachSource(id, source.id))),
-    Promise.all(registry.jobIds.map(job => request<Job>(`/extraction-jobs/${job}`))),
-    Promise.all(sourceList.map(source => fetchValidity(source.id))),
-  ]);
-  const validity = Object.fromEntries(
-    decisions
-      .filter((decision): decision is Validity => !!decision)
-      .map(decision => [decision.source_id, decision]),
-  );
-  return { workspace, graph, contexts, sources, jobs, validity };
-}
+/** The whole workspace in one request (304 while nothing changes; see `request`). */
+export const fetchSnapshot = (id: string) => request<Snapshot>(`/workspaces/${id}/snapshot`);
 export function downloadSnapshot(state: Snapshot) {
   const url = URL.createObjectURL(
     new Blob(
