@@ -58,6 +58,13 @@ class ProtocolStep(BaseModel):
     )
     checks: list[Check] = Field(default_factory=list)
     optional: bool = False
+    variant: str | None = Field(
+        default=None,
+        description=(
+            "When the source describes alternative procedures (two device types, two sample "
+            "preparations), the one this step belongs to. None for steps every procedure shares."
+        ),
+    )
     obligation_ids: list[str] = Field(
         default_factory=list,
         description="Graph proof obligations this step exists to resolve.",
@@ -85,6 +92,20 @@ class Protocol(BaseModel):
             if len(set(check_ids)) != len(check_ids):
                 raise ValueError(f"step {step.id!r}: check ids must be unique")
         return self
+
+    @property
+    def variants(self) -> list[str]:
+        """The alternative procedures the source describes, in order of first appearance."""
+        return list(dict.fromkeys(s.variant for s in self.steps if s.variant))
+
+    def only(self, variant: str | None) -> "Protocol":
+        """The procedure a recording follows: the shared steps plus one variant's (the first
+        when none is named). A protocol without variants is returned unchanged."""
+        if not self.variants:
+            return self
+        chosen = variant if variant in self.variants else self.variants[0]
+        steps = [s for s in self.steps if s.variant in (None, chosen)]
+        return self.model_copy(update={"steps": steps})
 
     def step(self, step_id: str) -> ProtocolStep | None:
         return next((s for s in self.steps if s.id == step_id), None)

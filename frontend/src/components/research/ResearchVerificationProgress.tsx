@@ -15,6 +15,9 @@ export function ResearchVerificationProgress({ trace }: { trace?: VerificationTr
     event.type === 'rule_completed' ? event.findings : [],
   );
   const checking = trace?.status === 'running' && latest?.type === 'rule_started';
+  // Only a check that is running or just ran here has progress to show; otherwise the panel beside
+  // the canvas has the totals, and an idle "0 / 7 checks" read as if nothing had been checked.
+  if (!trace) return null;
   return (
     <section
       aria-label="Live graph verification"
@@ -26,9 +29,7 @@ export function ResearchVerificationProgress({ trace }: { trace?: VerificationTr
             ? 'Verification interrupted'
             : trace?.status === 'complete'
               ? 'Graph checks complete'
-              : trace
-                ? 'Following the graph checks'
-                : 'Verify the claims, evidence and reasoning'}
+              : 'Following the graph checks'}
         </p>
         <span className="text-[10px] text-zinc-500">
           {completed.length} / {rules.length} checks

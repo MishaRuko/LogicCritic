@@ -341,9 +341,11 @@ export function startExperiment(
   file?: File,
   source?: string,
   partial = false,
+  variant?: string,
 ) {
   const body = new FormData();
   if (protocol) body.append('protocol_id', protocol);
+  if (variant) body.append('variant', variant);
   if (source) body.append('source_id', source);
   body.append('mode', mode);
   body.append('partial_recording', String(partial));

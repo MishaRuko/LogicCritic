@@ -211,6 +211,8 @@ export interface ProtocolStep {
   source_text: string;
   optional: boolean;
   checks: ProtocolCheck[];
+  /** The alternative procedure this step belongs to, when the source describes several. */
+  variant?: string | null;
 }
 export interface ExperimentProtocol {
   id: string;
@@ -258,6 +260,8 @@ export interface ExperimentRun {
   filename: string;
   result: {
     coverage?: 'excerpt' | 'complete_recording';
+    /** The procedure followed, when the protocol's source describes several. */
+    variant?: string;
     processed_seconds?: number;
     /** What a live session has found so far, while the camera is still streaming. */
     live?: { observations: ExperimentObservation[]; deviations: ExperimentDeviation[] };

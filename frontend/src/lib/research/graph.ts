@@ -69,6 +69,10 @@ export const describeStep = (r: ReasoningStep) =>
     `${r.premise_ids.length} ${r.premise_ids.length === 1 ? 'premise' : 'premises, all required'}`,
     origin(r.provenance),
   );
+/** Verifier text for people: it sometimes names objects by internal id ("Statement 971af531
+ *  cites..."), which means nothing to a reader. */
+export const readableFinding = (text: string) =>
+  text.replace(/\b(statement|step|claim)\s+[0-9a-f]{8}(-[0-9a-f-]{27})?\b/gi, 'a claim');
 export function allObligations(state: Snapshot): Obligation[] {
   return [...new Map(state.contexts.flatMap(c => c.obligations).map(o => [o.id, o])).values()];
 }
@@ -246,10 +250,20 @@ export const CROSS_LINKS = new Set([
   'revises',
 ]);
 
-/** The graph without withdrawn (rejected) claims and steps: a revised claim's replacement stands
- *  in for it. */
+/** Claims and steps that were withdrawn (rejected) or replaced by a revision. */
+export function withdrawnIds(graph: ResearchGraph): Set<string> {
+  const replaced = graph.edges.filter(e => e.relation === 'revises').map(e => e.target);
+  return new Set([
+    ...graph.nodes.filter(n => n.lifecycle === 'rejected').map(n => n.id),
+    ...replaced,
+  ]);
+}
+
+/** The graph without withdrawn or replaced claims and steps: a revision stands in for what it
+ *  replaced. */
 export function withoutWithdrawn(graph: ResearchGraph): ResearchGraph {
-  const kept = graph.nodes.filter(n => n.lifecycle !== 'rejected');
+  const gone = withdrawnIds(graph);
+  const kept = graph.nodes.filter(n => !gone.has(n.id));
   const ids = new Set(kept.map(n => n.id));
   return { nodes: kept, edges: graph.edges.filter(e => ids.has(e.source) && ids.has(e.target)) };
 }

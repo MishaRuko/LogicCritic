@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Button, Input, cn } from '@cloudflare/kumo';
 import { XIcon } from '@phosphor-icons/react';
 import type { Snapshot } from '../../types/api';
@@ -8,10 +8,23 @@ import {
   describeStatement,
   describeStep,
   humanize,
+  readableFinding,
   sourceName,
 } from '../../lib/research/graph';
 import { inspectorFrame, panelSection } from '../ui/classes';
 import type { Perform } from './ResearchPanels';
+
+// The same meanings and colours the canvas uses for links between claims.
+const LINK_COLOURS: Record<string, string> = {
+  supports: '#16a34a',
+  rebuts: '#dc2626',
+  undercuts: '#dc2626',
+  qualifies: '#d97706',
+  specializes: '#d97706',
+  revises: '#71717a',
+};
+const PASSAGE_CHARS = 320;
+
 function Json({ value }: { value: unknown }) {
   return (
     <pre className="mt-2 overflow-auto text-[10px] leading-relaxed whitespace-pre-wrap break-all">
@@ -19,6 +32,20 @@ function Json({ value }: { value: unknown }) {
     </pre>
   );
 }
+
+/** Technical detail kept out of the way: open it to see provenance, identifiers and raw data. */
+function Details({ children }: { children: ReactNode }) {
+  return (
+    <details className={panelSection}>
+      <summary className="cursor-pointer text-[11px] text-zinc-500">Technical details</summary>
+      <div className="mt-2 text-[10px] text-zinc-500">{children}</div>
+    </details>
+  );
+}
+
+const clip = (text: string, chars = PASSAGE_CHARS) =>
+  text.length > chars ? `${text.slice(0, chars).trimEnd()}…` : text;
+
 export function ResearchInspector({
   state,
   id,
@@ -42,48 +69,200 @@ export function ResearchInspector({
     '{"satisfied": false, "description": "Describe the missing premise"}',
   );
   const [notice, setNotice] = useState('');
-  const [fullText, setFullText] = useState(false);
+  const excerpts = state.sources.flatMap(s => s.excerpts);
   const statement = state.graph.statements.find(s => s.id === id);
   const step = state.graph.reasoning_steps.find(r => r.id === id);
-  const excerpt = state.sources.flatMap(s => s.excerpts).find(e => e.id === id);
+  const excerpt = excerpts.find(e => e.id === id);
   const source = state.sources.find(s => s.id === id);
   const relation = state.graph.relations.find(r => r.id === id);
   const obligation = allObligations(state).find(o => o.id === id);
   const node = statement ?? step;
   const type = statement ? 'statement' : 'reasoning_step';
   const context = state.contexts.find(c => c.focus_statement.id === id);
+  const claimText = (claimId: string) =>
+    state.graph.statements.find(s => s.id === claimId)?.text ?? 'A claim no longer in the graph';
   const heading = statement
-    ? (statement.role ?? 'Statement')
+    ? statement.role === 'conclusion'
+      ? 'Conclusion'
+      : statement.role === 'objection'
+        ? 'Objection'
+        : 'Claim'
     : step
       ? 'Reasoning step'
       : source
         ? 'Source'
         : excerpt
-          ? 'Exact excerpt'
+          ? 'Source passage'
           : relation
-            ? 'Cross-source relation'
+            ? `Link: ${humanize(relation.relation)}`
             : obligation
-              ? 'Proof obligation'
-              : 'Linked excerpt';
-  function linked(ids: string[]) {
-    return ids.map(item => (
+              ? 'Open gap'
+              : 'Source passage';
+
+  /** A claim, step or passage to jump to: its text, clipped, as a button. */
+  function jump(target: string, text: string, tone?: string) {
+    return (
       <Button
-        key={item}
+        key={target}
         size="xs"
         variant="ghost"
-        className="mt-2 h-auto! w-full justify-start! text-left whitespace-normal!"
-        onClick={() => onSelect(item)}
+        className="mt-1.5 h-auto! w-full justify-start! py-1.5! text-left whitespace-normal!"
+        onClick={() => onSelect(target)}
       >
-        {state.graph.statements.find(s => s.id === item)?.text ??
-          state.sources.flatMap(s => s.excerpts).find(e => e.id === item)?.text ??
-          item}
+        <span className="flex min-w-0 gap-2">
+          {tone && (
+            <span
+              className="mt-1.5 inline-block h-[3px] w-3 shrink-0 rounded"
+              style={{ background: tone }}
+              aria-hidden
+            />
+          )}
+          <span className="min-w-0">{clip(text, 220)}</span>
+        </span>
       </Button>
-    ));
+    );
   }
+
+  /** The passages a claim cites, each with the source it comes from. */
+  function passages(ids: string[]) {
+    return ids.map(item => {
+      const found = excerpts.find(e => e.id === item);
+      const from = found && state.sources.find(s => s.id === found.source_id);
+      return (
+        <button
+          key={item}
+          className="mt-2 block w-full rounded border-l-2 border-zinc-300 bg-zinc-50 px-3 py-2 text-left hover:bg-zinc-100"
+          onClick={() => onSelect(item)}
+        >
+          <span className="block text-[12px] leading-relaxed text-zinc-700">
+            {found ? clip(found.text) : 'Passage not loaded'}
+          </span>
+          {from && (
+            <span className="mt-1.5 block text-[10px] text-zinc-500">{sourceName(from)}</span>
+          )}
+        </button>
+      );
+    });
+  }
+
+  /** Links between this claim and others: what supports, rebuts or qualifies what. */
+  function links(claimId: string) {
+    const touching = state.graph.relations.filter(
+      r => r.source_node_id === claimId || r.target_node_id === claimId,
+    );
+    if (!touching.length) return null;
+    return (
+      <section className={panelSection}>
+        <h2>Links to other claims</h2>
+        {touching.map(r => {
+          const outgoing = r.source_node_id === claimId;
+          const other = outgoing ? r.target_node_id : r.source_node_id;
+          const verb = humanize(r.relation);
+          const doubt = r.metadata.audit_verdict === 'needs_review';
+          return (
+            <div key={r.id} className="mt-2">
+              <p className="text-[10px] text-zinc-500">
+                <span style={{ color: LINK_COLOURS[r.relation] }} className="font-semibold">
+                  {outgoing ? `This ${verb}` : `${capitalise(verb)} this`}
+                </span>
+                {doubt && <span className="text-warn"> · unconfirmed</span>}
+              </p>
+              {jump(other, claimText(other), LINK_COLOURS[r.relation])}
+            </div>
+          );
+        })}
+      </section>
+    );
+  }
+
+  /** The verifier's open findings on this object, in words. */
+  function findings(forId: string) {
+    const open = allObligations(state).filter(
+      o => (o.blocks_node_id ?? o.blocks_statement_id) === forId && o.status === 'open',
+    );
+    const issues = context?.issues.filter(i => i.status === 'open') ?? [];
+    return (
+      <section className={panelSection}>
+        <h2>Verifier findings</h2>
+        {!open.length && !issues.length && (
+          <p className="text-[11px] text-zinc-500">Nothing open.</p>
+        )}
+        {open.map(o => (
+          <button
+            key={o.id}
+            className="mt-2 block w-full rounded border-l-2 border-fail bg-zinc-50 px-3 py-2 text-left text-[12px] leading-relaxed text-zinc-700 hover:bg-zinc-100"
+            onClick={() => onSelect(o.id)}
+          >
+            {clip(readableFinding(o.description), 400)}
+            <span className="mt-1 block text-[10px] text-zinc-500">What would resolve it →</span>
+          </button>
+        ))}
+        {issues
+          .filter(i => !open.some(o => o.generated_by_rule === i.rule_code))
+          .map(i => (
+            <p
+              key={i.id}
+              className="mt-2 rounded border-l-2 border-fail bg-zinc-50 px-3 py-2 text-[12px] text-zinc-700"
+            >
+              {capitalise(humanize(i.rule_code))}
+              {typeof i.details?.message === 'string'
+                ? `: ${readableFinding(i.details.message)}`
+                : ''}
+            </p>
+          ))}
+      </section>
+    );
+  }
+
+  function review() {
+    if (!node) return null;
+    return (
+      <section className={panelSection}>
+        <h2>Your review</h2>
+        <p className="mb-3 text-[10px] text-zinc-500">
+          Accepting records that you checked it; it does not make it true. Rejecting withdraws it
+          from the argument.
+        </p>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            disabled={busy || node.lifecycle === 'accepted'}
+            onClick={() =>
+              perform(async () => {
+                await api.review(state.workspace.id, type, id, 'accepted');
+                await refresh();
+              })
+            }
+          >
+            {node.lifecycle === 'accepted' ? 'Accepted' : 'Accept'}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy || node.lifecycle === 'rejected'}
+            onClick={() =>
+              perform(async () => {
+                await api.review(state.workspace.id, type, id, 'rejected');
+                await refresh();
+              })
+            }
+          >
+            {node.lifecycle === 'rejected' ? 'Rejected' : 'Reject'}
+          </Button>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <aside aria-label="Argument inspector" className={inspectorFrame}>
       <div className="flex items-center justify-between border-b border-line pb-3">
-        <h2 className="text-[11px] capitalize">{humanize(heading)}</h2>
+        <h2
+          className="text-[11px]"
+          style={relation ? { color: LINK_COLOURS[relation.relation] } : undefined}
+        >
+          {heading}
+        </h2>
         <Button
           size="xs"
           variant="ghost"
@@ -99,237 +278,220 @@ export function ResearchInspector({
             <p className="mt-3 text-[11px] text-zinc-500">
               {statement ? describeStatement(statement) : step && describeStep(step)}
             </p>
-            {/* Long claims (an agent's final answer) are clamped so the review buttons stay in view. */}
-            <p className={cn('mt-2 text-[14px] leading-relaxed', !fullText && 'line-clamp-6')}>
+            <p
+              className={cn(
+                'mt-2 leading-relaxed whitespace-pre-wrap',
+                statement?.role === 'conclusion' ? 'text-[14px]' : 'text-[13px]',
+              )}
+            >
               {statement?.text ?? step?.explanation}
             </p>
-            {(statement?.text ?? step?.explanation ?? '').length > 320 && (
-              <button
-                className="mt-1 text-[11px] text-zinc-500 underline"
-                onClick={() => setFullText(value => !value)}
-              >
-                {fullText ? 'Show less' : 'Show all'}
-              </button>
-            )}
-            <section className={panelSection}>
-              <h2>Review decision</h2>
-              <p className="mb-3 text-[10px] text-zinc-500">
-                Acceptance records your review of this argument object. It does not establish
-                scientific truth.
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  disabled={busy || node.lifecycle === 'accepted'}
-                  onClick={() =>
-                    perform(async () => {
-                      await api.review(state.workspace.id, type, id, 'accepted');
-                      await refresh();
-                    })
-                  }
-                >
-                  Accept
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={busy || node.lifecycle === 'rejected'}
-                  onClick={() =>
-                    perform(async () => {
-                      await api.review(state.workspace.id, type, id, 'rejected');
-                      await refresh();
-                    })
-                  }
-                >
-                  Reject
-                </Button>
-              </div>
-            </section>
-            <section className={panelSection}>
-              <h2>Provenance</h2>
-              <Json value={node.provenance} />
-              <p className="mt-2 text-[10px] text-zinc-500">
-                Created {new Date(node.created_at).toLocaleString()}
-              </p>
-            </section>
           </>
         )}
+
         {statement && (
           <>
             <section className={panelSection}>
-              <h2>Grounding excerpts</h2>
+              <h2>Evidence</h2>
               {statement.excerpt_ids.length ? (
-                linked(statement.excerpt_ids)
+                passages(statement.excerpt_ids)
               ) : (
-                <p className="text-[11px] text-zinc-500">No linked excerpts.</p>
-              )}
-            </section>
-            <section className={panelSection}>
-              <h2>Argument context</h2>
-              <p className="text-[10px] text-zinc-500">Upstream premises</p>
-              {linked(context?.upstream_statements.map(s => s.id) ?? [])}
-              <p className="mt-3 text-[10px] text-zinc-500">Downstream conclusions</p>
-              {linked(context?.downstream_statements.map(s => s.id) ?? [])}
-              {context?.reasoning_steps.map(r => (
-                <Button
-                  key={r.id}
-                  variant="ghost"
-                  size="xs"
-                  className="mt-2 h-auto! w-full! justify-start! text-left whitespace-normal!"
-                  onClick={() => onSelect(r.id)}
-                >
-                  {r.explanation}
-                </Button>
-              ))}
-            </section>
-            <section className={panelSection}>
-              <h2>Verifier findings</h2>
-              {context?.issues.map(i => (
-                <div key={i.id} className="mt-3">
-                  <p className="text-[11px]">
-                    {humanize(i.rule_code)} · {i.status}
-                  </p>
-                  <Json value={i.details} />
-                </div>
-              ))}
-              {context?.obligations.map(o => (
-                <Button
-                  key={o.id}
-                  size="xs"
-                  variant="ghost"
-                  className="mt-3 h-auto! w-full! justify-start! text-left whitespace-normal!"
-                  onClick={() => onSelect(o.id)}
-                >
-                  {o.description} · {o.status}
-                </Button>
-              ))}
-              {!context?.issues.length && (
                 <p className="text-[11px] text-zinc-500">
-                  No recorded findings for this statement. Run verification to check current
-                  material.
+                  {context?.reasoning_steps.some(r => r.conclusion_id === statement.id)
+                    ? 'Reached by reasoning from other claims (below), not cited directly.'
+                    : 'Cites no source passage.'}
                 </p>
               )}
             </section>
+            {!!context &&
+              (context.reasoning_steps.length > 0 ||
+                context.upstream_statements.length > 0 ||
+                context.downstream_statements.length > 0) && (
+                <section className={panelSection}>
+                  <h2>In the argument</h2>
+                  {context.reasoning_steps
+                    .filter(r => r.conclusion_id === statement.id)
+                    .map(r => (
+                      <div key={r.id}>
+                        <p className="mt-2 text-[10px] text-zinc-500">Reached by this reasoning</p>
+                        {jump(r.id, r.explanation)}
+                      </div>
+                    ))}
+                  {context.downstream_statements.length > 0 && (
+                    <>
+                      <p className="mt-3 text-[10px] text-zinc-500">Supports the conclusion</p>
+                      {context.downstream_statements.map(s => jump(s.id, s.text))}
+                    </>
+                  )}
+                  {context.upstream_statements.length > 0 && (
+                    <>
+                      <p className="mt-3 text-[10px] text-zinc-500">Rests on</p>
+                      {context.upstream_statements.map(s => jump(s.id, s.text))}
+                    </>
+                  )}
+                </section>
+              )}
+            {links(statement.id)}
+            {findings(statement.id)}
           </>
         )}
+
         {step && (
           <>
             <section className={panelSection}>
-              <h2>Required premises</h2>
-              {linked(step.premise_ids)}
-              <h2 className="mt-4">Conclusion</h2>
-              {linked([step.conclusion_id])}
+              <h2>From these claims</h2>
+              <p className="text-[10px] text-zinc-500">All are needed for the step to hold.</p>
+              {step.premise_ids.map(p => jump(p, claimText(p)))}
+              <h2 className="mt-4">To this conclusion</h2>
+              {jump(step.conclusion_id, claimText(step.conclusion_id))}
             </section>
-            <p className="mt-4 text-[10px] text-zinc-500">
-              Reasoning-step issues are included in verification counts. This API exposes detailed
-              context for statements only.
-            </p>
+            {findings(step.id)}
           </>
         )}
+
+        {review()}
+
         {node && (
-          <details className={panelSection}>
-            <summary className="cursor-pointer text-[11px]">Propose an annotation</summary>
-            <p className="my-3 text-[10px] text-zinc-500">
-              Annotations add explicit metadata for the verifier. The API records them as proposed
-              and does not return an annotation listing.
+          <Details>
+            <p>
+              Recorded {new Date(node.created_at).toLocaleString()} by{' '}
+              {humanize(String(node.provenance?.actor_id ?? node.provenance?.actor_type ?? ''))}
             </p>
-            <Input
-              size="sm"
-              label="Annotation type"
-              value={annotationType}
-              onChange={e => setAnnotationType(e.target.value)}
-            />
-            <label className="mt-3 block text-[10px]">
-              Annotation value (JSON object)
-              <textarea
-                aria-label="Annotation value"
-                className="mt-2 min-h-24 w-full rounded border border-line p-2 font-mono text-[10px]"
-                value={annotationValue}
-                onChange={e => setAnnotationValue(e.target.value)}
-              />
-            </label>
-            <Button
-              size="xs"
-              className="mt-3"
-              disabled={busy || !annotationType.trim()}
-              onClick={() =>
-                perform(async () => {
-                  const value: unknown = JSON.parse(annotationValue);
-                  if (!value || Array.isArray(value) || typeof value !== 'object')
-                    throw new Error('Annotation value must be a JSON object.');
-                  const result = await api.patchGraph(state.workspace.id, [
-                    {
-                      op: 'create_annotation',
-                      subject_type: type,
-                      subject_id: id,
-                      type: annotationType.trim(),
-                      value: value as Record<string, unknown>,
-                      provenance: api.userProvenance,
-                    },
-                  ]);
-                  setNotice(
-                    `Annotation recorded in patch ${result.patch_id}. Run verification to see its effect.`,
-                  );
-                  await refresh();
-                })
-              }
-            >
-              Propose annotation
-            </Button>
-            {notice && (
-              <p role="status" className="mt-3 text-[10px]">
-                {notice}
+            <Json value={node.provenance} />
+            <details className="mt-3">
+              <summary className="cursor-pointer">Propose an annotation</summary>
+              <p className="my-2">
+                Annotations add explicit metadata for the verifier, such as a missing premise.
               </p>
-            )}
-          </details>
+              <Input
+                size="sm"
+                label="Annotation type"
+                value={annotationType}
+                onChange={e => setAnnotationType(e.target.value)}
+              />
+              <label className="mt-3 block">
+                Annotation value (JSON object)
+                <textarea
+                  aria-label="Annotation value"
+                  className="mt-2 min-h-24 w-full rounded border border-line p-2 font-mono text-[10px]"
+                  value={annotationValue}
+                  onChange={e => setAnnotationValue(e.target.value)}
+                />
+              </label>
+              <Button
+                size="xs"
+                className="mt-3"
+                disabled={busy || !annotationType.trim()}
+                onClick={() =>
+                  perform(async () => {
+                    const value: unknown = JSON.parse(annotationValue);
+                    if (!value || Array.isArray(value) || typeof value !== 'object')
+                      throw new Error('Annotation value must be a JSON object.');
+                    const result = await api.patchGraph(state.workspace.id, [
+                      {
+                        op: 'create_annotation',
+                        subject_type: type,
+                        subject_id: id,
+                        type: annotationType.trim(),
+                        value: value as Record<string, unknown>,
+                        provenance: api.userProvenance,
+                      },
+                    ]);
+                    setNotice(
+                      `Annotation recorded in patch ${result.patch_id}. Run verification to see its effect.`,
+                    );
+                    await refresh();
+                  })
+                }
+              >
+                Propose annotation
+              </Button>
+              {notice && (
+                <p role="status" className="mt-3">
+                  {notice}
+                </p>
+              )}
+            </details>
+            <p className="mt-3 break-all">ID {id}</p>
+          </Details>
         )}
+
         {excerpt && (
           <>
             <blockquote className="mt-4 border-l-2 border-zinc-300 pl-3 text-[12px] leading-relaxed whitespace-pre-wrap">
               {excerpt.text}
             </blockquote>
-            <section className={panelSection}>
-              <h2>Immutable locator</h2>
+            {(() => {
+              const from = state.sources.find(s => s.id === excerpt.source_id);
+              return (
+                from && (
+                  <section className={panelSection}>
+                    <h2>From</h2>
+                    {jump(from.id, sourceName(from))}
+                  </section>
+                )
+              );
+            })()}
+            <Details>
+              <p>Passage {excerpt.sequence} of its source, at a fixed location:</p>
               <Json value={excerpt.locator} />
-              <p className="mt-3 text-[10px]">Excerpt sequence {excerpt.sequence}</p>
-              <Button
-                size="xs"
-                variant="ghost"
-                className="mt-3"
-                onClick={() => onSelect(excerpt.source_id)}
-              >
-                Inspect source
-              </Button>
-            </section>
+              <p className="mt-3 break-all">ID {id}</p>
+            </Details>
           </>
         )}
+
         {source && (
           <>
-            <h3 className="mt-4 text-[14px]">{sourceName(source)}</h3>
-            <p className="mt-2 text-[10px] text-zinc-500">
-              {source.mime_type} · {source.origin}
+            <h3 className="mt-4 text-[14px] leading-snug">{sourceName(source)}</h3>
+            <p className="mt-2 text-[11px] text-zinc-500">
+              {[
+                typeof source.metadata?.journal === 'string' && source.metadata.journal,
+                typeof source.metadata?.publication_date === 'string' &&
+                  source.metadata.publication_date.slice(0, 4),
+                source.metadata?.is_retracted === true && 'Retracted',
+              ]
+                .filter(Boolean)
+                .join(' · ')}
             </p>
-            <section className={panelSection}>
-              <h2>Source provenance</h2>
-              <p className="text-[10px] break-all">SHA-256 {source.content_hash}</p>
-              <Json value={source.metadata} />
-              <Json value={source.external_ids} />
-            </section>
-            <section className={panelSection}>
-              <h2>Source validity</h2>
-              <p className="mb-3 text-[10px] text-zinc-500">
-                Record an invalidation or restore source validity, with a reason. Run verification
-                to update affected statements.
+            {(() => {
+              const doi = source.external_ids?.doi;
+              const url = doi ? `https://doi.org/${doi}` : source.external_ids?.url;
+              return (
+                typeof url === 'string' && (
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 inline-block text-[11px] underline"
+                  >
+                    Open the original
+                  </a>
+                )
+              );
+            })()}
+            {state.validity[id]?.status === 'invalidated' && (
+              <p className="mt-3 text-[11px] text-fail">
+                Marked invalid: {state.validity[id].reason}
               </p>
-              {state.validity[id] && (
-                <p className="mb-3 text-[11px]">
-                  Latest recorded decision: {state.validity[id].status} ·{' '}
-                  {state.validity[id].reason}
+            )}
+            <section className={panelSection}>
+              <h2>Passages ({source.excerpts.length})</h2>
+              {source.excerpts.slice(0, 30).map(e => jump(e.id, e.text))}
+              {source.excerpts.length > 30 && (
+                <p className="mt-2 text-[10px] text-zinc-500">
+                  First 30 of {source.excerpts.length} shown.
                 </p>
               )}
+            </section>
+            <section className={panelSection}>
+              <h2>Validity</h2>
+              <p className="mb-3 text-[10px] text-zinc-500">
+                Mark the source invalid (for example retracted) or valid again, with a reason.
+                Claims resting on it are re-checked.
+              </p>
               <Input
                 size="sm"
-                label="Validity reason"
+                label="Reason"
                 value={reason}
                 onChange={e => setReason(e.target.value)}
               />
@@ -349,59 +511,113 @@ export function ResearchInspector({
                       })
                     }
                   >
-                    {status === 'valid' ? 'Mark valid' : 'Invalidate source'}
+                    {status === 'valid' ? 'Mark valid' : 'Mark invalid'}
                   </Button>
                 ))}
               </div>
             </section>
-            <section className={panelSection}>
-              <h2>Exact excerpts</h2>
-              {linked(source.excerpts.map(e => e.id))}
-            </section>
+            <Details>
+              <p>
+                {source.mime_type} · {humanize(source.origin)}
+              </p>
+              <p className="mt-1 break-all">SHA-256 {source.content_hash}</p>
+              <Json value={source.external_ids} />
+              <Json value={source.metadata} />
+              <p className="mt-3 break-all">ID {id}</p>
+            </Details>
           </>
         )}
+
         {relation && (
           <>
-            <p className="mt-4 text-sm">Proposed {humanize(relation.relation)} link</p>
-            <section className={panelSection}>
-              <h2>Connected objects</h2>
-              {linked([relation.source_node_id, relation.target_node_id])}
+            <section className="mt-3">
+              <p className="text-[10px] text-zinc-500">This claim</p>
+              {jump(relation.source_node_id, claimText(relation.source_node_id))}
+              <p
+                className="mt-2 text-[11px] font-semibold"
+                style={{ color: LINK_COLOURS[relation.relation] }}
+              >
+                {humanize(relation.relation)}
+              </p>
+              {jump(relation.target_node_id, claimText(relation.target_node_id))}
             </section>
+            {typeof relation.metadata.generator_rationale === 'string' && (
+              <section className={panelSection}>
+                <h2>Why they are linked</h2>
+                <p className="text-[12px] leading-relaxed">
+                  {relation.metadata.generator_rationale}
+                </p>
+              </section>
+            )}
             <section className={panelSection}>
-              <h2>Audit and provenance</h2>
-              {relation.metadata.audit_verdict === 'needs_review' && (
-                <p className="text-warn">
-                  Needs review. Do not treat this link as corroboration or contradiction.
+              <h2>Independent check</h2>
+              {relation.metadata.audit_verdict === 'needs_review' ? (
+                <p className="text-[12px] leading-relaxed text-warn">
+                  Unconfirmed: the cited passages do not clearly show this link. Read both claims
+                  before relying on it.
+                </p>
+              ) : relation.metadata.audit_verdict === 'supported' ? (
+                <p className="text-[12px] leading-relaxed text-pass">
+                  Confirmed from the cited passages.
+                </p>
+              ) : (
+                <p className="text-[12px] text-zinc-500">Not checked yet.</p>
+              )}
+              {typeof relation.metadata.audit_rationale === 'string' && (
+                <p className="mt-2 text-[11px] leading-relaxed text-zinc-600">
+                  {relation.metadata.audit_rationale}
                 </p>
               )}
-              <Json value={relation.metadata} />
             </section>
+            <Details>
+              <Json value={relation.metadata} />
+              <p className="mt-3 break-all">ID {id}</p>
+            </Details>
           </>
         )}
+
         {obligation && (
           <>
-            <p className="mt-4 text-[14px] leading-relaxed">{obligation.description}</p>
-            <p className="mt-3 text-[10px]">
-              {humanize(obligation.kind)} · {obligation.status}
+            <p className="mt-4 text-[13px] leading-relaxed">
+              {readableFinding(obligation.description)}
             </p>
             <section className={panelSection}>
-              <h2>Required condition</h2>
-              <p className="text-[12px] leading-relaxed">{obligation.required_condition}</p>
-              <p className="mt-3 text-[10px]">Rule: {obligation.generated_by_rule}</p>
-              {linked(
-                [obligation.blocks_node_id ?? obligation.blocks_statement_id ?? ''].filter(Boolean),
-              )}
+              <h2>What would resolve it</h2>
+              <p className="text-[12px] leading-relaxed">
+                {readableFinding(obligation.required_condition)}
+              </p>
             </section>
+            {(obligation.blocks_node_id ?? obligation.blocks_statement_id) && (
+              <section className={panelSection}>
+                <h2>Holds back</h2>
+                {(() => {
+                  const target = (obligation.blocks_node_id ?? obligation.blocks_statement_id)!;
+                  const stepText = state.graph.reasoning_steps.find(
+                    r => r.id === target,
+                  )?.explanation;
+                  return jump(target, stepText ?? claimText(target));
+                })()}
+              </section>
+            )}
+            <Details>
+              <p>
+                {capitalise(humanize(obligation.kind))} · {obligation.status} · rule{' '}
+                {obligation.generated_by_rule}
+              </p>
+              <p className="mt-3 break-all">ID {id}</p>
+            </Details>
           </>
         )}
+
         {!node && !excerpt && !source && !relation && !obligation && (
           <p className="mt-5 text-[11px] leading-relaxed text-zinc-500">
-            The graph links to this excerpt, but its source could not be loaded. Refresh the
-            workspace to retrieve its exact text and locator.
+            The graph links to this passage, but its source could not be loaded. Refresh the
+            workspace to retrieve its exact text.
           </p>
         )}
-        <p className="mt-8 text-[10px] break-all text-zinc-500">ID {id}</p>
       </div>
     </aside>
   );
 }
+
+const capitalise = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);

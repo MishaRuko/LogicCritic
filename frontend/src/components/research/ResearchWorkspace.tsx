@@ -8,6 +8,7 @@ import { labSample, loadLabSample } from '../../lib/research/demo';
 import {
   allObligations,
   filterGraph,
+  withdrawnIds,
   withoutWithdrawn,
   projectWorkspace,
   sourceName,
@@ -102,7 +103,7 @@ export function ResearchWorkspace() {
     () => (state ? projectWorkspace(state, detailedGraph, highlighted) : { nodes: [], edges: [] }),
     [state, detailedGraph, highlighted],
   );
-  const withdrawn = fullGraph.nodes.filter(n => n.lifecycle === 'rejected').length;
+  const withdrawn = withdrawnIds(fullGraph).size;
   // Withdrawn claims are left out of the layout too, so hiding them leaves no gaps.
   const layoutGraph = useMemo(
     () => (showWithdrawn || lifecycle === 'rejected' ? fullGraph : withoutWithdrawn(fullGraph)),
@@ -638,6 +639,12 @@ export function ResearchWorkspace() {
                   <ResearchExperiments
                     key={id}
                     initialSourceId={experimentSourceId}
+                    researching={activeResearch.length > 0}
+                    lastQuestion={
+                      agentRuns.data?.find(r => r.goal?.question)?.goal?.question ??
+                      agentRuns.data?.[0]?.question
+                    }
+                    onResearchStarted={() => void agentRuns.refetch()}
                     state={state}
                     data={experiments.data}
                     loading={experiments.isPending}

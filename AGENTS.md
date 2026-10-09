@@ -58,7 +58,7 @@ AMASS_API_KEY= CLAUDE_API_KEY= docker compose run --rm --no-deps --user root \
 Frontend: `pnpm --dir frontend test`, `pnpm --dir frontend typecheck`, `pnpm --dir frontend build`.
 Vision: run `python -m pytest` in `vision/` (install `vision[dev]`).
 
-Current baseline: backend 474 passed, frontend 97 passed, vision 77 passed.
+Current baseline: backend 475 passed, frontend 104 passed, vision 80 passed.
 
 ## Rules that are easy to break
 
@@ -169,6 +169,25 @@ it adds beyond its premises. Certainty is computed, not chosen: `finalize` gives
 the highest allowed level unless the agent passes `lowered_because`, which the report shows
 ("The evidence allowed X; lowered because ..."). Told to finalize at the ceiling, the agent still
 chose a level lower in 3 of 15 runs, so the choice was taken away.
+
+## Methodology for experiments
+
+The protocol an experiment is checked against is compiled by the research agent
+(`record_protocol`) for the question from all the sources it read: each step cites the passages
+that state it, from any source, and where sources differ the step gives the alternatives and the
+basis says what was chosen. The Experiments tab shows it as "Compiled by the research agent". If a
+workspace has none (uploaded papers only, or research from before), "Compile from all sources"
+starts a quick research run (no web search) that compiles one from the workspace's sources.
+"Use one paper's methods instead" (the default when nothing is compiled) takes the steps from
+one paper's methods section; sources without one (abstract-only papers, web pages) are listed
+but cannot be chosen. Prose methods are structured by `lab_vision.structuring`, which keeps only
+physical bench actions, in order, each quoting the paper verbatim.
+When a paper describes alternative procedures (two device types, say), each step carries a
+`variant` and the Experiments tab asks which one is being recorded; a run stores it
+(`result.variant`) and is checked against the shared steps plus that procedure's
+(`Protocol.only`). Characterisation steps (XRD, microscopy, electrical tests) are marked
+optional, and units such as "oC" read as °C. Checked on a real fabrication paper (two
+device types, 13k characters of prose methods): 32 bench steps, both procedures found.
 
 ## Models (backend/app/config.py)
 

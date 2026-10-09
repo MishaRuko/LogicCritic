@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as api from '../src/lib/research/api';
@@ -10,7 +10,15 @@ const source = {
   title: 'Bench study',
   original_filename: 'study.md',
   origin: 'upload',
-  excerpts: [],
+  metadata: {},
+  excerpts: [
+    {
+      id: 'methods-1',
+      text: 'Set the pipette to 50 uL.',
+      locator: { section: 'Methods' },
+      sequence: 1,
+    },
+  ],
 };
 const state = {
   workspace: { id: 'workspace' },
@@ -90,7 +98,8 @@ describe('research to experiment handoff', () => {
         data={{ ...data, protocols: [], suggested: suggested('handed-over') }}
       />,
     );
-    expect(screen.getByLabelText('Methodology source')).toHaveValue('handed-over');
+    expect(screen.getByText('Compiled by the research agent')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Methods from one paper')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Run sample experiment' }));
     await waitFor(() =>
       expect(start).toHaveBeenCalledWith(
@@ -113,7 +122,10 @@ describe('research to experiment handoff', () => {
         data={{ ...data, protocols: [], suggested: suggested('handed-over') }}
       />,
     );
-    fireEvent.change(screen.getByLabelText('Methodology source'), { target: { value: 'paper' } });
+    fireEvent.click(screen.getByRole('button', { name: "Use one paper's methods instead" }));
+    fireEvent.change(screen.getByLabelText('Methods from one paper'), {
+      target: { value: 'paper' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Run sample experiment' }));
     await waitFor(() =>
       expect(start).toHaveBeenCalledWith('workspace', undefined, 'demo', undefined, 'paper', false),
@@ -242,7 +254,80 @@ describe('research to experiment handoff', () => {
       'Bench study',
     );
     fireEvent.click(screen.getByRole('button', { name: 'New experiment' }));
-    expect(screen.getByLabelText('Methodology source')).toHaveValue('newer');
+    expect(screen.getByText('Compiled by the research agent')).toBeInTheDocument();
+  });
+
+  it('compiles a methodology from all sources on request, for the last research question', async () => {
+    const run = vi.spyOn(api, 'startAgentRun').mockResolvedValue({ id: 'run' } as never);
+    const started = vi.fn();
+    render(
+      <ResearchExperiments
+        {...props}
+        state={withSources(paper)}
+        data={{ ...data, protocols: [], suggested: null }}
+        lastQuestion="How is drug X given?"
+        onResearchStarted={started}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Compile from all sources' }));
+    await waitFor(() => expect(started).toHaveBeenCalled());
+    const input = run.mock.calls[0][1];
+    expect(input.question).toContain('How is drug X given?');
+    expect(input.question).toContain('from the sources already in this workspace');
+    expect([input.depth, input.max_web_searches, input.mode]).toEqual(['quick', 0, 'guarded']);
+  });
+
+  it('says a methodology is being compiled while research runs', () => {
+    render(
+      <ResearchExperiments
+        {...props}
+        state={withSources(paper)}
+        data={{ ...data, protocols: [], suggested: null }}
+        researching
+      />,
+    );
+    expect(
+      screen.queryByRole('button', { name: 'Compile from all sources' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(/a compiled methodology appears here/)).toBeInTheDocument();
+  });
+
+  it('asks which procedure is being recorded when the source describes several', async () => {
+    const start = vi.spyOn(api, 'startExperiment').mockResolvedValue({ id: 'run' } as never);
+    const two = {
+      ...protocol,
+      source_id: 'paper',
+      current: true,
+      protocol: {
+        ...protocol.protocol,
+        steps: [
+          { ...protocol.protocol.steps[0], id: 'a1', variant: 'Device A' },
+          { ...protocol.protocol.steps[0], id: 'b1', variant: 'Device B' },
+        ],
+      },
+    };
+    render(
+      <ResearchExperiments
+        {...props}
+        state={withSources(paper)}
+        data={{ ...data, protocols: [two], suggested: null }}
+      />,
+    );
+    const choice = screen.getByLabelText('Procedure to record');
+    expect(choice).toHaveValue('Device A');
+    fireEvent.change(choice, { target: { value: 'Device B' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Run sample experiment' }));
+    await waitFor(() =>
+      expect(start).toHaveBeenCalledWith(
+        'workspace',
+        two.id,
+        'demo',
+        undefined,
+        'paper',
+        false,
+        'Device B',
+      ),
+    );
   });
 
   it('does not pick an agent protocol the backend is not suggesting', () => {
@@ -254,7 +339,8 @@ describe('research to experiment handoff', () => {
         data={{ ...data, protocols: [], suggested: null }}
       />,
     );
-    expect(screen.getByLabelText('Methodology source')).toHaveValue('paper');
+    expect(screen.getByLabelText('Methods from one paper')).toHaveValue('paper');
+    expect(screen.getByRole('button', { name: 'Compile from all sources' })).toBeInTheDocument();
   });
 
   it('ignores a suggestion for a source that is not in the workspace', () => {
@@ -265,7 +351,8 @@ describe('research to experiment handoff', () => {
         data={{ ...data, protocols: [], suggested: suggested('missing') }}
       />,
     );
-    expect(screen.getByLabelText('Methodology source')).toHaveValue('paper');
+    expect(screen.getByLabelText('Methods from one paper')).toHaveValue('paper');
+    expect(screen.getByRole('button', { name: 'Compile from all sources' })).toBeInTheDocument();
   });
 
   it('opens the requested protocol setup even when a previous result exists', () => {
@@ -547,13 +634,35 @@ describe('retracted research', () => {
     render(
       <ResearchExperiments {...props} state={withValidity} data={{ ...data, protocols: [] }} />,
     );
-    const select = screen.getByLabelText('Methodology source');
+    const select = screen.getByLabelText('Methods from one paper');
     expect(select).toHaveValue('sound');
     expect(screen.getByRole('option', { name: '(Retracted) Withdrawn trial' })).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 
     fireEvent.change(select, { target: { value: 'retracted' } });
     expect(screen.getByRole('alert')).toHaveTextContent('This paper has been retracted');
+  });
+
+  it('offers sources without a methods section last, and says why they give no steps', () => {
+    const abstract = {
+      ...source,
+      id: 'abstract',
+      title: 'Abstract only',
+      metadata: { fulltext_imported: false },
+      excerpts: [{ id: 'a1', text: 'We found...', locator: { section: 'Abstract' }, sequence: 0 }],
+    };
+    const both = { ...state, sources: [abstract, source] } as unknown as Snapshot;
+    render(<ResearchExperiments {...props} state={both} data={{ ...data, protocols: [] }} />);
+    const select = screen.getByLabelText('Methods from one paper');
+    expect(select).toHaveValue('source'); // the one with a methods section, though listed second
+    const option = screen.getByRole('option', {
+      name: 'Abstract only · no methods section (abstract only)',
+    });
+    expect(option).toBeDisabled();
+    cleanup();
+    const only = { ...state, sources: [abstract] } as unknown as Snapshot;
+    render(<ResearchExperiments {...props} state={only} data={{ ...data, protocols: [] }} />);
+    expect(screen.getByRole('alert')).toHaveTextContent('Only the abstract of this paper');
   });
 
   it('says why the analysis cannot run yet', () => {

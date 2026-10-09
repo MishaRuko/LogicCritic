@@ -5,9 +5,9 @@ import httpx
 import pytest
 from lab_vision.models import Observation
 
-from app.database import engine
+from app.database import engine, session_factory
 from app.main import app
-from app.models import Excerpt, Source
+from app.models import Excerpt, ExperimentProtocol, Source
 from app.services.experiments import (
     demo_observations,
     extract_protocol,
@@ -498,3 +498,30 @@ def test_video_agent_reports_retain_the_persisted_checks_and_verdicts():
     altered["recordHash"] = canonical_hash({k: v for k, v in altered.items() if k != "recordHash"})
     with pytest.raises(ValueError, match="persisted video findings"):
         validate_record(altered, run, protocol)
+
+
+async def test_a_recording_follows_one_of_the_procedures_a_paper_describes(api):
+    _, draft = await prepare(api)
+    async with session_factory() as session:
+        stored = await session.get(ExperimentProtocol, uuid.UUID(draft["id"]))
+        steps = stored.protocol["steps"]
+        stored.protocol = {
+            **stored.protocol,
+            "steps": [
+                {**steps[0]},
+                {**steps[1], "variant": "Device A"},
+                {**steps[2], "variant": "Device B"},
+            ],
+        }
+        await session.commit()
+    start = f"{api.base}/experiment-runs"
+    run = await api.post(start, data={"protocol_id": draft["id"], "mode": "demo"})
+    assert run.status_code == 202 and run.json()["result"]["variant"] == "Device A"  # the first
+    run = await api.post(
+        start, data={"protocol_id": draft["id"], "mode": "demo", "variant": "Device B"}
+    )
+    assert run.json()["result"]["variant"] == "Device B"
+    refused = await api.post(
+        start, data={"protocol_id": draft["id"], "mode": "demo", "variant": "Device C"}
+    )
+    assert refused.status_code == 422

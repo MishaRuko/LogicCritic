@@ -141,3 +141,53 @@ def test_saved_yaml_round_trips(tmp_path):
 
     assert "μL" in path.read_text(encoding="utf-8")  # not escaped
     assert load_protocol(path) == protocol
+
+
+PAPER = """Glass was cleaned in acetone. Device A films were spin coated at 4000 rpm. \
+Device A films were annealed at 80 oC. Device B films were spin coated at 1000 rpm. \
+Device B films were annealed at 100 oC. XRD was measured with a diffractometer."""
+
+
+def paper_draft():
+    temp = dict(id="temp", question="What temperature does the hotplate show?", unit="oC")
+    return ProtocolDraft(
+        steps=[
+            step(1, "Glass was cleaned in acetone."),
+            step(2, "Device A films were spin coated at 4000 rpm.", variant="Device A"),
+            step(
+                3,
+                "Device A films were annealed at 80 oC.",
+                [check(**temp, expected="80")],
+                variant="Device A",
+            ),
+            step(4, "Device B films were spin coated at 1000 rpm.", variant="Device B"),
+            step(
+                5,
+                "Device B films were annealed at 100 oC.",
+                [check(**temp, expected="100")],
+                variant="Device B",
+            ),
+            step(6, "XRD was measured with a diffractometer.", measurement=True),
+        ]
+    )
+
+
+def test_a_paper_with_two_procedures_keeps_both_and_a_recording_follows_one():
+    protocol = structure_protocol(PAPER, ScriptedLLM(paper_draft()), "paper", "Paper")
+    assert protocol.variants == ["Device A", "Device B"]
+    # Shared steps stay in both; the default is the first procedure described.
+    assert [s.id for s in protocol.only(None).steps] == ["s1", "s2", "s3", "s6"]
+    assert [s.id for s in protocol.only("Device B").steps] == ["s1", "s4", "s5", "s6"]
+    # A name the protocol does not have falls back to the first, never to nothing.
+    assert [s.id for s in protocol.only("Device C").steps] == ["s1", "s2", "s3", "s6"]
+
+
+def test_measurements_are_optional_and_degrees_read_as_celsius():
+    protocol = structure_protocol(PAPER, ScriptedLLM(paper_draft()), "paper", "Paper")
+    assert protocol.step("s6").optional and not protocol.step("s1").optional
+    assert protocol.step("s3").checks[0].unit == "°C"
+
+
+def test_a_protocol_without_procedures_is_followed_whole():
+    protocol = structure_protocol(TEXT, ScriptedLLM(good_draft()), "mock", "Mock")
+    assert protocol.variants == [] and protocol.only("anything") is protocol

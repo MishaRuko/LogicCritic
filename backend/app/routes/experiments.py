@@ -7,6 +7,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, Response
+from lab_vision.models import Protocol
 from pydantic import BaseModel, ConfigDict, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -274,6 +275,7 @@ async def start_experiment(
     mode: Literal["demo", "replay", "video", "live"] = Form(...),
     file: UploadFile | None = File(None),
     partial_recording: bool = Form(False),
+    variant: str | None = Form(None),
     session: AsyncSession = Depends(get_session),
 ):
     fingerprint = await require_research_ready(session, workspace_id)
@@ -298,6 +300,11 @@ async def start_experiment(
         )
     # Starting a run authorizes using the grounded methodology; explicit review remains optional.
     protocol_id = protocol.id
+    # A source describing alternative procedures: the recording follows one of them.
+    variants = Protocol.model_validate(protocol.protocol).variants
+    if variant and variant not in variants:
+        raise HTTPException(422, f"This protocol has no procedure named {variant!r}.")
+    chosen = variant or (variants[0] if variants else None)
     if mode in ("video", "live") and not get_settings().claude_api_key:
         raise HTTPException(
             503,
@@ -337,6 +344,7 @@ async def start_experiment(
         storage_key=storage_key,
         result={
             "coverage": "excerpt" if partial_recording else "complete_recording",
+            **({"variant": chosen} if chosen else {}),
             **({"live": {"observations": [], "deviations": []}} if mode == "live" else {}),
         },
     )

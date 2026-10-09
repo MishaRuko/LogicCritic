@@ -334,8 +334,8 @@ export function ResearchCanvas({
     // above them, a link's hit area covered the node and broke the hover that showed it.
     const ordered = [...graph.edges].sort(
       (a, b) =>
-        Number(a.source === focus || a.target === focus) -
-        Number(b.source === focus || b.target === focus),
+        Number(a.id === focus || a.source === focus || a.target === focus) -
+        Number(b.id === focus || b.source === focus || b.target === focus),
     );
     return ordered.map(e => {
       const source = positions.current[e.source],
@@ -346,13 +346,13 @@ export function ResearchCanvas({
       const backwards = source && target && source.x > target.x;
       const checking = checkingIds.has(e.source) || checkingIds.has(e.target);
       const chained = !!highlight?.has(e.source) && !!highlight?.has(e.target);
-      // Structural links read from the arrows and shapes; their labels only crowd the canvas, so
-      // they appear when either end is in focus or an audit has something to say.
-      const labelled =
-        !STRUCTURAL.has(e.relation) || !!e.auditVerdict || e.source === focus || e.target === focus;
+      // Structural links read from the arrows and shapes; their labels only crowd the canvas (a
+      // selected step repeated "premise of" on every line), so only links between claims and
+      // audited links are labelled.
+      const labelled = !STRUCTURAL.has(e.relation) || !!e.auditVerdict;
       // Links across sources are drawn when one of their claims is in focus (or all are asked
       // for): drawn at once, a researched argument's dozens of them hid its structure.
-      const focused = !!focus && (e.source === focus || e.target === focus);
+      const focused = !!focus && (e.id === focus || e.source === focus || e.target === focus);
       const hidden = CROSS_LINKS.has(e.relation) && !allLinks && !checking && !chained && !focused;
       // A claim in focus: its links bold, solid and coloured by meaning; the rest fade back.
       const colour = focused ? (LINK_COLOURS[e.relation] ?? FOCUS_INK) : undefined;

@@ -91,7 +91,7 @@ describe('chat and graph integration', () => {
       const summary = await screen.findByRole('status', { name: 'Agent summary' });
       fireEvent.click(within(summary).getByRole('button', { name: 'Run experiment now' }));
       expect(screen.getByRole('region', { name: 'Start experiment' })).toBeInTheDocument();
-      expect(screen.getByLabelText('Methodology source')).toHaveValue(source.id);
+      expect(screen.getByText('Compiled by the research agent')).toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: 'Run sample experiment' }));
       await waitFor(() =>
         expect(start).toHaveBeenCalledWith(

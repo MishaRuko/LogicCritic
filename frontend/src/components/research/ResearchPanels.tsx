@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Button, Input } from '@cloudflare/kumo';
+import { Button, Input, cn } from '@cloudflare/kumo';
 import type { AssertionMode, PatchOperation, Snapshot, StatementRole } from '../../types/api';
 import * as api from '../../lib/research/api';
-import { allObligations, sourceName } from '../../lib/research/graph';
+import { allObligations, readableFinding, sourceName } from '../../lib/research/graph';
 import { panel, panelSection } from '../ui/classes';
 import { FileTextIcon, ArrowRightIcon } from '@phosphor-icons/react';
 import { ExtractionProgress } from './ResearchUpload';
@@ -591,47 +591,77 @@ export function ArgumentChain({
   target?: string;
   onSelect: (id: string) => void;
 }) {
+  // Withdrawn or replaced claims and steps are left out, as on the canvas.
+  const replaced = new Set(
+    state.graph.relations.filter(r => r.relation === 'revises').map(r => r.target_node_id),
+  );
+  const current = (item: { id: string; lifecycle: string }) =>
+    item.lifecycle !== 'rejected' && !replaced.has(item.id);
+  const conclusions = state.graph.statements.filter(s => s.role === 'conclusion' && current(s));
+  const selectedClaim = state.graph.statements.find(s => s.id === target && current(s));
+  const options = [
+    ...[...conclusions].reverse(),
+    ...(selectedClaim && !conclusions.includes(selectedClaim) ? [selectedClaim] : []),
+  ];
+  const [shown, setShown] = useState<string>();
+  const root =
+    (shown && options.some(o => o.id === shown) && shown) ||
+    (selectedClaim && selectedClaim.role !== 'conclusion' ? selectedClaim.id : undefined) ||
+    options[0]?.id;
+  const sourceOf = (excerptIds: string[]) => {
+    const names = new Set(
+      excerptIds
+        .map(id => state.sources.find(s => s.excerpts.some(e => e.id === id)))
+        .filter(Boolean)
+        .map(s => sourceName(s!)),
+    );
+    return [...names].join(' · ');
+  };
   function render(id: string, path = new Set<string>(), depth = 0): React.ReactNode {
     if (path.has(id) || depth > 20) return <p className="text-warn">Dependency limit reached.</p>;
     const next = new Set([...path, id]);
-    const steps = state.graph.reasoning_steps.filter(r => r.conclusion_id === id);
+    const claim = state.graph.statements.find(s => s.id === id);
+    const steps = state.graph.reasoning_steps.filter(r => r.conclusion_id === id && current(r));
+    const from = claim ? sourceOf(claim.excerpt_ids) : '';
     return (
-      <div key={id} className="mt-3 border-l border-line pl-4">
+      <div key={id} className={cn('mt-3', depth > 0 && 'border-l border-line pl-4')}>
         <Button
           variant="ghost"
           size="sm"
-          className="h-auto! w-full! justify-start! px-0! text-left whitespace-normal!"
+          className={cn(
+            'h-auto! w-full! justify-start! px-0! text-left whitespace-normal!',
+            depth === 0 && 'text-[14px]! font-medium!',
+          )}
           onClick={() => onSelect(id)}
         >
-          {state.graph.statements.find(s => s.id === id)?.text}
+          {claim?.text}
         </Button>
+        {from && <p className="mt-0.5 text-[10px] text-zinc-500">{from}</p>}
         {allObligations(state)
           .filter(o => o.status === 'open' && o.blocks_statement_id === id)
           .map(o => (
-            <Button
+            <button
               key={o.id}
-              variant="ghost"
-              size="xs"
-              className="mt-2 h-auto! w-full! justify-start! text-left text-fail! whitespace-normal!"
+              className="mt-2 block w-full rounded border-l-2 border-fail bg-zinc-50 px-3 py-2 text-left text-[11px] text-zinc-700 hover:bg-zinc-100"
               onClick={() => onSelect(o.id)}
             >
-              {o.description}
-            </Button>
+              {readableFinding(o.description)}
+            </button>
           ))}
         {steps.map(r => (
           <div key={r.id} className="my-3 rounded border border-line p-3">
+            <p className="text-[10px] text-zinc-500">
+              {steps.length > 1 ? 'One line of reasoning' : 'Reasoning'} · from{' '}
+              {r.premise_ids.length} claim{r.premise_ids.length === 1 ? '' : 's'}, all needed
+            </p>
             <Button
               variant="ghost"
               size="xs"
-              className="h-auto! w-full! justify-start! text-left whitespace-normal!"
+              className="mt-1 h-auto! w-full! justify-start! px-0! text-left whitespace-normal!"
               onClick={() => onSelect(r.id)}
             >
-              {r.explanation} · {r.lifecycle}
+              {r.explanation}
             </Button>
-            <p className="mt-2 text-[10px] text-zinc-500">
-              All premises below are required together
-              {steps.length > 1 ? ' · alternative support step' : ''}
-            </p>
             {r.premise_ids.map(p => render(p, next, depth + 1))}
           </div>
         ))}
@@ -642,13 +672,33 @@ export function ArgumentChain({
     <div className={panel}>
       <h1 className="text-lg">Argument chain</h1>
       <p className="mt-2 text-[11px] text-zinc-500">
-        Reasoning steps retain their premise groups. Inspect every dependency before accepting a
-        conclusion.
+        A conclusion, the reasoning that reaches it, and the claims and sources it rests on.
       </p>
-      {target ? (
-        render(target)
+      {options.length > 1 && (
+        <label className="mt-4 flex items-center gap-2 text-[11px] text-zinc-600">
+          Showing
+          <select
+            aria-label="Chain to show"
+            className="max-w-full min-w-0 flex-1 rounded border border-line p-1 text-[11px]"
+            value={root}
+            onChange={e => setShown(e.target.value)}
+          >
+            {options.map((o, index) => (
+              <option key={o.id} value={o.id}>
+                {o.role === 'conclusion'
+                  ? `${index === 0 ? 'Latest conclusion' : 'Conclusion'}: `
+                  : 'Selected claim: '}
+                {o.text.slice(0, 90)}
+                {o.text.length > 90 ? '…' : ''}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {root ? (
+        render(root)
       ) : (
-        <p className="mt-6 text-zinc-500">Choose a statement on the argument canvas.</p>
+        <p className="mt-6 text-zinc-500">No conclusion yet. Choose a claim on the canvas.</p>
       )}
     </div>
   );

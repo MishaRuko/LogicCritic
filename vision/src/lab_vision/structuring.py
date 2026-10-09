@@ -64,6 +64,21 @@ class StepDraft(BaseModel):
     )
     checks: list[CheckDraft]
     optional: bool = Field(description="True only if the protocol marks the step optional.")
+    variant: str | None = Field(
+        default=None,
+        description=(
+            "Only when the text describes alternative procedures (for example two device types or "
+            "two sample preparations): a short name for the one this step belongs to, the same "
+            "name for all its steps. Null for steps all of them share, and when there is only one."
+        ),
+    )
+    measurement: bool = Field(
+        default=False,
+        description=(
+            "True for characterisation or measurement done on the result (XRD, microscopy, "
+            "spectroscopy, electrical testing): it often happens later or elsewhere."
+        ),
+    )
 
 
 class ProtocolDraft(BaseModel):
@@ -71,12 +86,30 @@ class ProtocolDraft(BaseModel):
 
 
 SYSTEM_PROMPT = """\
-You convert a written laboratory protocol into a structured checklist that a camera system \
+You convert a written laboratory procedure into a structured checklist that a camera system \
 will verify against video of the experiment.
 
-Rules:
-- One step per numbered item, in the original order. Use ids s1, s2, ... by position.
-- Copy `source_text` exactly. Never rewrite, merge or drop steps.
+The text is either a numbered protocol or a paper's methods written as prose.
+
+For a numbered protocol:
+- One step per numbered item, in the original order. Never rewrite, merge or drop steps.
+
+For prose methods (a paper's methods or experimental section):
+- Take only the physical actions someone performs at the bench, in the order they are \
+performed, one action per step: preparing, mixing, depositing, heating, measuring with an \
+instrument and the like.
+- Leave out everything else: results, discussion and comparisons, participant recruitment, \
+ethics, study design, statistics and data analysis, and descriptions of what was measured \
+rather than how.
+- If the text describes alternative procedures (for example two device types made in \
+different ways), name each in `variant` on its own steps; a step one procedure says is \
+"identical to" the other's belongs to that procedure too. Mark characterisation and \
+measurement steps with `measurement`.
+
+Rules for both:
+- Use ids s1, s2, ... by position.
+- Copy `source_text` exactly, character for character, from the sentence or clause that states \
+the step.
 - Do not invent anything. Every quantity, temperature, label and time limit must come from \
 the text.
 - Add a check only for a value that can be read off video: a volume set on a pipette or \
@@ -166,6 +199,16 @@ def _numeric_in(expected: str, quote: str) -> bool:
     return any(float(n) == wanted for n in re.findall(r"\d+(?:\.\d+)?", quote))
 
 
+# PDFs set the degree sign as a superscript "o" or spell it out.
+UNITS = {"oc": "°C", "ºc": "°C", "degc": "°C", "deg c": "°C", "c": "°C"}
+
+
+def _unit(unit: str | None) -> str | None:
+    if unit is None:
+        return None
+    return UNITS.get(unit.strip().lower(), unit.strip())
+
+
 def _to_protocol(draft: ProtocolDraft, protocol_id: str, title: str) -> Protocol:
     steps = [
         ProtocolStep(
@@ -173,14 +216,16 @@ def _to_protocol(draft: ProtocolDraft, protocol_id: str, title: str) -> Protocol
             description=s.description,
             source_text=_squash(s.source_text),
             objects=s.objects,
-            optional=s.optional,
+            # Characterisation often happens later or in another lab: not watched for by default.
+            optional=s.optional or s.measurement,
+            variant=(s.variant or "").strip() or None,
             checks=[
                 Check(
                     id=c.id,
                     question=c.question,
                     kind=CheckKind(c.kind),
                     expected=c.expected,
-                    unit=c.unit,
+                    unit=_unit(c.unit),
                     target=c.target,
                     tolerance=c.tolerance or 0.0,
                     accept=c.accept,

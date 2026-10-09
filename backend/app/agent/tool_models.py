@@ -257,8 +257,8 @@ class RecordProtocolInput(BaseModel):
         "watched on video."
     )
     basis: str = Field(
-        description="Which source(s) this follows and, where sources differ, which you chose "
-        "and why."
+        description="How the procedure was compiled: which sources each part comes from and, "
+        "where they differ, what you chose and why."
     )
 
 
@@ -390,8 +390,9 @@ RECORDING_TOOLS: dict[str, tuple[str, type[BaseModel]]] = {
         ReviseClaimInput,
     ),
     "record_protocol": (
-        "Record the laboratory or experimental procedure behind your answer as ordered steps, "
-        "each citing the excerpts that state it. Call it whenever the evidence you relied on "
+        "Record the laboratory or experimental procedure behind your answer, compiled from all "
+        "the sources you read, as ordered steps each citing the excerpts (from any source) that "
+        "state it. Call it whenever the evidence you relied on "
         "describes a procedure someone could carry out to reproduce or test the finding, whether "
         "or not the question asked for one. It becomes a source a lab-monitoring system can "
         "follow, so report only what the sources state and never invent a step. Skip it only if "

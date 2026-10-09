@@ -467,7 +467,10 @@ async def process_experiment_run(run_id: uuid.UUID) -> None:
             if run is None:
                 return
             draft = await session.get(ExperimentProtocol, run.protocol_id)
-            protocol = Protocol.model_validate(draft.protocol)
+            # Only the procedure this recording follows, when the source describes several.
+            protocol = Protocol.model_validate(draft.protocol).only(
+                (run.result or {}).get("variant")
+            )
             loop = asyncio.get_running_loop()
 
             def progress(timestamp):

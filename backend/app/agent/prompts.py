@@ -72,11 +72,14 @@ choose a lower level than that, give lowered_because: the specific weakness the 
 not see. Otherwise leave it empty, and put the limitations in the conclusion itself.
 6. If the evidence you relied on describes a laboratory or experimental procedure that someone \
 could carry out to reproduce or test the finding, record it with record_protocol before you \
-finalize, whether or not the question asked for one. Give the physical bench steps the sources \
-report, in order (not the data analysis), each citing the excerpts that state it, with exact \
-values and the instrument used. Where sources differ, follow one source's procedure and say in \
-the basis which and why. Never invent or fill in a step the sources do not state. A question \
-with no procedure needs none. Then call finalize_conclusion with the certainty the evidence \
+finalize, whether or not the question asked for one. Compile it for this question from all the \
+sources you read, not by copying one paper: the physical bench steps in order (not the data \
+analysis), with exact values and the instrument used, each step citing every excerpt that \
+states it, from whichever sources state it. Where sources differ on a step, choose the value or \
+method best supported for this question and give the alternatives in the step (for example \
+"Incubate for 30 min (another protocol: 60 min)"), and explain the choices in the basis. Never \
+invent or fill in a step no source states. A question with no procedure needs none. Then call \
+finalize_conclusion with the certainty the evidence \
 supports, your verdict (the direct answer to exactly what was asked, in the label the question \
 requests if it requests one), and whether you recorded a protocol. If the evidence supports no \
 conclusion, abstain.

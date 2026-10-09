@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Button, cn } from '@cloudflare/kumo';
 import * as api from '../../lib/research/api';
-import { allObligations, humanize } from '../../lib/research/graph';
+import { allObligations, humanize, readableFinding } from '../../lib/research/graph';
 import type { Snapshot, Verification } from '../../types/api';
 import { panel, panelSection } from '../ui/classes';
 
@@ -117,7 +117,7 @@ export function ResearchChecksPanel({
                 onClick={() => onSelect(obligation.id)}
               >
                 <span className="min-w-0">
-                  <span className="block">{obligation.description}</span>
+                  <span className="block">{readableFinding(obligation.description)}</span>
                   {target && (
                     <span className="mt-1 line-clamp-2 font-normal text-zinc-500">{target}</span>
                   )}

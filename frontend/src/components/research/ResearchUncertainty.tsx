@@ -4,7 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { cn } from '@cloudflare/kumo';
 import { CaretDownIcon } from '@phosphor-icons/react';
 import { useAgentEvents } from '../../lib/research/agent';
-import { allObligations } from '../../lib/research/graph';
+import { allObligations, readableFinding } from '../../lib/research/graph';
 import type { AgentEvent, AgentRun, Assurance, AssuranceLevel, Snapshot } from '../../types/api';
 
 const scale: AssuranceLevel[] = [
@@ -139,7 +139,7 @@ export function ResearchUncertainty({
               className="shrink-0 transition-transform duration-200 group-open:rotate-180 motion-reduce:transition-none"
             />
             <span className="min-w-0 truncate group-open:whitespace-normal">
-              {reasons[0].description}
+              {readableFinding(reasons[0].description)}
             </span>
             {reasons.length > 1 && (
               <span className="shrink-0 text-zinc-500">+{reasons.length - 1} more</span>
@@ -148,7 +148,7 @@ export function ResearchUncertainty({
           {reasons.length > 1 && (
             <ul className="mt-1 space-y-1 pl-[18px]">
               {reasons.slice(1).map((reason, index) => (
-                <li key={`${reason.kind}-${index}`}>{reason.description}</li>
+                <li key={`${reason.kind}-${index}`}>{readableFinding(reason.description)}</li>
               ))}
             </ul>
           )}

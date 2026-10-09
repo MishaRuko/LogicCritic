@@ -372,3 +372,13 @@ describe('withdrawn claims', () => {
     expect(kept.edges).toEqual([]);
   });
 });
+
+describe('verifier text for people', () => {
+  it('does not show internal ids', async () => {
+    const { readableFinding } = await import('../src/lib/research/graph');
+    expect(readableFinding('Reviewer: Statement 971af531 cites only section titles.')).toBe(
+      'Reviewer: a claim cites only section titles.',
+    );
+    expect(readableFinding('No ids here.')).toBe('No ids here.');
+  });
+});
